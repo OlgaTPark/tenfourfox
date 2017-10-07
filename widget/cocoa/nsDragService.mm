@@ -35,8 +35,12 @@ extern PRLogModuleInfo* sCocoaLog;
 
 extern void EnsureLogInitialized();
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+extern NSPasteboard* globalDragPboard;
+#else
 // restore bug 966986
 extern NSPasteboardWrapper* globalDragPboard;
+#endif
 extern NSView* gLastDragView;
 extern NSEvent* gLastDragMouseDownEvent;
 extern bool gUserCancelledDrag;
@@ -49,10 +53,13 @@ NSString* const kWildcardPboardType = @"MozillaWildcard";
 NSString* const kCorePboardType_url  = @"CorePasteboardFlavorType 0x75726C20"; // 'url '  url
 NSString* const kCorePboardType_urld = @"CorePasteboardFlavorType 0x75726C64"; // 'urld'  desc
 NSString* const kCorePboardType_urln = @"CorePasteboardFlavorType 0x75726C6E"; // 'urln'  title
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // bug 966986 attachment 8540201
 NSString* const kCorePboardType_text = @"CorePasteboardFlavorType 0x54455854"; // 'TEXT'  text
+#endif
 NSString* const kUTTypeURLName = @"public.url-name";
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // restore bug 966986
 @implementation NSPasteboardWrapper
 - (id)initWithPasteboard:(NSPasteboard*)aPasteboard
@@ -93,6 +100,7 @@ NSString* const kUTTypeURLName = @"public.url-name";
   [super dealloc];
 }
 @end
+#endif
 
 nsDragService::nsDragService()
 {
@@ -276,7 +284,7 @@ nsDragService::ConstructDragImage(nsIDOMNode* aDOMNode,
 }
 
 // Not supported on 10.4
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 bool
 nsDragService::IsValidType(NSString* availableType, bool allowFileURL)
 {
@@ -484,7 +492,7 @@ nsDragService::GetData(nsITransferable* aTransferable, uint32_t aItemIndex)
     MOZ_LOG(sCocoaLog, LogLevel::Info, ("nsDragService::GetData: looking for clipboard data of type %s\n", flavorStr.get()));
 
 // revert bug 966986
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     NSArray* droppedItems = [globalDragPboard pasteboardItems];
     if (!droppedItems) {
       continue;
@@ -502,7 +510,7 @@ nsDragService::GetData(nsITransferable* aTransferable, uint32_t aItemIndex)
 #endif
 
     if (flavorStr.EqualsLiteral(kFileMime)) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
       NSString* filePath = GetFilePath(item);
 #else
       NSArray* pFiles = [globalDragPboard propertyListForType:NSFilenamesPboardType];
@@ -535,7 +543,7 @@ nsDragService::GetData(nsITransferable* aTransferable, uint32_t aItemIndex)
 
 // backout 966986 and use updated fix from attachment 8540201
 // https://bug966986.bmoattachments.org/attachment.cgi?id=8540201
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     NSString* pString = nil;
     if (flavorStr.EqualsLiteral(kUnicodeMime)) {
       pString = GetStringForType(item, (const NSString*)kUTTypeUTF8PlainText);
@@ -702,7 +710,7 @@ nsDragService::IsDataFlavorSupported(const char *aDataFlavor, bool *_retval)
   }
 
 // backout bug 966986
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   const NSString* type = nil;
   bool allowFileURL = false;
   if (dataFlavor.EqualsLiteral(kFileMime)) {
@@ -763,7 +771,7 @@ nsDragService::GetNumDropItems(uint32_t* aNumItems)
   }
 
 // backout bug 966986
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NSArray* droppedItems = [globalDragPboard pasteboardItems];
   if (droppedItems) {
     *aNumItems = [droppedItems count];

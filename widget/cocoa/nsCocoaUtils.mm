@@ -257,7 +257,7 @@ void nsCocoaUtils::HideOSChromeOnScreen(bool aShouldHide, NSScreen* aScreen)
 // Not on 10.4.
 // Restore the 38 code, since we don't have NSApplicationPresentationOptions
 // (and the NSScreen* pointer so that we know which screen the window's on).
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NSApplicationPresentationOptions options =
     sHiddenCount <= 0 ? NSApplicationPresentationDefault :
     NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar;
@@ -677,7 +677,7 @@ nsCocoaUtils::MakeNewCocoaEventWithType(NSEventType aEventType, NSEvent *aEvent)
   NSEvent* newEvent =
     [NSEvent     keyEventWithType:aEventType
                          location:[aEvent locationInWindow] 
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
                     modifierFlags:[aEvent modifierFlags]
 #else
                     modifierFlags: nsCocoaUtils::GetCocoaEventModifierFlags(aEvent)
@@ -719,7 +719,8 @@ Modifiers
 nsCocoaUtils::ModifiersForEvent(NSEvent* aNativeEvent)
 {
   NSUInteger modifiers =
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+	// IDA says that +[NSEvent modifierFlags] uses CGSInputModifierKeyState
     aNativeEvent ? [aNativeEvent modifierFlags] : [NSEvent modifierFlags];
 #else
     aNativeEvent ? nsCocoaUtils::GetCocoaEventModifierFlags(aNativeEvent) :

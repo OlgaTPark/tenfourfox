@@ -1452,11 +1452,11 @@ nsCocoaWindow::PerformFullscreenTransition(FullscreenTransitionStage aStage,
     ReleaseFullscreenTransitionAnimation();
   }
 
-  NSDictionary* dict = @{
-    NSViewAnimationTargetKey: data->mTransitionWindow,
-    NSViewAnimationEffectKey: aStage == eBeforeFullscreenToggle ?
-      NSViewAnimationFadeInEffect : NSViewAnimationFadeOutEffect
-  };
+  NSDictionary* dict = [NSDictionary dictionaryWithObjects:(id[]){
+         data->mTransitionWindow, 
+         aStage == eBeforeFullscreenToggle ? NSViewAnimationFadeInEffect : NSViewAnimationFadeOutEffect} 
+                                                   forKeys:(id[]){NSViewAnimationTargetKey, NSViewAnimationEffectKey} 
+                                                     count:2U];
   mFullscreenTransitionAnimation =
     [[NSViewAnimation alloc] initWithViewAnimations:@[dict]];
   [mFullscreenTransitionAnimation setDelegate:delegate];

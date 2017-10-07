@@ -8,8 +8,6 @@
 
 #import <Cocoa/Cocoa.h>
 
-typedef float CGFloat;
-
 #include "nsRect.h"
 #include "imgIContainer.h"
 #include "npapi.h"
@@ -20,33 +18,6 @@ typedef float CGFloat;
 #include "nsObjCExceptions.h"
 
 #include "mozilla/EventForwards.h"
-
-// Declare the backingScaleFactor method that we want to call
-// on NSView/Window/Screen objects, if they recognize it.
-@interface NSObject (BackingScaleFactorCategory)
-- (CGFloat)backingScaleFactor;
-@end
-
-// When building with a pre-10.7 SDK, NSEventPhase is not defined.
-#if !defined(MAC_OS_X_VERSION_10_7) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
-enum {
-  NSEventPhaseNone        = 0,
-  NSEventPhaseBegan       = 0x1 << 0,
-  NSEventPhaseStationary  = 0x1 << 1,
-  NSEventPhaseChanged     = 0x1 << 2,
-  NSEventPhaseEnded       = 0x1 << 3,
-  NSEventPhaseCancelled   = 0x1 << 4,
-};
-typedef uint32_t NSEventPhase;
-#endif // #if !defined(MAC_OS_X_VERSION_10_7) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
-
-#if !defined(MAC_OS_X_VERSION_10_8) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
-enum {
-  NSEventPhaseMayBegin    = 0x1 << 5
-};
-#endif // #if !defined(MAC_OS_X_VERSION_10_8) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
-
-class nsIWidget;
 
 #if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5)
 #define NS_LEOPARD_AND_LATER 1
@@ -81,6 +52,33 @@ typedef float CGFloat;
 # define CGFLOAT_IS_DOUBLE 0
 # define CGFLOAT_DEFINED 1
 #endif
+
+// Declare the backingScaleFactor method that we want to call
+// on NSView/Window/Screen objects, if they recognize it.
+@interface NSObject (BackingScaleFactorCategory)
+- (CGFloat)backingScaleFactor;
+@end
+
+// When building with a pre-10.7 SDK, NSEventPhase is not defined.
+#if !defined(MAC_OS_X_VERSION_10_7) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
+enum {
+  NSEventPhaseNone        = 0,
+  NSEventPhaseBegan       = 0x1 << 0,
+  NSEventPhaseStationary  = 0x1 << 1,
+  NSEventPhaseChanged     = 0x1 << 2,
+  NSEventPhaseEnded       = 0x1 << 3,
+  NSEventPhaseCancelled   = 0x1 << 4,
+};
+typedef NSUInteger NSEventPhase;
+#endif // #if !defined(MAC_OS_X_VERSION_10_7) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
+
+#if !defined(MAC_OS_X_VERSION_10_8) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
+enum {
+  NSEventPhaseMayBegin    = 0x1 << 5
+};
+#endif // #if !defined(MAC_OS_X_VERSION_10_8) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
+
+class nsIWidget;
 
 namespace mozilla {
 namespace gfx {

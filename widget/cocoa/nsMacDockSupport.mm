@@ -9,6 +9,7 @@
 #include "nsMacDockSupport.h"
 #include "nsObjCExceptions.h"
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 1050
 // For 10.4 (this is actually identical to 10.5's code)
 static inline NSRect NSRectFromCGRect( CGRect cgrect )
 {
@@ -19,6 +20,7 @@ static inline NSRect NSRectFromCGRect( CGRect cgrect )
     };
     return ((union ConversionUnion *)&cgrect)->ns;
 }
+#endif
 
 NS_IMPL_ISUPPORTS(nsMacDockSupport, nsIMacDockSupport, nsITaskbarProgress)
 
@@ -82,20 +84,20 @@ nsMacDockSupport::SetBadgeText(const nsAString& aBadgeText)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-#if(0)
-  NSDockTile *tile = [[NSApplication sharedApplication] dockTile];
   mBadgeText = aBadgeText;
+  if (nsCocoaFeatures::OnLeopardOrLater())
+  {
+    id tile = [[NSApplication sharedApplication] dockTile];
   if (aBadgeText.IsEmpty())
     [tile setBadgeLabel: nil];
   else
     [tile setBadgeLabel:[NSString stringWithCharacters:reinterpret_cast<const unichar*>(mBadgeText.get())
                                                 length:mBadgeText.Length()]];
   return NS_OK;
-#else
+  }
+  // else
   // There is no NSDockTile class in 10.4, so this does nothing.
-  mBadgeText = aBadgeText;
   NS_WARNING("10.4 does not have NSDockTile");
-#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }

@@ -49,8 +49,13 @@ using namespace mozilla::a11y;
 // - NSAccessibilityMathPostscriptsAttribute @"AXMathPostscripts"
 
 /* Stubs for 10.4 SDK */
-#define numberWithInteger numberWithInt
-#define numberWithUnsignedInteger numberWithUnsignedInt
+#if __LP64__ || NS_BUILD_32_LIKE_64
+  #define numberWithInteger numberWithLong
+  #define numberWithUnsignedInteger numberWithUnsignedLong
+#else
+  #define numberWithInteger numberWithInt
+  #define numberWithUnsignedInteger numberWithUnsignedInt
+#endif
 
 // returns the passed in object if it is not ignored. if it's ignored, will return
 // the first unignored ancestor.

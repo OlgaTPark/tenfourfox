@@ -407,9 +407,11 @@ nsDeviceContext::CreateRenderingContext()
     if (!printingSurface) {
       printingSurface = mCachedPrintingSurface;
     }
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 /* Are you sure that crashing the process is a good idea ? */
     // That was a wonderful idea, Steven, but it doesn't work.
     MOZ_ASSERT(printingSurface, "only call for printing dcs");
-#endif
+#endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 */
+#endif /* XP_MACOSX */
 
     RefPtr<gfx::DrawTarget> dt =
       gfxPlatform::GetPlatform()->CreateDrawTargetForSurface(printingSurface,
@@ -609,7 +611,7 @@ nsDeviceContext::EndPage(void)
     // would normally be null.  See bug 665218.  If we just stop nulling out
     // mPrintingSurface here (and thereby make that our cached copy), we'll
     // break all our null checks on mPrintingSurface.  See bug 684622.
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
     // Unfortunately, caching our printing service is still enough to keep
     // the reference around, and printing won't work on 10.4 unless it's
     // actually destroyed (TenFourFox issue 82).

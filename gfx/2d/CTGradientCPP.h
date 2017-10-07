@@ -3,9 +3,16 @@
 #ifndef __CTGradientCPP_
 #define __CTGradientCPP_
 
-typedef float CGFloat; // nasty
-
 #include "Types.h"
+
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat;
+  #else	/* !defined(__LP64__) || !__LP64__ */
+    typedef float CGFloat; // nasty
+  #endif	/* !defined(__LP64__) || !__LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif	/* CGFLOAT_DEFINED */
 
 namespace mozilla {
 namespace gfx {

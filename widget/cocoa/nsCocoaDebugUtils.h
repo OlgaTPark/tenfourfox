@@ -1,4 +1,3 @@
-#if(0)
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,6 +7,7 @@
 #define nsCocoaDebugUtils_h_
 
 #include <CoreServices/CoreServices.h>
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 
 // Definitions and declarations of stuff used by us from the CoreSymbolication
 // framework.  This is an undocumented, private framework available on OS X

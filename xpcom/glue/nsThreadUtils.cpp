@@ -382,7 +382,7 @@ nsAutoLowPriorityIO::nsAutoLowPriorityIO()
   lowIOPrioritySet = IsVistaOrLater() &&
                      SetThreadPriority(GetCurrentThread(),
                                        THREAD_MODE_BACKGROUND_BEGIN);
-#elif 0 // defined(XP_MACOSX) // 10.4 doesn't support getiopolicy_np().
+#elif defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050 // 10.4 doesn't support getiopolicy_np().
   oldPriority = getiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD);
   lowIOPrioritySet = oldPriority != -1 &&
                      setiopolicy_np(IOPOL_TYPE_DISK,
@@ -400,7 +400,7 @@ nsAutoLowPriorityIO::~nsAutoLowPriorityIO()
     // On Windows the old thread priority is automatically restored
     SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_END);
   }
-#elif 0 // defined(XP_MACOSX) // Ditto
+#elif defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050 // Ditto
   if (MOZ_LIKELY(lowIOPrioritySet)) {
     setiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD, oldPriority);
   }

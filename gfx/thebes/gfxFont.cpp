@@ -783,7 +783,7 @@ gfxFont::GetGlyphHAdvance(gfxContext *aCtx, uint16_t aGID)
     if (!SetupCairoFont(aCtx)) {
         return 0;
     }
-#if(0) // always false in TenFourFox
+#if !defined(MOZ_WIDGET_COCOA) // always false in TenFourFox
     if (ProvidesGlyphWidths()) {
         return GetGlyphWidth(*aCtx->GetDrawTarget(), aGID) / 65536.0;
     }

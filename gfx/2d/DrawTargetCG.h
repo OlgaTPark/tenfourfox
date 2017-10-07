@@ -15,7 +15,14 @@
 #include <OpenGLES/ES2/glext.h>
 #endif
 
-typedef float CGFloat; // 10.4
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat;
+  #else	/* !defined(__LP64__) || !__LP64__ */
+    typedef float CGFloat; // 10.4
+  #endif	/* !defined(__LP64__) || !__LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif	/* CGFLOAT_DEFINED */
 
 #include "2D.h"
 #include "Rect.h"
