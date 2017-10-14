@@ -45,6 +45,9 @@ nsToolkit* nsToolkit::gToolkit = nullptr;
 
 nsToolkit::nsToolkit()
 : mSleepWakeNotificationRLS(nullptr)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
+, mEventMonitorHandler(NULL)
+#endif
 , mEventTapPort(nullptr)
 , mEventTapRLS(nullptr)
 {
@@ -140,6 +143,7 @@ nsToolkit::RemoveSleepWakeNotifications()
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 // This is the callback used in RegisterForAllProcessMouseEvents.
 static OSStatus EventMonitorHandler(EventHandlerCallRef aCaller, EventRef aEvent, void* aRefcon)
 {
@@ -147,11 +151,12 @@ static OSStatus EventMonitorHandler(EventHandlerCallRef aCaller, EventRef aEvent
   // event handler like this one caused the OS to post the equivalent Cocoa
   // events to [NSApp sendEvent:]. When using the 10.5 SDK, this doesn't happen
   // any more, so we need to do it manually.
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1050 /* If the previous comment is true… */
   [NSApp sendEvent:[NSEvent eventWithEventRef:aEvent]];
 #endif
   return eventNotHandledErr;
 }
+#endif
 
 // Converts aPoint from the CoreGraphics "global display coordinate" system
 // (which includes all displays/screens and has a top-left origin) to its
@@ -226,12 +231,14 @@ return; // We don't use this in TenFourFox right now. See issue 187.
   return;
 #endif /* MOZ_USE_NATIVE_POPUP_WINDOWS */
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   if (!mEventMonitorHandler) {
     EventTypeSpec kEvents[] = {{kEventClassMouse, kEventMouseMoved}};
     InstallEventHandler(GetEventMonitorTarget(), EventMonitorHandler,
                         GetEventTypeCount(kEvents), kEvents, 0,
                         &mEventMonitorHandler);
   }
+#endif
 
   if (!mEventTapRLS) {
     // Using an event tap for mouseDown events (instead of installing a
@@ -272,10 +279,12 @@ nsToolkit::UnregisterAllProcessMouseEventHandlers()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   if (mEventMonitorHandler) {
     RemoveEventHandler(mEventMonitorHandler);
     mEventMonitorHandler = nullptr;
   }
+#endif
 
   if (mEventTapRLS) {
     CFRunLoopRemoveSource(CFRunLoopGetCurrent(), mEventTapRLS,

@@ -774,7 +774,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
           parentIsSheet) {
         piParentWidget->GetSheetWindowParent(&topNonSheetWindow);
         [NSApp endSheet:nativeParentWindow];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
         [nativeParentWindow setAcceptsMouseMovedEvents:NO]; // bug 675208
+#endif
       }
 
       nsCocoaWindow* sheetShown = nullptr;
@@ -789,7 +791,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
           // Only set contextInfo if our parent isn't a sheet.
           NSWindow* contextInfo = parentIsSheet ? nil : mSheetWindowParent;
           [TopLevelWindowData deactivateInWindow:mSheetWindowParent];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
           [mWindow setAcceptsMouseMovedEvents:YES]; // bug 675208
+#endif
           [NSApp beginSheet:mWindow
              modalForWindow:mSheetWindowParent
               modalDelegate:mDelegate
@@ -816,7 +820,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
       NSInteger windowNumber = [mWindow windowNumber];
       [mWindow _setWindowNumber:-1];
       [mWindow _setWindowNumber:windowNumber];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
       [mWindow setAcceptsMouseMovedEvents:YES];
+#endif
       // For reasons that aren't yet clear, calls to [NSWindow orderFront:] or
       // [NSWindow makeKeyAndOrderFront:] can sometimes trigger "Error (1000)
       // creating CGSWindow", which in turn triggers an internal inconsistency
@@ -850,7 +856,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
     }
     else {
       NS_OBJC_BEGIN_TRY_LOGONLY_BLOCK;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
       [mWindow setAcceptsMouseMovedEvents:YES];
+#endif
       if (mWindowType == eWindowType_toplevel &&
           [mWindow respondsToSelector:@selector(setAnimationBehavior:)]) {
         NSWindowAnimationBehavior behavior;
@@ -896,7 +904,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
         // hide the sheet
         [NSApp endSheet:mWindow];
         
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
         [mWindow setAcceptsMouseMovedEvents:NO];
+#endif
 
         [TopLevelWindowData deactivateInWindow:mWindow];
 
@@ -927,7 +937,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
           // If there are no sibling sheets, but the parent is a sheet, restore
           // it.  It wasn't sent any deactivate events when it was hidden, so
           // don't call through Show, just let the OS put it back up.
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 	  [nativeParentWindow setAcceptsMouseMovedEvents:YES];
+#endif
           [NSApp beginSheet:nativeParentWindow
              modalForWindow:sheetParent
               modalDelegate:[nativeParentWindow delegate]
@@ -940,7 +952,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
           NS_OBJC_BEGIN_TRY_LOGONLY_BLOCK;
           [sheetParent makeKeyAndOrderFront:nil];
           NS_OBJC_END_TRY_LOGONLY_BLOCK;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 	  [sheetParent setAcceptsMouseMovedEvents:YES];
+#endif
         }
         SendSetZLevelEvent();
       }
@@ -965,9 +979,11 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
       if (mWindowType == eWindowType_popup)
         [NSApp _removeWindowFromCache:mWindow];
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
       // it's very important to turn off mouse moved events when hiding a window, otherwise
       // the windows' tracking rects will interfere with each other. (bug 356528)
       [mWindow setAcceptsMouseMovedEvents:NO];
+#endif
 
       // If our popup window is a non-native context menu, tell the OS (and
       // other programs) that a menu has closed.
@@ -2049,7 +2065,9 @@ NS_IMETHODIMP nsCocoaWindow::SetFocus(bool aState)
     if ([mWindow isMiniaturized]) {
       [mWindow deminiaturize:nil];
     }
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
     [mWindow setAcceptsMouseMovedEvents:YES];
+#endif
     [mWindow makeKeyAndOrderFront:nil];
     SendSetZLevelEvent();
   }
@@ -2499,7 +2517,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 
 - (void)windowDidResize:(NSNotification *)aNotification
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   BaseWindow* window = [aNotification object];
   [window updateTrackingArea];
 #endif
@@ -3006,7 +3024,7 @@ return [super _cornerMask];
   mScheduledShadowInvalidation = NO;
   mDisabledNeedsDisplay = NO;
   mDPI = GetDPI(self);
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   mTrackingArea = nil;
   mDirtyRect = NSZeroRect;
   mBeingShown = NO;
@@ -3063,7 +3081,7 @@ return [super _cornerMask];
 {
   [mActiveTitlebarColor release];
   [mInactiveTitlebarColor release];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   [self removeTrackingArea];
 #endif
   ChildViewMouseTracker::OnDestroyWindow(self);
@@ -3210,8 +3228,9 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 
 - (void)removeTrackingArea
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   NS_NOTREACHED("never call removeTrackingArea");
-#if(0)
+#else
   if (mTrackingArea) {
     [[self trackingAreaView] removeTrackingArea:mTrackingArea];
     [mTrackingArea release];
@@ -3222,8 +3241,9 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 
 - (void)updateTrackingArea
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   NS_NOTREACHED("never call updateTrackingArea");
-#if(0)
+#else
   [self removeTrackingArea];
 
   NSView* view = [self trackingAreaView];
@@ -3988,6 +4008,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 
 @implementation PopupWindow
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 // Restored by backout of bug 675208 (10.4Fx).
 // The OS treats our custom popup windows very strangely -- many mouse events
 // sent to them never reach their target NSView objects.  (That these windows
@@ -4117,6 +4138,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
+#endif /* Bug 675208 for Leopard's NSTrackingArea */
 
 
 - (id)initWithContentRect:(NSRect)contentRect styleMask:(NSUInteger)styleMask

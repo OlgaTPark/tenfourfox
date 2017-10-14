@@ -413,7 +413,9 @@ public:
   static NSWindow* sWindowUnderMouse;
   static NSPoint sLastScrollEventScreenLocation;
   
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   static NSWindow* WindowForEvent(NSEvent* aEvent);
+#endif
 };
 
 //-------------------------------------------------------------------------

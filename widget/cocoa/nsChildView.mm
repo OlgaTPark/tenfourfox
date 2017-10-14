@@ -1613,7 +1613,7 @@ nsresult nsChildView::SynthesizeNativeMouseEvent(LayoutDeviceIntPoint aPoint,
     return NS_ERROR_FAILURE;
 
 // We don't have NSTrackingArea in 10.4.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   if ([[mView window] isKindOfClass:[BaseWindow class]]) {
     // Tracking area events don't end up in their tracking areas when sent
     // through [NSApp sendEvent:], so pass them directly to the right methods.
@@ -5519,10 +5519,12 @@ NewCGSRegionFromRegion(const LayoutDeviceIntRegion& aRegion,
   return [self _regionForOpaqueDescendants:aRect forMove:aForMove];
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 - (void)mouseMoved:(NSEvent*)aEvent
 {
   ChildViewMouseTracker::MouseMoved(aEvent);
 }
+#endif
 
 - (void)handleMouseMoved:(NSEvent*)theEvent
 {
@@ -9039,8 +9041,11 @@ ChildViewMouseTracker::ResendLastMouseMoveEvent()
 void
 ChildViewMouseTracker::MouseMoved(NSEvent* aEvent)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   ReEvaluateMouseEnterState(aEvent); // undoing bug 675208
-  //MouseEnteredWindow(aEvent);
+#else
+  MouseEnteredWindow(aEvent);
+#endif
   [sLastMouseEventView handleMouseMoved:aEvent];
   if (sLastMouseMoveEvent != aEvent) {
     [sLastMouseMoveEvent release];
@@ -9060,8 +9065,11 @@ ChildViewMouseTracker::MouseScrolled(NSEvent* aEvent)
 ChildView*
 ChildViewMouseTracker::ViewForEvent(NSEvent* aEvent)
 {
-  //NSWindow* window = sWindowUnderMouse;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingAera */
+  NSWindow* window = sWindowUnderMouse;
+#else
   NSWindow* window = WindowForEvent(aEvent); // undoing bug 675208
+#endif
   if (!window)
     return nil;
 
@@ -9078,6 +9086,7 @@ ChildViewMouseTracker::ViewForEvent(NSEvent* aEvent)
   return WindowAcceptsEvent(window, aEvent, childView) ? childView : nil;
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 // added back from bug 675208
 static CGWindowLevel kDockWindowLevel = 0;
 static CGWindowLevel kPopupWindowLevel = 0;
@@ -9174,6 +9183,7 @@ ChildViewMouseTracker::WindowForEvent(NSEvent* anEvent)
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }
+#endif /* Bug 675208 for Leopard's NSTrackingAera */
 
 BOOL
 ChildViewMouseTracker::WindowAcceptsEvent(NSWindow* aWindow, NSEvent* aEvent,

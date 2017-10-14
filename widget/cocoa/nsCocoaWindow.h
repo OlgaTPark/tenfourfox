@@ -83,7 +83,7 @@ typedef struct _nsCocoaWindowList {
   float mDPI;
 
 // 10.4 doesn't have NSTrackingArea.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingArea */
   NSTrackingArea* mTrackingArea;
 #endif
 
