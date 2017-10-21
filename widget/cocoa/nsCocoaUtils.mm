@@ -75,6 +75,16 @@ NSRect nsCocoaUtils::GeckoRectToCocoaRect(const nsIntRect &geckoRect)
                     geckoRect.height);
 }
 
+#if USE_BACKING_SCALE_FACTOR
+NSRect nsCocoaUtils::GeckoRectToCocoaRectDevPix(const nsIntRect &aGeckoRect,
+                                                CGFloat aBackingScale)
+{
+  return NSMakeRect(aGeckoRect.x / aBackingScale,
+                    MenuBarScreenHeight() - aGeckoRect.YMost() / aBackingScale,
+                    aGeckoRect.width / aBackingScale,
+                    aGeckoRect.height / aBackingScale);
+}
+#else
 NSRect nsCocoaUtils::GeckoRectToCocoaRectDevPix(const nsIntRect &aGeckoRect)
 {
   return NSMakeRect(aGeckoRect.x,
@@ -82,6 +92,7 @@ NSRect nsCocoaUtils::GeckoRectToCocoaRectDevPix(const nsIntRect &aGeckoRect)
                     aGeckoRect.width,
                     aGeckoRect.height);
 }
+#endif
 
 nsIntRect nsCocoaUtils::CocoaRectToGeckoRect(const NSRect &cocoaRect)
 {
@@ -96,6 +107,19 @@ nsIntRect nsCocoaUtils::CocoaRectToGeckoRect(const NSRect &cocoaRect)
   return rect;
 }
 
+#if USE_BACKING_SCALE_FACTOR
+LayoutDeviceIntRect nsCocoaUtils::CocoaRectToGeckoRectDevPix(
+  const NSRect& aCocoaRect, CGFloat aBackingScale)
+{
+  LayoutDeviceIntRect rect;
+  rect.x = NSToIntRound(aCocoaRect.origin.x * aBackingScale);
+  rect.y = NSToIntRound(FlippedScreenY(aCocoaRect.origin.y + aCocoaRect.size.height) * aBackingScale);
+  rect.width = NSToIntRound((aCocoaRect.origin.x + aCocoaRect.size.width) * aBackingScale) - rect.x;
+  rect.height = NSToIntRound(FlippedScreenY(aCocoaRect.origin.y) * aBackingScale) - rect.y;
+  return rect;
+}
+
+#else
 LayoutDeviceIntRect nsCocoaUtils::CocoaRectToGeckoRectDevPix(
   const NSRect& aCocoaRect)
 {
@@ -106,6 +130,7 @@ LayoutDeviceIntRect nsCocoaUtils::CocoaRectToGeckoRectDevPix(
   rect.height = NSToIntRound(FlippedScreenY(aCocoaRect.origin.y)) - rect.y;
   return rect;
 }
+#endif
 
 NSPoint nsCocoaUtils::ScreenLocationForEvent(NSEvent* anEvent)
 {
@@ -490,7 +515,7 @@ nsresult nsCocoaUtils::CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage 
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // Be very careful when creating the NSImage that the backing NSImageRep is
   // exactly 1:1 with the input image. On a retina display, both [NSImage
   // lockFocus] and [NSImage initWithCGImage:size:] will create an image with a
@@ -529,6 +554,7 @@ nsresult nsCocoaUtils::CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage 
 
   // Get the Quartz context and draw.
   CGContextRef imageContext = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
+  ::CGContextClearRect(imageContext, *(CGRect*)&imageRect); // It was only that who caused problematic cursors and menu icons on 10.5!
   ::CGContextDrawImage(imageContext, *(CGRect*)&imageRect, aInputImage);
 
   [NSGraphicsContext restoreGraphicsState];
@@ -539,7 +565,7 @@ nsresult nsCocoaUtils::CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage 
   return NS_OK;
 #else
   // The code above generates mangled icons on 10.4 and 10.5, so restore the
-  // Firefox 26 code (backout bug 888689).
+  // Firefox 26 code (backout bug 888689 - TenFourFox issue 267).
   int32_t width = ::CGImageGetWidth(aInputImage);
   int32_t height = ::CGImageGetHeight(aInputImage);
   NSRect imageRect = ::NSMakeRect(0.0, 0.0, width, height);
@@ -559,15 +585,18 @@ nsresult nsCocoaUtils::CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage 
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
-
+#if USE_BACKING_SCALE_FACTOR
+nsresult nsCocoaUtils::CreateNSImageFromImageContainer(imgIContainer *aImage, uint32_t aWhichFrame, NSImage **aResult, CGFloat scaleFactor)
+#else
 nsresult nsCocoaUtils::CreateNSImageFromImageContainer(imgIContainer *aImage, uint32_t aWhichFrame, NSImage **aResult)
+#endif
 {
   RefPtr<SourceSurface> surface;
   int32_t width = 0, height = 0;
   aImage->GetWidth(&width);
   aImage->GetHeight(&height);
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // Render a vector image at the correct resolution on a retina display
   if (aImage->GetType() == imgIContainer::TYPE_VECTOR && scaleFactor != 1.0f) {
     IntSize scaledSize(ceil(width * scaleFactor), ceil(height * scaleFactor));
@@ -830,7 +859,7 @@ static bool sHiDPIPrefInitialized = false;
 bool
 nsCocoaUtils::HiDPIEnabled()
 {
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   if (!sHiDPIPrefInitialized) {
     sHiDPIPrefInitialized = true;
 
@@ -838,7 +867,7 @@ nsCocoaUtils::HiDPIEnabled()
     if (prefSetting <= 0) {
       return false;
     }
-
+    NSAutoreleasePool *bath = [[NSAutoreleasePool alloc]init]; /* If you comment is right */
     // prefSetting is at least 1, need to check attached screens...
 
     int scaleFactors = 0; // used as a bitset to track the screen types found
@@ -859,6 +888,7 @@ nsCocoaUtils::HiDPIEnabled()
         scaleFactors |= 1;
       }
     }
+    [bath drain]; // Eliminate bath water…
 
     // Now scaleFactors will be:
     //   0 if no screens (supporting backingScaleFactor) found

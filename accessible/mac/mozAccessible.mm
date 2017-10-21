@@ -562,7 +562,7 @@ ConvertToNSArray(nsTArray<ProxyAccessible*>& aArray)
   NSPoint tmpPoint = NSMakePoint(point.x,
                                  [mainView frame].size.height - point.y);
   LayoutDeviceIntPoint geckoPoint = nsCocoaUtils::
-    CocoaPointsToDevPixels(tmpPoint);
+    CocoaPointsToDevPixels(tmpPoint DO_IF_USE_BACKINGSCALE(, nsCocoaUtils::GetBackingScaleFactor(mainView)));
 
   mozAccessible* nativeChild = nil;
   if (accWrap) {
@@ -729,9 +729,11 @@ ConvertToNSArray(nsTArray<ProxyAccessible*>& aArray)
     return nil;
 
   NSScreen* mainView = [[NSScreen screens] objectAtIndex:0];
-  //CGFloat scaleFactor = nsCocoaUtils::GetBackingScaleFactor(mainView);
-  NSPoint p = NSMakePoint(static_cast<CGFloat>(rect.x),
-                         [mainView frame].size.height - static_cast<CGFloat>(rect.y + rect.height));
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor = nsCocoaUtils::GetBackingScaleFactor(mainView);
+#endif
+  NSPoint p = NSMakePoint(static_cast<CGFloat>(rect.x) DO_IF_USE_BACKINGSCALE(/ scaleFactor),
+                         [mainView frame].size.height - static_cast<CGFloat>(rect.y + rect.height) DO_IF_USE_BACKINGSCALE(/ scaleFactor));
 
   return [NSValue valueWithPoint:p];
 
@@ -750,10 +752,12 @@ ConvertToNSArray(nsTArray<ProxyAccessible*>& aArray)
   else
     return nil;
 
-  //CGFloat scaleFactor =
-  //  nsCocoaUtils::GetBackingScaleFactor([[NSScreen screens] objectAtIndex:0]);
-  return [NSValue valueWithSize:NSMakeSize(static_cast<CGFloat>(rect.width),
-                                           static_cast<CGFloat>(rect.height))];
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor =
+    nsCocoaUtils::GetBackingScaleFactor([[NSScreen screens] objectAtIndex:0]);
+#endif
+  return [NSValue valueWithSize:NSMakeSize(static_cast<CGFloat>(rect.width) DO_IF_USE_BACKINGSCALE(/ scaleFactor),
+                                           static_cast<CGFloat>(rect.height) DO_IF_USE_BACKINGSCALE(/ scaleFactor))];
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }

@@ -305,7 +305,7 @@ nsresult nsCocoaWindow::Create(nsIWidget* aParent,
     }
     // now we can convert newBounds to device pixels for the window we created,
     // as the child view expects a rect expressed in the dev pix of its parent
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
     double scale = BackingScaleFactor();
     newBounds.x *= scale;
     newBounds.y *= scale;
@@ -1212,27 +1212,29 @@ void nsCocoaWindow::SetSizeConstraints(const SizeConstraints& aConstraints)
     (mWindowType == eWindowType_popup) ? NSZeroRect : NSMakeRect(0.0, 0.0, 60, 60);
   rect = [mWindow frameRectForContentRect:rect];
 
-  //CGFloat scaleFactor = BackingScaleFactor();
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor = BackingScaleFactor();
+#endif
 
   SizeConstraints c = aConstraints;
   c.mMinSize.width =
-    std::max(nsCocoaUtils::CocoaPointsToDevPixels(rect.size.width),
+    std::max(nsCocoaUtils::CocoaPointsToDevPixels(rect.size.width DO_IF_USE_BACKINGSCALE(, scaleFactor)),
            c.mMinSize.width);
   c.mMinSize.height =
-    std::max(nsCocoaUtils::CocoaPointsToDevPixels(rect.size.height),
+    std::max(nsCocoaUtils::CocoaPointsToDevPixels(rect.size.height DO_IF_USE_BACKINGSCALE(, scaleFactor)),
            c.mMinSize.height);
 
   NSSize minSize = {
-    nsCocoaUtils::DevPixelsToCocoaPoints(c.mMinSize.width),
-    nsCocoaUtils::DevPixelsToCocoaPoints(c.mMinSize.height)
+    nsCocoaUtils::DevPixelsToCocoaPoints(c.mMinSize.width DO_IF_USE_BACKINGSCALE(, scaleFactor)),
+    nsCocoaUtils::DevPixelsToCocoaPoints(c.mMinSize.height DO_IF_USE_BACKINGSCALE(, scaleFactor))
   };
   [mWindow setMinSize:minSize];
 
   NSSize maxSize = {
     c.mMaxSize.width == NS_MAXSIZE ?
-      FLT_MAX : nsCocoaUtils::DevPixelsToCocoaPoints(c.mMaxSize.width),
+      FLT_MAX : nsCocoaUtils::DevPixelsToCocoaPoints(c.mMaxSize.width DO_IF_USE_BACKINGSCALE(, scaleFactor)),
     c.mMaxSize.height == NS_MAXSIZE ?
-      FLT_MAX : nsCocoaUtils::DevPixelsToCocoaPoints(c.mMaxSize.height)
+      FLT_MAX : nsCocoaUtils::DevPixelsToCocoaPoints(c.mMaxSize.height DO_IF_USE_BACKINGSCALE(, scaleFactor))
   };
   [mWindow setMaxSize:maxSize];
 
@@ -1599,14 +1601,21 @@ nsresult nsCocoaWindow::DoResize(double aX, double aY,
 
   // ConstrainSize operates in device pixels, so we need to convert using
   // the backing scale factor here
-  //CGFloat scale = BackingScaleFactor();
-  int32_t width = NSToIntRound(aWidth);
-  int32_t height = NSToIntRound(aHeight);
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scale = BackingScaleFactor();
+#endif
+  int32_t width = NSToIntRound(aWidth DO_IF_USE_BACKINGSCALE(* scale));
+  int32_t height = NSToIntRound(aHeight DO_IF_USE_BACKINGSCALE(* scale));
   ConstrainSize(&width, &height);
 
   LayoutDeviceIntRect newBounds(NSToIntRound(aX), NSToIntRound(aY),
-                                width, //NSToIntRound(width / scale),
-                                height); //NSToIntRound(height / scale));
+#if USE_BACKING_SCALE_FACTOR
+                                NSToIntRound(width / scale),
+                                NSToIntRound(height / scale));
+#else
+                                width, 
+                                height);
+#endif
 
   // constrain to the screen that contains the largest area of the new rect
   FitRectToVisibleAreaForScreen(newBounds, aConstrainToCurrentScreen ?
@@ -1656,9 +1665,11 @@ NS_IMETHODIMP nsCocoaWindow::GetClientBounds(mozilla::LayoutDeviceIntRect& aRect
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  //CGFloat scaleFactor = BackingScaleFactor();
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor = BackingScaleFactor();
+#endif
   if (!mWindow) {
-    aRect = nsCocoaUtils::CocoaRectToGeckoRectDevPix(NSZeroRect);
+    aRect = nsCocoaUtils::CocoaRectToGeckoRectDevPix(NSZeroRect DO_IF_USE_BACKINGSCALE(, scaleFactor));
     return NS_OK;
   }
 
@@ -1670,7 +1681,7 @@ NS_IMETHODIMP nsCocoaWindow::GetClientBounds(mozilla::LayoutDeviceIntRect& aRect
     r = [mWindow contentRectForFrameRect:[mWindow frame]];
   }
 
-  aRect = nsCocoaUtils::CocoaRectToGeckoRectDevPix(r);
+  aRect = nsCocoaUtils::CocoaRectToGeckoRectDevPix(r DO_IF_USE_BACKINGSCALE(, scaleFactor));
 
   return NS_OK;
 
@@ -1685,7 +1696,7 @@ nsCocoaWindow::UpdateBounds()
     frame = [mWindow frame];
   }
   mBounds = nsCocoaUtils::CocoaRectToGeckoRectDevPix(
-    frame).ToUnknownRect();
+    frame DO_IF_USE_BACKINGSCALE(, BackingScaleFactor())).ToUnknownRect();
 }
 
 NS_IMETHODIMP nsCocoaWindow::GetScreenBounds(LayoutDeviceIntRect &aRect)
@@ -1693,7 +1704,7 @@ NS_IMETHODIMP nsCocoaWindow::GetScreenBounds(LayoutDeviceIntRect &aRect)
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
 #ifdef DEBUG
-  LayoutDeviceIntRect r = nsCocoaUtils::CocoaRectToGeckoRectDevPix([mWindow frame]);
+  LayoutDeviceIntRect r = nsCocoaUtils::CocoaRectToGeckoRectDevPix([mWindow frame] DO_IF_USE_BACKINGSCALE(, BackingScaleFactor()));
   NS_ASSERTION(mWindow && mBounds == r.ToUnknownRect(), "mBounds out of sync!");
 #endif
 
@@ -1703,7 +1714,7 @@ NS_IMETHODIMP nsCocoaWindow::GetScreenBounds(LayoutDeviceIntRect &aRect)
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
 double
 nsCocoaWindow::GetDefaultScaleInternal()
 {
@@ -1713,7 +1724,7 @@ nsCocoaWindow::GetDefaultScaleInternal()
 static CGFloat
 GetBackingScaleFactor(NSWindow* aWindow)
 {
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   NSRect frame = [aWindow frame];
   if (frame.size.width > 0 && frame.size.height > 0) {
     return nsCocoaUtils::GetBackingScaleFactor(aWindow);
@@ -1824,7 +1835,7 @@ nsCocoaWindow::RoundsWidgetCoordinatesTo()
   }
   return 1;
 }
-#endif
+#endif /* USE_BACKING_SCALE_FACTOR */
 
 NS_IMETHODIMP nsCocoaWindow::SetCursor(nsCursor aCursor)
 {
@@ -2084,7 +2095,7 @@ LayoutDeviceIntPoint nsCocoaWindow::WidgetToScreenOffset()
   if (mWindow) {
     rect = [mWindow contentRectForFrameRect:[mWindow frame]];
   }
-  r = nsCocoaUtils::CocoaRectToGeckoRectDevPix(rect);
+  r = nsCocoaUtils::CocoaRectToGeckoRectDevPix(rect DO_IF_USE_BACKINGSCALE(, BackingScaleFactor()));
 
   return r.TopLeft();
 
@@ -2112,12 +2123,14 @@ nsCocoaWindow::ClientToWindowSize(const LayoutDeviceIntSize& aClientSize)
   if (!mWindow)
     return LayoutDeviceIntSize(0, 0);
 
-  //CGFloat backingScale = BackingScaleFactor();
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat backingScale = BackingScaleFactor();
+#endif
   LayoutDeviceIntRect r(0, 0, aClientSize.width, aClientSize.height);
-  NSRect rect = nsCocoaUtils::DevPixelsToCocoaPoints(r);
+  NSRect rect = nsCocoaUtils::DevPixelsToCocoaPoints(r DO_IF_USE_BACKINGSCALE(, backingScale));
 
   NSRect inflatedRect = [mWindow frameRectForContentRect:rect];
-  r = nsCocoaUtils::CocoaRectToGeckoRectDevPix(inflatedRect);
+  r = nsCocoaUtils::CocoaRectToGeckoRectDevPix(inflatedRect DO_IF_USE_BACKINGSCALE(, backingScale));
   return r.Size();
 
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(LayoutDeviceIntSize(0,0));
@@ -2535,7 +2548,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
   if (!mGeckoWindow)
     return;
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // Because of Cocoa's peculiar treatment of zero-size windows (see comments
   // at GetBackingScaleFactor() above), we sometimes have a situation where
   // our concept of backing scale (based on the screen where the zero-sized
@@ -2781,7 +2794,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 
 - (void)windowDidChangeBackingProperties:(NSNotification *)aNotification
 {
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   NSWindow *window = (NSWindow *)[aNotification object];
@@ -2836,9 +2849,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 static float
 GetDPI(NSWindow* aWindow)
 {
-  // We don't support this. Cameron
-  return 96.0f;
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   NSScreen* screen = [aWindow screen];
   if (!screen)
     return 96.0f;
@@ -2859,6 +2870,9 @@ GetDPI(NSWindow* aWindow)
   CGFloat backingScale = GetBackingScaleFactor(aWindow);
 
   return dpi * backingScale;
+#else
+  // We don't support this. Cameron
+  return 96.0f;
 #endif
 }
 

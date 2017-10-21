@@ -817,9 +817,13 @@ nsresult nsChildView::Create(nsIWidget* aParent,
 
   // create our parallel NSView and hook it up to our parent. Recall
   // that NS_NATIVE_WIDGET is the NSView.
-  CGFloat scaleFactor = 1.0f; //nsCocoaUtils::GetBackingScaleFactor(mParentView);
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor = nsCocoaUtils::GetBackingScaleFactor(mParentView);
+#else
+  CGFloat scaleFactor = 1.0f;
+#endif
   NSRect r = nsCocoaUtils::DevPixelsToCocoaPoints(
-    LayoutDeviceIntRect::FromUnknownRect(mBounds));
+    LayoutDeviceIntRect::FromUnknownRect(mBounds) DO_IF_USE_BACKINGSCALE(, scaleFactor));
   mView = [(NSView<mozView>*)CreateCocoaView(r) retain];
   if (!mView) {
     return NS_ERROR_FAILURE;
@@ -1227,7 +1231,9 @@ NS_IMETHODIMP nsChildView::SetCursor(imgIContainer* aCursor,
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
   nsBaseWidget::SetCursor(aCursor, aHotspotX, aHotspotY);
-  return [[nsCursorManager sharedInstance] setCursorWithImage:aCursor hotSpotX:aHotspotX hotSpotY:aHotspotY];
+  return [[nsCursorManager sharedInstance] setCursorWithImage:aCursor hotSpotX:aHotspotX hotSpotY:aHotspotY
+          DO_IF_USE_BACKINGSCALE(scaleFactor: BackingScaleFactor())
+          ];
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
@@ -1261,7 +1267,7 @@ NS_IMETHODIMP nsChildView::GetScreenBounds(LayoutDeviceIntRect& aRect)
   return NS_OK;
 }
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
 double
 nsChildView::GetDefaultScaleInternal()
 {
@@ -1310,7 +1316,7 @@ nsChildView::RoundsWidgetCoordinatesTo()
   }
   return 1;
 }
-#endif
+#endif /* USE_BACKING_SCALE_FACTOR */
 
 NS_IMETHODIMP nsChildView::ConstrainPosition(bool aAllowSlop,
                                              int32_t *aX, int32_t *aY)
@@ -1562,7 +1568,7 @@ nsresult nsChildView::SynthesizeNativeMouseEvent(LayoutDeviceIntPoint aPoint,
 
   AutoObserverNotifier notifier(aObserver, "mouseevent");
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   NSPoint pt =
     nsCocoaUtils::DevPixelsToCocoaPoints(aPoint, BackingScaleFactor());
 
@@ -1653,7 +1659,7 @@ nsresult nsChildView::SynthesizeNativeMouseScrollEvent(mozilla::LayoutDeviceIntP
   AutoObserverNotifier notifier(aObserver, "mousescrollevent");
 
   NSPoint pt =
-    nsCocoaUtils::DevPixelsToCocoaPoints(aPoint);
+    nsCocoaUtils::DevPixelsToCocoaPoints(aPoint DO_IF_USE_BACKINGSCALE(, BackingScaleFactor()));
 
   // Move the mouse cursor to the requested position and reconnect it to the mouse.
 #if(0)
@@ -2628,7 +2634,7 @@ nsChildView::PrepareWindowEffects()
   mShowsResizeIndicator = ShowsResizeIndicator(&mResizeIndicatorRect);
   mHasRoundedBottomCorners = [(ChildView*)mView hasRoundedBottomCorners];
   CGFloat cornerRadius = [(ChildView*)mView cornerRadius];
-  mDevPixelCornerRadius = cornerRadius; // * BackingScaleFactor();
+  mDevPixelCornerRadius = cornerRadius DO_IF_USE_BACKINGSCALE(* BackingScaleFactor());
   mIsCoveringTitlebar = [(ChildView*)mView isCoveringTitlebar];
   NSInteger styleMask = [[mView window] styleMask];
   mIsFullscreen = (styleMask & NSFullScreenWindowMask) || !(styleMask & NSTitledWindowMask);
@@ -2886,7 +2892,7 @@ nsChildView::UpdateTitlebarCGContext()
 
   CGContextSaveGState(ctx);
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   double scale = BackingScaleFactor();
   CGContextScaleCTM(ctx, scale, scale);
 #else
@@ -4351,7 +4357,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
 - (void)viewDidChangeBackingProperties
 {
   [super viewDidChangeBackingProperties];
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   if (mGeckoChild) {
     // actually, it could be the color space that's changed,
     // but we can't tell the difference here except by retrieving
@@ -4485,13 +4491,14 @@ NSEvent* gLastDragMouseDownEvent = nil;
   // scales one user space unit to one Cocoa point, which can consist of
   // multiple dev pixels. But Gecko expects its supplied context to be scaled
   // to device pixels, so we need to reverse the scaling.
-  //double scale = mGeckoChild->BackingScaleFactor();
+#if USE_BACKING_SCALE_FACTOR
+  double scale = mGeckoChild->BackingScaleFactor();
+#endif
   CGContextSaveGState(aContext);
-  CGContextScaleCTM(aContext, 1.0, 1.0); //CGContextScaleCTM(aContext, 1.0 / scale, 1.0 / scale);
+  CGContextScaleCTM(aContext, 1.0 DO_IF_USE_BACKINGSCALE(/ scale), 1.0 DO_IF_USE_BACKINGSCALE(/ scale));
 
   NSSize viewSize = [self bounds].size;
-  //nsIntSize backingSize(viewSize.width * scale, viewSize.height * scale);
-  nsIntSize backingSize(viewSize.width, viewSize.height);
+  nsIntSize backingSize(viewSize.width DO_IF_USE_BACKINGSCALE(* scale), viewSize.height DO_IF_USE_BACKINGSCALE(* scale));
 
   CGContextSaveGState(aContext);
 
@@ -5804,9 +5811,12 @@ PanGestureTypeForEvent(NSEvent* aEvent)
   if (usePreciseDeltas) {
     CGFloat pixelDeltaX = 0, pixelDeltaY = 0;
     nsCocoaUtils::GetScrollingDeltas(theEvent, &pixelDeltaX, &pixelDeltaY);
-    //double scale = mGeckoChild->BackingScaleFactor();
-    //preciseDelta = ScreenPoint(-pixelDeltaX * scale, -pixelDeltaY * scale);
+#if USE_BACKING_SCALE_FACTOR
+    double scale = mGeckoChild->BackingScaleFactor();
+    preciseDelta = ScreenPoint(-pixelDeltaX * scale, -pixelDeltaY * scale);
+#else
     preciseDelta = ScreenPoint(-pixelDeltaX, -pixelDeltaY);
+#endif
   }
 
 #if(0)
@@ -7373,7 +7383,7 @@ GetUSLayoutCharFromKeyTranslate(UInt32 aKeyCode, UInt32 aModifiers)
     static_cast<NSView*>(rootWidget->GetNativeData(NS_NATIVE_WIDGET));
   if (!rootWindow || !rootView)
     return rect;
-  rect = nsCocoaUtils::DevPixelsToCocoaPoints(r);
+  rect = nsCocoaUtils::DevPixelsToCocoaPoints(r DO_IF_USE_BACKINGSCALE(, mGeckoChild->BackingScaleFactor()));
   rect = [rootView convertRect:rect toView:nil];
   rect.origin = [rootWindow convertBaseToScreen:rect.origin];
   return rect;

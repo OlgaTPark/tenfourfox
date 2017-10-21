@@ -6,6 +6,7 @@
 #ifndef nsCocoaUtils_h_
 #define nsCocoaUtils_h_
 
+#ifdef __OBJC__ /* I'm forced to do that since I'm including this file from view/nsView.cpp */
 #import <Cocoa/Cocoa.h>
 
 #include "nsRect.h"
@@ -18,6 +19,9 @@
 #include "nsObjCExceptions.h"
 
 #include "mozilla/EventForwards.h"
+#else
+  #include <AvailabilityMacros.h>
+#endif /* __OBJC__ */
 
 #if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5)
 #define NS_LEOPARD_AND_LATER 1
@@ -53,6 +57,23 @@ typedef float CGFloat;
 # define CGFLOAT_DEFINED 1
 #endif
 
+/* The following complicated macros are for those who wants to use the backingScaleFactor.
+ * It's useful for building on Intel for Mac OS X > 10.6 (retina support) and for the 
+ * « chipoteux » ones who have changed AppleDisplayScaleFactor in the application's preferences plist!
+ * FORCE_USING_BACKING_SCALE_FACTOR can simply be defined in compiler flags to force 
+ * the usage of the backingScaleFactor without modifying the source files.
+ * The macro DO_IF_USE_BACKINGSCALE() will do something if backing scale factor is enabled (very useful…)
+ */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(FORCE_USING_BACKING_SCALE_FACTOR)
+#  define USE_BACKING_SCALE_FACTOR 1
+#  define DO_IF_USE_BACKINGSCALE(...) __VA_ARGS__
+#else
+#  define USE_BACKING_SCALE_FACTOR 0
+#  define DO_IF_USE_BACKINGSCALE(...) /* (void) */
+#endif
+
+
+#ifdef __OBJC__
 // Declare the backingScaleFactor method that we want to call
 // on NSView/Window/Screen objects, if they recognize it.
 @interface NSObject (BackingScaleFactorCategory)
@@ -168,7 +189,7 @@ class nsCocoaUtils
 
 public:
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // Get the backing scale factor from an object that supports this selector
   // (NSView/Window/Screen, on 10.7 or later), returning 1.0 if not supported
   static CGFloat
@@ -316,14 +337,25 @@ public:
   // expected to be CSS pixels, which we treat as equal to Cocoa points.
   static NSRect GeckoRectToCocoaRect(const nsIntRect &geckoRect);
 
+#if USE_BACKING_SCALE_FACTOR
+  // Converts aGeckoRect in dev pixels to points in Cocoa coordinates
+  static NSRect GeckoRectToCocoaRectDevPix(const nsIntRect &aGeckoRect,
+                                           CGFloat aBackingScale);
+#else
   // Converts aGeckoRect in dev pixels to points in Cocoa coordinates
   static NSRect GeckoRectToCocoaRectDevPix(const nsIntRect &aGeckoRect);
+#endif
 
   // See explanation for geckoRectToCocoaRect, guess what this does...
   static nsIntRect CocoaRectToGeckoRect(const NSRect &cocoaRect);
 
+#if USE_BACKING_SCALE_FACTOR
+  static mozilla::LayoutDeviceIntRect CocoaRectToGeckoRectDevPix(
+    const NSRect& aCocoaRect, CGFloat aBackingScale);
+#else
   static mozilla::LayoutDeviceIntRect CocoaRectToGeckoRectDevPix(
     const NSRect& aCocoaRect);
+#endif
 
   // Gives the location for the event in screen coordinates. Do not call this
   // unless the window the event was originally targeted at is still alive!
@@ -392,9 +424,14 @@ public:
       @param aImage the image to extract a frame from
       @param aWhichFrame the frame to extract (see imgIContainer FRAME_*)
       @param aResult the resulting NSImage
+      @param scaleFactor the desired scale factor of the NSImage (2 for a retina display)
       @return NS_OK if the conversion worked, NS_ERROR_FAILURE otherwise
    */  
+#if USE_BACKING_SCALE_FACTOR
+  static nsresult CreateNSImageFromImageContainer(imgIContainer *aImage, uint32_t aWhichFrame, NSImage **aResult, CGFloat scaleFactor);
+#else
   static nsresult CreateNSImageFromImageContainer(imgIContainer *aImage, uint32_t aWhichFrame, NSImage **aResult);
+#endif
 
   /**
    * Returns nsAString for aSrc.
@@ -479,4 +516,5 @@ public:
   static uint32_t ConvertGeckoKeyCodeToMacCharCode(uint32_t aKeyCode);
 };
 
+#endif /* __OBJC__ */
 #endif // nsCocoaUtils_h_

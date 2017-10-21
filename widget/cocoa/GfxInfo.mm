@@ -11,6 +11,7 @@
 #include "GfxInfo.h"
 #include "nsUnicharUtils.h"
 #include "nsCocoaFeatures.h"
+#include "nsCocoaUtils.h" /* For Backing-scale factor */
 #include "mozilla/Preferences.h"
 #include <algorithm>
 
@@ -378,8 +379,11 @@ GfxInfo::FindMonitors(JSContext* aCx, JS::HandleObject aOutArray)
 
     JS::Rooted<JS::Value> screenHeight(aCx, JS::Int32Value((int)rect.size.height));
     JS_SetProperty(aCx, obj, "screenHeight", screenHeight);
-
+#if USE_BACKING_SCALE_FACTOR
+    JS::Rooted<JS::Value> scale(aCx, JS::NumberValue(nsCocoaUtils::GetBackingScaleFactor(screen)));
+#else
     JS::Rooted<JS::Value> scale(aCx, JS::NumberValue(1.0f));
+#endif
     JS_SetProperty(aCx, obj, "scale", scale);
 
     JS::Rooted<JS::Value> element(aCx, JS::ObjectValue(*obj));

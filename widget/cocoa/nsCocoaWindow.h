@@ -326,7 +326,7 @@ public:
     NS_IMETHOD              SetCursor(nsCursor aCursor) override;
     NS_IMETHOD              SetCursor(imgIContainer* aCursor, uint32_t aHotspotX, uint32_t aHotspotY) override;
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
     CGFloat                 BackingScaleFactor();
     void                    BackingScaleFactorChanged();
     virtual double          GetDefaultScaleInternal() override;

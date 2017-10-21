@@ -463,7 +463,7 @@ public:
   NS_IMETHOD              GetScreenBounds(LayoutDeviceIntRect& aRect) override;
 
 // Disable backing scale support; let nsIWidget handle the last two.
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // Returns the "backing scale factor" of the view's window, which is the
   // ratio of pixels in the window's backing store to Cocoa points. Prior to
   // HiDPI support in OS X 10.7, this was always 1.0, but in HiDPI mode it
@@ -605,7 +605,7 @@ public:
   NSColor*          VibrancyFillColorForThemeGeometryType(nsITheme::ThemeGeometryType aThemeGeometryType);
   NSColor*          VibrancyFontSmoothingBackgroundColorForThemeGeometryType(nsITheme::ThemeGeometryType aThemeGeometryType);
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // unit conversion convenience functions
   int32_t           CocoaPointsToDevPixels(CGFloat aPts) const {
     return nsCocoaUtils::CocoaPointsToDevPixels(aPts, BackingScaleFactor());

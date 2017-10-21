@@ -779,14 +779,17 @@ static void DrawCellWithScaling(NSCell *cell,
     w += kMaxFocusRingWidth * 2.0;
     h += kMaxFocusRingWidth * 2.0;
 
-    //int backingScaleFactor = GetBackingScaleFactorForRendering(cgContext);
+#if USE_BACKING_SCALE_FACTOR
+    int backingScaleFactor = GetBackingScaleFactorForRendering(cgContext);
+#endif
     CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
     CGContextRef ctx = CGBitmapContextCreate(NULL,
-     (int)w, (int)h, 8, (int)(w * 4), rgb, kCGImageAlphaPremultipliedFirst);
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
                                              (int) w * backingScaleFactor, (int) h * backingScaleFactor,
                                              8, (int) w * backingScaleFactor * 4,
                                              rgb, kCGImageAlphaPremultipliedFirst);
+#else
+                                             (int)w, (int)h, 8, (int)(w * 4), rgb, kCGImageAlphaPremultipliedFirst);
 #endif
     CGColorSpaceRelease(rgb);
 
@@ -802,10 +805,17 @@ static void DrawCellWithScaling(NSCell *cell,
     NSGraphicsContext* savedContext = [NSGraphicsContext currentContext];
     [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:ctx flipped:YES]];
 
-    CGContextScaleCTM(ctx, 1.0, 1.0); //backingScaleFactor, backingScaleFactor);
+#if USE_BACKING_SCALE_FACTOR
+    CGContextScaleCTM(ctx, backingScaleFactor, backingScaleFactor);
 
     // Set the context's "base transform" to in order to get correctly-sized focus rings.
-    CGContextSetBaseCTM(ctx, CGAffineTransformMakeScale(1.0, 1.0)); //backingScaleFactor, backingScaleFactor));
+    CGContextSetBaseCTM(ctx, CGAffineTransformMakeScale(backingScaleFactor, backingScaleFactor));
+#else
+    CGContextScaleCTM(ctx, 1.0, 1.0);
+
+    // Set the context's "base transform" to in order to get correctly-sized focus rings.
+    CGContextSetBaseCTM(ctx, CGAffineTransformMakeScale(1.0, 1.0));
+#endif
 
     // This is the second flip transform, applied to ctx.
     CGContextScaleCTM(ctx, 1.0f, -1.0f);
@@ -1410,25 +1420,35 @@ RenderTransformedHIThemeControl(CGContextRef aCGContext, const HIRect& aRect,
     int w = ceil(drawRect.size.width) + 2 * kMaxFocusRingWidth;
     int h = ceil(drawRect.size.height) + 2 * kMaxFocusRingWidth;
 
-    //int backingScaleFactor = GetBackingScaleFactorForRendering(aCGContext);
+#if USE_BACKING_SCALE_FACTOR
+    int backingScaleFactor = GetBackingScaleFactorForRendering(aCGContext);
+#endif
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGContextRef bitmapctx = CGBitmapContextCreate(NULL,
-    w, h, 8, w * 4, colorSpace, kCGImageAlphaPremultipliedFirst);
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
                                                    w * backingScaleFactor,
                                                    h * backingScaleFactor,
                                                    8,
                                                    w * backingScaleFactor * 4,
                                                    colorSpace,
                                                    kCGImageAlphaPremultipliedFirst);
-#endif
     CGColorSpaceRelease(colorSpace);
 
-    CGContextScaleCTM(bitmapctx, 1.0, 1.0); //backingScaleFactor, backingScaleFactor);
+    CGContextScaleCTM(bitmapctx, backingScaleFactor, backingScaleFactor);
     CGContextTranslateCTM(bitmapctx, kMaxFocusRingWidth, kMaxFocusRingWidth);
 
     // Set the context's "base transform" to in order to get correctly-sized focus rings.
-    CGContextSetBaseCTM(bitmapctx, CGAffineTransformMakeScale(1.0, 1.0)); //backingScaleFactor, backingScaleFactor));
+    CGContextSetBaseCTM(bitmapctx, CGAffineTransformMakeScale(backingScaleFactor, backingScaleFactor));
+#else
+                       w, h, 8, w * 4, colorSpace, kCGImageAlphaPremultipliedFirst);
+    CGColorSpaceRelease(colorSpace);
+
+    CGContextScaleCTM(bitmapctx, 1.0, 1.0);
+    CGContextTranslateCTM(bitmapctx, kMaxFocusRingWidth, kMaxFocusRingWidth);
+
+    // Set the context's "base transform" to in order to get correctly-sized focus rings.
+    CGContextSetBaseCTM(bitmapctx, CGAffineTransformMakeScale(1.0, 1.0));
+#endif
 
     // HITheme always wants to draw into a flipped context, or things
     // get confused.

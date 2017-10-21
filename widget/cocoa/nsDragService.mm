@@ -190,7 +190,9 @@ nsDragService::ConstructDragImage(nsIDOMNode* aDOMNode,
   // Y coordinates are bottom to top, so reverse this
   screenPoint.y = nsCocoaUtils::FlippedScreenY(screenPoint.y);
 
-  //CGFloat scaleFactor = nsCocoaUtils::GetBackingScaleFactor(gLastDragView);
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor = nsCocoaUtils::GetBackingScaleFactor(gLastDragView);
+#endif
 
   RefPtr<SourceSurface> surface;
   nsPresContext* pc;
@@ -200,9 +202,9 @@ nsDragService::ConstructDragImage(nsIDOMNode* aDOMNode,
                          aDragRect, &surface, &pc);
   if (!aDragRect->width || !aDragRect->height) {
     // just use some suitable defaults
-    int32_t size = nsCocoaUtils::CocoaPointsToDevPixels(20);
-    aDragRect->SetRect(nsCocoaUtils::CocoaPointsToDevPixels(screenPoint.x),
-                       nsCocoaUtils::CocoaPointsToDevPixels(screenPoint.y),
+    int32_t size = nsCocoaUtils::CocoaPointsToDevPixels(20 DO_IF_USE_BACKINGSCALE(, scaleFactor));
+    aDragRect->SetRect(nsCocoaUtils::CocoaPointsToDevPixels(screenPoint.x DO_IF_USE_BACKINGSCALE(, scaleFactor)),
+                       nsCocoaUtils::CocoaPointsToDevPixels(screenPoint.y DO_IF_USE_BACKINGSCALE(, scaleFactor)),
                        size, size);
   }
 
@@ -272,9 +274,15 @@ nsDragService::ConstructDragImage(nsIDOMNode* aDOMNode,
   }
   dataSurface->Unmap();
 
+#if USE_BACKING_SCALE_FACTOR
+  NSImage* image =
+    [[NSImage alloc] initWithSize:NSMakeSize(width / scaleFactor,
+                                             height / scaleFactor)];
+#else
   NSImage* image =
     [[NSImage alloc] initWithSize:NSMakeSize(width,
                                              height)];
+#endif
   [image addRepresentation:imageRep];
   [imageRep release];
 
@@ -396,8 +404,10 @@ nsDragService::InvokeDragSessionImpl(nsISupportsArray* aTransferableArray,
   }
 
   LayoutDeviceIntPoint pt(dragRect.x, dragRect.YMost());
-  //CGFloat scaleFactor = nsCocoaUtils::GetBackingScaleFactor(gLastDragView);
-  NSPoint point = nsCocoaUtils::DevPixelsToCocoaPoints(pt);
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor = nsCocoaUtils::GetBackingScaleFactor(gLastDragView);
+#endif
+  NSPoint point = nsCocoaUtils::DevPixelsToCocoaPoints(pt DO_IF_USE_BACKINGSCALE(, scaleFactor));
   point.y = nsCocoaUtils::FlippedScreenY(point.y);
 
   point = [[gLastDragView window] convertScreenToBase: point];
