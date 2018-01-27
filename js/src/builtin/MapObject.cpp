@@ -80,7 +80,7 @@ HashValue(const Value& v, const mozilla::HashCodeScrambler& hcs)
         return v.toString()->asAtom().hash();
     if (v.isSymbol())
         return v.toSymbol()->hash();
-#if(0)
+#if !defined(__ppc__) && !defined(__ppc64__) /* If you're right… */
 // Remove this code (M1312001/M1330769). The exploit cannot succeed on PowerPC
 // and this code has a performance impact.
     if (v.isObject())
