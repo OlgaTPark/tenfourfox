@@ -29,7 +29,7 @@
 #ifndef SKIA_EXT_IMAGE_OPERATIONS_H_
 #define SKIA_EXT_IMAGE_OPERATIONS_H_
 
-#if(0)
+#ifdef MOZ_ENABLE_SKIA
 #include "skia/include/core/SkTypes.h"
 #include "Types.h"
 #include "convolver.h"

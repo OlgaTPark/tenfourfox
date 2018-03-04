@@ -177,8 +177,10 @@ static void quartz_ensure_symbols(void)
     CGContextSetAllowsFontSmoothingPtr = dlsym(RTLD_DEFAULT, "CGContextSetAllowsFontSmoothing");
     CGContextGetAlphaPtr = dlsym(RTLD_DEFAULT, "CGContextGetAlpha");
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     CTFontDrawGlyphsPtr = dlsym(RTLD_DEFAULT, "CTFontDrawGlyphs");
+#endif
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 
 #if !TARGET_OS_IPHONE
     if (Gestalt(gestaltSystemVersion, &_cairo_quartz_osx_version) != noErr) {
@@ -191,6 +193,7 @@ static void quartz_ensure_symbols(void)
 #endif
 #else
      _cairo_quartz_osx_version = 0x1040; // so awesome
+     // NOTE: A quick DXR lookup reveals that this variable is only tested once against 0x1060 in this file
 #endif
 
     _cairo_quartz_symbol_lookup_done = TRUE;

@@ -257,7 +257,7 @@ imgFrame::InitWithDrawable(gfxDrawable* aDrawable,
 
   RefPtr<DrawTarget> target;
 
-#if !defined(XP_MACOSX) // always true with gfxPlatformMac
+#ifndef XP_MACOSX // always true with gfxPlatformMac
   bool canUseDataSurface =
     gfxPlatform::GetPlatform()->CanRenderContentToDataSurface();
 
@@ -286,7 +286,7 @@ imgFrame::InitWithDrawable(gfxDrawable* aDrawable,
 
     target = gfxPlatform::GetPlatform()->
       CreateDrawTargetForData(ptr, mSize, stride, mFormat);
-#if !defined(XP_MACOSX)
+#ifndef XP_MACOSX
   } else {
     // We can't use data surfaces for content, so we'll create an offscreen
     // surface instead.  This means if someone later calls RawAccessRef(), we
@@ -311,7 +311,7 @@ imgFrame::InitWithDrawable(gfxDrawable* aDrawable,
                              ImageRegion::Create(ThebesRect(imageRect)),
                              mFormat, aFilter, aImageFlags);
 
-#if !defined(XP_MACOSX)
+#ifndef XP_MACOSX
   if (canUseDataSurface && !mImageSurface) {
     NS_WARNING("Failed to create VolatileDataSourceSurface");
     mAborted = true;

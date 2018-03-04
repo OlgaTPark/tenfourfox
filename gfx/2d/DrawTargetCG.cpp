@@ -354,7 +354,7 @@ DrawTargetCG::DrawTargetCG()
   , mCg(nullptr)
   , mMayContainInvalidPremultipliedData(false)
 {
-#ifdef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Figure out which pointer we use for bounding boxes. Try 10.5 first.
   CGFontGetGlyphBBoxesPtr = dlsym(RTLD_DEFAULT, "CGFontGetGlyphBBoxes");
   if (!CGFontGetGlyphBBoxesPtr) { // 10.4
@@ -384,11 +384,11 @@ DrawTargetCG::~DrawTargetCG()
 DrawTargetType
 DrawTargetCG::GetType() const
 {
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   return GetBackendType() == BackendType::COREGRAPHICS_ACCELERATED ?
            DrawTargetType::HARDWARE_RASTER : DrawTargetType::SOFTWARE_RASTER;
 #else
-  // All software, all the time.
+  // All software, all the time. (see method below)
   return DrawTargetType::SOFTWARE_RASTER;
 #endif
 }
@@ -397,7 +397,7 @@ BackendType
 DrawTargetCG::GetBackendType() const
 {
 // 10.4 does not have IOSurfaces, so it's never accelerated.
-#ifndef CG_TIGER // def MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   // It may be worth spliting Bitmap and IOSurface DrawTarget
   // into seperate classes.
   if (GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE) {
@@ -415,7 +415,7 @@ DrawTargetCG::Snapshot()
 {
 // I said, 10.4 doesn't have IOSurfaces.
   if (!mSnapshot) {
-#ifndef CG_TIGER // def MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     if (GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE) {
       return MakeAndAddRef<SourceSurfaceCGIOSurfaceContext>(this);
     }
@@ -671,7 +671,7 @@ class GradientStopsCG : public GradientStops
         offsets.push_back(aStops[i].offset);
       }
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
       mGradient = CGGradientCreateWithColorComponents(aColorSpace,
                                                       &colors.front(),
                                                       &offsets.front(),
@@ -688,7 +688,7 @@ class GradientStopsCG : public GradientStops
 
   }
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   virtual ~GradientStopsCG() {
     // CGGradientRelease is OK with nullptr argument
     CGGradientRelease(mGradient);
@@ -812,7 +812,7 @@ CalculateRepeatingGradientParams(CGPoint *aStart, CGPoint *aEnd,
   *aRepeatEndFactor = t_max;
 }
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 static CGGradientRef
 #else
 static CTGradientCPP *
@@ -848,7 +848,7 @@ CreateRepeatingGradient(CGColorSpaceRef aColorSpace,
     }
   }
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGGradientRef gradient = CGGradientCreateWithColorComponents(aColorSpace,
                                                                &colors.front(),
                                                                &offsets.front(),
@@ -876,7 +876,7 @@ DrawLinearRepeatingGradient(CGColorSpaceRef aColorSpace, CGContextRef cg,
                                      &repeatStartFactor, &repeatEndFactor);
   }
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGGradientRef gradient = CreateRepeatingGradient(aColorSpace, cg, stops, repeatStartFactor, repeatEndFactor, aReflect);
 
   CGContextDrawLinearGradient(cg, gradient, startPoint, endPoint,
@@ -933,7 +933,7 @@ DrawRadialRepeatingGradient(CGColorSpaceRef aColorSpace, CGContextRef cg,
     repeatStartFactor--;
   }
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGGradientRef gradient = CreateRepeatingGradient(aColorSpace, cg, stops, repeatStartFactor, repeatEndFactor, aReflect);
 
   //XXX: are there degenerate radial gradients that we should avoid drawing?
@@ -975,7 +975,7 @@ DrawGradient(CGColorSpaceRef aColorSpace,
       //if (startPoint.x == endPoint.x && startPoint.y == endPoint.y)
       //  return;
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
       CGContextDrawLinearGradient(cg, stops->mGradient, startPoint, endPoint,
                                   kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
 #else
@@ -1000,7 +1000,7 @@ DrawGradient(CGColorSpaceRef aColorSpace,
       CGFloat endRadius   = pat.mRadius2;
 
       //XXX: are there degenerate radial gradients that we should avoid drawing?
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
       CGContextDrawRadialGradient(cg, stops->mGradient, startCenter, startRadius, endCenter, endRadius,
                                   kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
 #else
@@ -1819,7 +1819,7 @@ DrawTargetCG::FillGlyphs(ScaledFont *aFont, const GlyphBuffer &aBuffer, const Pa
 
   ScaledFontMac* macFont = static_cast<ScaledFontMac*>(aFont);
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // This code can execute millions of times in short periods, so we want to
   // avoid heap allocation whenever possible. So we use an inline vector
   // capacity of 64 elements, which is enough to typically avoid heap
@@ -1984,7 +1984,7 @@ DrawTargetCG::CopySurface(SourceSurface *aSurface,
                                aSourceRect.width, aSourceRect.height);
   CGContextClipToRect(mCg, destRect);
 
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGContextSetBlendMode(mCg, kCGBlendModeCopy);
 #else
     this_CGContextSetBlendMode(mCg, CompositionOp::OP_SOURCE);
@@ -2066,7 +2066,12 @@ DrawTargetCG::Init(BackendType aType,
   //XXX: we'd be better off reusing the Colorspace across draw targets
   mColorSpace = CGColorSpaceCreateDeviceRGB();
 
-  if (aData == nullptr /* && aType != BackendType::COREGRAPHICS_ACCELERATED */) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+  if (aData == nullptr && aType != BackendType::COREGRAPHICS_ACCELERATED)
+#else
+  if (aData == nullptr)
+#endif
+  {
     // XXX: Currently, Init implicitly clears, that can often be a waste of time
     size_t bufLen = BufferSizeFromStrideAndHeight(aStride, aSize.height);
     if (bufLen == 0) {
@@ -2083,7 +2088,7 @@ DrawTargetCG::Init(BackendType aType,
   mSize = aSize;
 
 // Always false on 10.4
-#ifndef CG_TIGER // def MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   if (aType == BackendType::COREGRAPHICS_ACCELERATED) {
     RefPtr<MacIOSurface> ioSurface = MacIOSurface::CreateIOSurface(aSize.width, aSize.height);
     mCg = ioSurface->CreateIOSurfaceContext();
@@ -2094,11 +2099,10 @@ DrawTargetCG::Init(BackendType aType,
 
   mFormat = SurfaceFormat::B8G8R8A8;
 
-#ifndef CG_TIGER
-  if (!mCg || aType == BackendType::COREGRAPHICS) {
-#else
-  {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+  if (!mCg || aType == BackendType::COREGRAPHICS)
 #endif
+  {
     int bitsPerComponent = 8;
 
     CGBitmapInfo bitinfo;
@@ -2149,7 +2153,7 @@ DrawTargetCG::Init(BackendType aType,
 
 
 // Never occurs on Tiger.
-#ifndef CG_TIGER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   if (aType == BackendType::COREGRAPHICS_ACCELERATED) {
     // The bitmap backend uses callac to clear, we can't do that without
     // reading back the surface. This should trigger something equivilent
@@ -2162,7 +2166,7 @@ DrawTargetCG::Init(BackendType aType,
 }
 
 // XXX: Only called by Flush() and not for 10.4
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 static void
 EnsureValidPremultipliedData(CGContextRef aContext)
 {
@@ -2199,7 +2203,7 @@ void
 DrawTargetCG::Flush()
 {
 // This never occurs for Tiger.
-#ifndef CG_TIGER // def MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   if (GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE) {
     CGContextFlush(mCg);
   } else if (GetContextType(mCg) == CG_CONTEXT_TYPE_BITMAP &&
@@ -2259,7 +2263,7 @@ DrawTargetCG::Init(CGContextRef cgContext, const IntSize &aSize)
   mFormat = SurfaceFormat::B8G8R8A8;
 // The below is never true for 10.4 (in fact, it bugs out badly if it
 // enters the code path).
-#ifndef CG_TIGER // def MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   if (GetContextType(mCg) == CG_CONTEXT_TYPE_BITMAP) {
     CGColorSpaceRef colorspace;
     CGBitmapInfo bitinfo = CGBitmapContextGetBitmapInfo(mCg);
@@ -2294,7 +2298,7 @@ void*
 DrawTargetCG::GetNativeSurface(NativeSurfaceType aType)
 {
 // Dammit, I said 10.4 doesn't have IOSurfaces!
-#ifndef CG_TIGER // def MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   if ((aType == NativeSurfaceType::CGCONTEXT && GetContextType(mCg) == CG_CONTEXT_TYPE_BITMAP) ||
       (aType == NativeSurfaceType::CGCONTEXT_ACCELERATED && GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE)) {
     return mCg;
@@ -2414,8 +2418,12 @@ DrawTargetCG::MarkChanged()
 CGContextRef
 BorrowedCGContext::BorrowCGContextFromDrawTarget(DrawTarget *aDT)
 {
-  if (MOZ_LIKELY((aDT->GetBackendType() == BackendType::COREGRAPHICS /* ||
-       aDT->GetBackendType() == BackendType::COREGRAPHICS_ACCELERATED */ ) &&
+  BackendType aBackendType = aDT->GetBackendType();
+  if (MOZ_LIKELY((aBackendType == BackendType::COREGRAPHICS
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+       || aBackendType == BackendType::COREGRAPHICS_ACCELERATED
+#endif
+				  ) &&
       !aDT->IsTiledDrawTarget() && !aDT->IsDualDrawTarget())) {
     DrawTargetCG* cgDT = static_cast<DrawTargetCG*>(aDT);
     cgDT->Flush();

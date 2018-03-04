@@ -216,11 +216,13 @@ private:
   CGContextRef mCg;
   CGAffineTransform mOriginalTransform;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Class member to remember which function has CGFontGlyphGetBBoxes.
   bool (*CGFontGetGlyphBBoxesPtr)
 	(CGFontRef, const CGGlyph[], size_t, CGRect[]);
   // Ditto for CGContextGetTypePtr.
   unsigned int (*CGContextGetTypePtr) (CGContextRef);
+#endif
 
   /**
    * The image buffer, if the buffer is owned by this class.

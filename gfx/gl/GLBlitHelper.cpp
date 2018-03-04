@@ -256,14 +256,12 @@ GLBlitHelper::InitTexQuadProgram(BlitType target)
         fragShaderPtr = &mTexYUVPlanarBlit_FragShader;
         fragShaderSource = kTexYUVPlanarBlit_FragShaderSource;
         break;
-#if(0)
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
     case ConvertMacIOSurfaceImage:
         programPtr = &mTexNV12PlanarBlit_Program;
         fragShaderPtr = &mTexNV12PlanarBlit_FragShader;
         fragShaderSource = kTexNV12PlanarBlit_FragShaderSource;
         break;
-#endif
 #endif
     default:
         return false;
@@ -420,8 +418,7 @@ GLBlitHelper::InitTexQuadProgram(BlitType target)
                 break;
             }
             case ConvertMacIOSurfaceImage: {
-#if(0)
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
                 GLint texY = mGL->fGetUniformLocation(program, "uYTexture");
                 GLint texCbCr = mGL->fGetUniformLocation(program, "uCbCrTexture");
                 mYTexScaleLoc = mGL->fGetUniformLocation(program, "uYTexScale");
@@ -435,7 +432,6 @@ GLBlitHelper::InitTexQuadProgram(BlitType target)
 
                 mGL->fUniform1i(texY, Channel_Y);
                 mGL->fUniform1i(texCbCr, Channel_Cb);
-#endif
 #endif
                 break;
             }
@@ -784,7 +780,7 @@ GLBlitHelper::BlitPlanarYCbCrImage(layers::PlanarYCbCrImage* yuvImage)
 bool
 GLBlitHelper::BlitMacIOSurfaceImage(layers::MacIOSurfaceImage* ioImage)
 {
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
     ScopedBindTextureUnit boundTU(mGL, LOCAL_GL_TEXTURE0);
     MacIOSurface* surf = ioImage->GetSurface();
 
@@ -858,13 +854,11 @@ GLBlitHelper::BlitImageToFramebuffer(layers::Image* srcImage,
         srcOrigin = srcImage->AsEGLImageImage()->GetOriginPos();
         break;
 #endif
-#if(0)
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
     case ImageFormat::MAC_IOSURFACE:
         type = ConvertMacIOSurfaceImage;
         srcOrigin = OriginPos::TopLeft;
         break;
-#endif
 #endif
 
     default:
@@ -901,11 +895,9 @@ GLBlitHelper::BlitImageToFramebuffer(layers::Image* srcImage,
         return BlitEGLImageImage(static_cast<layers::EGLImageImage*>(srcImage));
 #endif
 
-#if(0)
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
     case ConvertMacIOSurfaceImage:
         return BlitMacIOSurfaceImage(srcImage->AsMacIOSurfaceImage());
-#endif
 #endif
 
     default:
