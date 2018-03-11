@@ -132,7 +132,9 @@ gfxFontInfoLoader::ShutdownObserver::Observe(nsISupports *aSubject,
 void
 gfxFontInfoLoader::StartLoader(uint32_t aDelay, uint32_t aInterval)
 {
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050
 return; // We don't implement this yet (see bug 962440).
+#else
     mInterval = aInterval;
 
     NS_ASSERTION(!mFontInfo,
@@ -186,6 +188,7 @@ return; // We don't implement this yet (see bug 962440).
         LOG_FONTINIT(("(fontinit) fontloader started (fontinfo: %p)\n",
                       mFontInfo.get()));
     }
+#endif
 }
 
 void

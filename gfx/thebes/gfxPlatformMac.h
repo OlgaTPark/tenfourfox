@@ -26,12 +26,13 @@ class FontDirWrapper {
 public:
 	uint8_t fontDir[1024];
 	ByteCount sizer;
-	FontDirWrapper::FontDirWrapper(ByteCount sized, uint8_t *dir) {
+    // NOTE: Clang gets crazy when you add this prefix
+	/*FontDirWrapper::*/FontDirWrapper(ByteCount sized, uint8_t *dir) {
 		if (sized < 0 || sized > 1024) return;
 		sizer = sized;
 		memcpy(fontDir, dir, sizer);
 	}
-	FontDirWrapper::~FontDirWrapper() { }
+	/*FontDirWrapper::*/~FontDirWrapper() { }
 };
 
 class gfxPlatformMac : public gfxPlatform {
@@ -115,11 +116,13 @@ public:
     // lower threshold on font anti-aliasing
     uint32_t GetAntiAliasingThreshold() { return mFontAntiAliasingThreshold; }
 
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1060
 /* ATS acceleration functions for 10.4 */
 ByteCount GetCachedDirSizeForFont(nsString name);
 uint8_t *GetCachedDirForFont(nsString name);
 void SetCachedDirForFont(nsString name, uint8_t* table, ByteCount sizer);
 nsClassHashtable< nsStringHashKey, FontDirWrapper > PlatformFontDirCache;
+#endif
 
 protected:
     bool AccelerateLayersByDefault() override;

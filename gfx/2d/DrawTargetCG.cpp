@@ -356,9 +356,10 @@ DrawTargetCG::DrawTargetCG()
 {
 #if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Figure out which pointer we use for bounding boxes. Try 10.5 first.
-  CGFontGetGlyphBBoxesPtr = dlsym(RTLD_DEFAULT, "CGFontGetGlyphBBoxes");
+  // Clang is too nasty with types…
+  CGFontGetGlyphBBoxesPtr = (bool (*)(CGFontRef, const CGGlyph[], size_t, CGRect[]))dlsym(RTLD_DEFAULT, "CGFontGetGlyphBBoxes");
   if (!CGFontGetGlyphBBoxesPtr) { // 10.4
-    CGFontGetGlyphBBoxesPtr = dlsym(RTLD_DEFAULT,
+    CGFontGetGlyphBBoxesPtr = (bool (*)(CGFontRef, const CGGlyph[], size_t, CGRect[]))dlsym(RTLD_DEFAULT,
 	"CGFontGetGlyphBoundingBoxes");
   }
   MOZ_ASSERT(CGFontGetGlyphBBoxesPtr, "can't find bounding box function");
@@ -1984,7 +1985,7 @@ DrawTargetCG::CopySurface(SourceSurface *aSurface,
                                aSourceRect.width, aSourceRect.height);
   CGContextClipToRect(mCg, destRect);
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+#ifndef CG_TIGER
   CGContextSetBlendMode(mCg, kCGBlendModeCopy);
 #else
     this_CGContextSetBlendMode(mCg, CompositionOp::OP_SOURCE);
@@ -2067,11 +2068,10 @@ DrawTargetCG::Init(BackendType aType,
   mColorSpace = CGColorSpaceCreateDeviceRGB();
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
-  if (aData == nullptr && aType != BackendType::COREGRAPHICS_ACCELERATED)
+  if (aData == nullptr && aType != BackendType::COREGRAPHICS_ACCELERATED) {
 #else
-  if (aData == nullptr)
+  if (aData == nullptr) {
 #endif
-  {
     // XXX: Currently, Init implicitly clears, that can often be a waste of time
     size_t bufLen = BufferSizeFromStrideAndHeight(aStride, aSize.height);
     if (bufLen == 0) {
