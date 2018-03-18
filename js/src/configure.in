@@ -266,8 +266,8 @@ else
     AC_CHECK_PROGS(STRIP, strip, :)
 
     # 10.4's strip won't work anymore
-    AC_MSG_WARN([Forcing strip to /opt/local/bin/strip])
-    STRIP="/opt/local/bin/strip"
+    # AC_MSG_WARN([Forcing strip to /opt/local/bin/strip])
+    # STRIP="/opt/local/bin/strip"
 
     AC_CHECK_PROGS(WINDRES, windres, :)
     if test -z "$HOST_CC"; then

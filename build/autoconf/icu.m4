@@ -88,7 +88,7 @@ if test -n "$USE_ICU"; then
     fi
 
 dnl We need a shared ICU to link TenFourFox.
-    MOZ_SHARED_ICU=1
+    # MOZ_SHARED_ICU=1
     AC_SUBST(MOZ_ICU_VERSION)
     AC_SUBST(MOZ_SHARED_ICU)
 

@@ -19,4 +19,7 @@ ac_add_options --enable-strip
 ac_add_options --enable-install-strip
 ac_add_options --with-distribution-id=com.floodgap
 ac_add_options --enable-webrtc
-
+# 10.4's strip won't work anymore
+export STRIP="/opt/local/bin/strip"
+# We need a shared ICU to link TenFourFox with a linker who have a restricted address space.
+export MOZ_SHARED_ICU=1

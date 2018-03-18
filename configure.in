@@ -386,8 +386,8 @@ else
     AC_CHECK_PROGS(STRIP, strip, :)
 
     # 10.4's strip won't work anymore
-    AC_MSG_WARN([Forcing strip to /opt/local/bin/strip7])
-    STRIP="/opt/local/bin/strip7"
+    # AC_MSG_WARN([Forcing strip to /opt/local/bin/strip7])
+    # STRIP="/opt/local/bin/strip7"
 
     AC_CHECK_PROGS(WINDRES, windres, :)
     AC_CHECK_PROGS(OTOOL, otool, :)
@@ -4250,7 +4250,11 @@ cairo-cocoa)
     LDFLAGS="$LDFLAGS -framework Cocoa -lobjc -framework ApplicationServices"
     # Use -Wl as a trick to avoid -framework and framework names from
     # being separated by AC_SUBST_LIST.
-    TK_LIBS='-Wl,-framework,ApplicationServices -Wl,-framework,QuartzCore -Wl,-framework,Carbon -Wl,-framework,CoreAudio -Wl,-framework,AudioToolbox -Wl,-framework,AudioUnit -Wl,-framework,AddressBook -Wl,-framework,OpenGL'
+    if [ $(bc -q <<< "( $MACOSX_DEPLOYMENT_TARGET * 100) >= 1060 " ) -eq 1]; then
+        TK_LIBS='-Wl,-framework,CoreLocation -Wl,-framework,QuartzCore -Wl,-framework,Carbon -Wl,-framework,CoreAudio -Wl,-framework,AudioToolbox -Wl,-framework,AudioUnit -Wl,-framework,AddressBook -Wl,-framework,OpenGL'
+    else
+        TK_LIBS='-Wl,-framework,ApplicationServices -Wl,-framework,QuartzCore -Wl,-framework,Carbon -Wl,-framework,CoreAudio -Wl,-framework,AudioToolbox -Wl,-framework,AudioUnit -Wl,-framework,AddressBook -Wl,-framework,OpenGL'
+    fi
     TK_CFLAGS="-DNO_X11"
     CFLAGS="$CFLAGS $TK_CFLAGS"
     CXXFLAGS="$CXXFLAGS $TK_CFLAGS"
@@ -5206,18 +5210,20 @@ dnl ========================================================
 dnl = Apple platform decoder support
 dnl ========================================================
 if test "$MOZ_WIDGET_TOOLKIT" = "cocoa" || test "$MOZ_WIDGET_TOOLKIT" = "uikit"; then
-  MOZ_APPLEMEDIA=
+  MOZ_APPLEMEDIA=1
 fi
 
 if test "$COMPILE_ENVIRONMENT"; then
 if test -n "$MOZ_APPLEMEDIA"; then
-  AC_DEFINE(MOZ_APPLEMEDIA)
   # hack in frameworks for fmp4 - see bug 1029974
   # We load VideoToolbox and CoreMedia dynamically, so they don't appear here.
   LDFLAGS="$LDFLAGS -framework AudioToolbox"
   dnl Verify CoreMedia is available.
   AC_CHECK_HEADER([CoreMedia/CoreMedia.h], [],
-    [AC_MSG_ERROR([MacOS X 10.7 SDK or later is required])])
+    [AC_MSG_ERROR([MacOS X 10.7 SDK or later is required for MOZ_APPLEMEDIA, just disabling])
+	MOZ_APPLEMEDIA=
+	])
+  AC_DEFINE(MOZ_APPLEMEDIA)
 fi
 fi # COMPILE_ENVIRONMENT
 
