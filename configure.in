@@ -5210,22 +5210,16 @@ dnl ========================================================
 dnl = Apple platform decoder support
 dnl ========================================================
 if test "$MOZ_WIDGET_TOOLKIT" = "cocoa" || test "$MOZ_WIDGET_TOOLKIT" = "uikit"; then
-  MOZ_APPLEMEDIA=1
-fi
-
 if test "$COMPILE_ENVIRONMENT"; then
-if test -n "$MOZ_APPLEMEDIA"; then
+  MOZ_APPLEMEDIA=
   # hack in frameworks for fmp4 - see bug 1029974
   # We load VideoToolbox and CoreMedia dynamically, so they don't appear here.
   LDFLAGS="$LDFLAGS -framework AudioToolbox"
   dnl Verify CoreMedia is available.
-  AC_CHECK_HEADER([CoreMedia/CoreMedia.h], [],
-    [AC_MSG_ERROR([MacOS X 10.7 SDK or later is required for MOZ_APPLEMEDIA, just disabling])
-	MOZ_APPLEMEDIA=
-	])
-  AC_DEFINE(MOZ_APPLEMEDIA)
-fi
+  AC_CHECK_HEADER([CoreMedia/CoreMedia.h], [MOZ_APPLEMEDIA=1 ; AC_DEFINE(MOZ_APPLEMEDIA)],
+    [AC_MSG_WARN([MacOS X 10.7 SDK or later is required for MOZ_APPLEMEDIA, just disabling])])
 fi # COMPILE_ENVIRONMENT
+fi
 
 dnl ========================================================
 dnl = DirectShow support

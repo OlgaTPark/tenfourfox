@@ -202,9 +202,17 @@ class AutoSetHandlingSignal
 #  define R15_sig(p) ((p)->uc_mcontext.mc_r15)
 # endif
 #elif defined(XP_DARWIN)
-# define EIP_sig(p) ((p)->uc_mcontext->__ss.__eip)
-# define RIP_sig(p) ((p)->uc_mcontext->__ss.__rip)
-# define R15_sig(p) ((p)->uc_mcontext->__ss.__pc)
+# include <AvailabilityMacros.h>
+# if MAC_OS_X_VERSION_MAX_ALLOWED >= 1050
+#  define EIP_sig(p) ((p)->uc_mcontext->__ss.__eip)
+#  define RIP_sig(p) ((p)->uc_mcontext->__ss.__rip)
+#  define R15_sig(p) ((p)->uc_mcontext->__ss.__pc)
+# else
+#  include <sys/ucontext.h>
+#  define EIP_sig(p) ((p)->uc_mcontext->ss.eip)
+#  define RIP_sig(p) ((p)->uc_mcontext->ss.rip)
+#  define R15_sig(p) ((p)->uc_mcontext->ss.pc)
+# endif
 #else
 # error "Don't know how to read/write to the thread state via the mcontext_t."
 #endif

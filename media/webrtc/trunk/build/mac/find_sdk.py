@@ -38,7 +38,7 @@ def main():
     # Look up for SDKs with newer versions of xcode
     sdks = []
     # Check if xcode-select is intalled ( https://stackoverflow.com/questions/377017 and https://stackoverflow.com/questions/8529390 )
-    if subprocess.call('type xcode-select', stdout=open(os.devnull, 'w'), shell=True) == 0:
+    if subprocess.call('type xcode-select', stdout=open(os.devnull, 'w'), stderr=open(os.devnull, 'w'), shell=True) == 0:
       job = subprocess.Popen(['xcode-select', '-print-path'],
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT)

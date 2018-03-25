@@ -89,7 +89,8 @@
 #      define MOZ_LIBSTDCXX_VERSION_AT_LEAST(major, minor, patch) \
           ((major) < 4 || ((major) == 4 && (minor) <= 2))
 #    else
-#      error "Your version of libstdc++ is unknown to us and is likely too old."
+#      define MOZ_LIBSTDCXX_VERSION_AT_LEAST(major, minor, patch) (0)
+#      warning "Your version of libstdc++ is unknown to us and is likely too old."
 #    endif
 #  endif
 
