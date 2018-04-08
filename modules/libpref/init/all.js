@@ -378,6 +378,17 @@ pref("media.webrtc.debug.aec_log_dir", "");
 pref("media.webrtc.debug.log_file", "");
 pref("media.webrtc.debug.aec_dump_max_size", 4194304); // 4MB
 
+#ifdef XP_MACOSX
+#if MACOSX_DEPLOYMENT_TARGET != 1040 
+// !!!This setting only applies for 32-bit builds for 10.5+!!!
+// In 32-bit, capturing videos with QuickTime consumes less CPU than with QTKit
+// By default, we use QuickTime in 32-bit but you could change this behaviour.
+// You need to restart the browser after changing this setting.
+// See /media/webrtc/trunk/webrtc/modules/video_capture/mac/video_capture_mac.mm
+pref("tenfourfox.video_capture.UseQTKitIn32bitMode", false);
+#endif /* MACOSX_DEPLOYMENT_TARGET >= 10.5 */
+#endif /* XP_MACOSX */
+
 #ifdef MOZ_WIDGET_GONK
 pref("media.navigator.video.default_width", 320);
 pref("media.navigator.video.default_height", 240);

@@ -77,6 +77,23 @@
               ],
             }],  # linux
             ['OS=="mac"', {
+              'conditions': [
+                ['macosx_deployment_target>="10.5"', {
+                  # Double quotes around 10.5 are mandatory or the condition 
+                  # will always be evaluated as true
+                  'sources': [
+                    'mac/qtkit/video_capture_qtkit.h',
+                    'mac/qtkit/video_capture_qtkit.mm',
+                    'mac/qtkit/video_capture_qtkit_info.h',
+                    'mac/qtkit/video_capture_qtkit_info.mm',
+                    'mac/qtkit/video_capture_qtkit_info_objc.h',
+                    'mac/qtkit/video_capture_qtkit_info_objc.mm',
+                    'mac/qtkit/video_capture_qtkit_objc.h',
+                    'mac/qtkit/video_capture_qtkit_objc.mm',
+                    'mac/qtkit/video_capture_qtkit_utility.h',
+                  ],
+                }],
+              ],
               'sources': [
                 'mac/quicktime/video_capture_quick_time.h',
                 'mac/quicktime/video_capture_quick_time_info.h',
@@ -88,7 +105,9 @@
                 'xcode_settings': {
                   'OTHER_LDFLAGS': [
                     '-framework Cocoa',
+                    '-framework CoreVideo',
                     '-framework QTKit',
+                    '-framework QuickTime',
                   ],
                 },
               },

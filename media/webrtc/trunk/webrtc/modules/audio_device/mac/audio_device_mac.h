@@ -23,6 +23,7 @@
 
 struct PaUtilRingBuffer;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 /* AudioDeviceIOProcID does not exist in Mac OS X 10.4. We can emulate
    this by using AudioDeviceAddIOProc() and AudioDeviceRemoveIOProc(). */
 typedef AudioDeviceIOProc AudioDeviceIOProcID;
@@ -34,6 +35,7 @@ static OSStatus AudioDeviceCreateIOProcID(AudioDeviceID dev,
 	*procid = proc;
 	return AudioDeviceAddIOProc(dev, proc, data);
 }
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1050 */
 
 namespace webrtc
 {

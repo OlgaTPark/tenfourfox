@@ -5,6 +5,10 @@
 #include "webrtc/modules/desktop_capture/mac/desktop_device_info_mac.h"
 #include <AppKit/AppKit.h>
 #include <Cocoa/Cocoa.h>
+/* Avoids including this when not needed in order to reduce compile-time */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 && MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+  #include <ApplicationServices/ApplicationServices.h>
+#endif
 #include <unistd.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -53,7 +57,7 @@ void DesktopDeviceInfoMac::MultiMonitorScreenshare()
   for (CFIndex i = 0; i < num_of_screens; ++i) {
     DesktopDisplayDevice* desktop_device_info = new DesktopDisplayDevice;
     if (desktop_device_info) {
-      desktop_device_info->setScreenId(screens[i]);
+      desktop_device_info->setScreenId((ScreenId)screens[i]);
       if (1 >= num_of_screens) {
         desktop_device_info->setDeviceName("Primary Monitor");
       } else {
@@ -77,7 +81,7 @@ void DesktopDeviceInfoMac::InitializeScreenList() {
 
 void DesktopDeviceInfoMac::InitializeApplicationList() {
 // There shall be none, and none shall there be (at least on Tiger).
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   //List all running applications (excluding background processes).
 
   // Get a list of all windows, to match to applications
@@ -102,12 +106,30 @@ void DesktopDeviceInfoMac::InitializeApplicationList() {
     }
   }
 
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NSArray *running = [[NSWorkspace sharedWorkspace] runningApplications];
   for (NSRunningApplication *ra in running) {
     if (ra.activationPolicy != NSApplicationActivationPolicyRegular)
       continue;
+  #else
+  NSArray *running = [[NSWorkspace sharedWorkspace] launchedApplications];
+  for (NSDictionary *ra in running) {
+  // This is maybe useless since -runningApplications returns all user's 
+  // applications but -launchedApplications only returns applications with a GUI
+    ProcessSerialNumber psn = {
+      .highLongOfPSN = [[ra objectForKey:@"NSApplicationProcessSerialNumberHigh"]unsignedLongValue], 
+      .lowLongOfPSN = [[ra objectForKey:@"NSApplicationProcessSerialNumberLow"]unsignedLongValue]};
+    CFDictionaryRef infoDict = ProcessInformationCopyDictionary(&psn, kProcessDictionaryIncludeAllInformationMask);
+    if (::CFBooleanGetValue((CFBooleanRef)CFDictionaryGetValue(infoDict, @"LSBackgroundOnly")) ||
+        ::CFBooleanGetValue((CFBooleanRef)CFDictionaryGetValue(infoDict, @"LSUIElement")))
+      continue;
+  #endif
 
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     ProcessId pid = ra.processIdentifier;
+  #else
+    ProcessId pid = [[ra objectForKey:@"NSApplicationProcessIdentifier"]longValue];
+  #endif
     if (pid == 0) {
       continue;
     }
@@ -124,12 +146,20 @@ void DesktopDeviceInfoMac::InitializeApplicationList() {
     pDesktopApplication->setWindowCount(appWins[pid]);
 
     NSString *str;
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     str = [ra.executableURL absoluteString];
+  #else
+    str = [ra objectForKey:@"NSApplicationPath"];
+  #endif
     pDesktopApplication->setProcessPathName([str UTF8String]);
 
     // Record <window count> then <localized name>
     // NOTE: localized names can get *VERY* long
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     str = ra.localizedName;
+  #else
+    str = [ra objectForKey:@"NSApplicationName"]; // This is the localized name
+  #endif
     char nameStr[BUFSIZ];
     snprintf(nameStr, sizeof(nameStr), "%d\x1e%s", pDesktopApplication->getWindowCount(), [str UTF8String]);
     pDesktopApplication->setProcessAppName(nameStr);
