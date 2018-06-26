@@ -121,10 +121,11 @@ static const size_t gStackChunkSize = 8192;
  */
 #if defined(MOZ_ASAN) || (defined(DEBUG) && !defined(XP_WIN))
 static const size_t gMaxStackSize = 2 * 128 * sizeof(size_t) * 1024;
-#else
-//static size_t gMaxStackSize = 128 * sizeof(size_t) * 1024;
+#elif defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__))
 // TenFourFox NEEDS MOAR.
 static size_t gMaxStackSize = 16384 * 1024;
+#else
+static const size_t gMaxStackSize = 128 * sizeof(size_t) * 1024;
 #endif
 
 /*
