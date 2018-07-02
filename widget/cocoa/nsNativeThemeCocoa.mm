@@ -685,7 +685,7 @@ nsNativeThemeCocoa::~nsNativeThemeCocoa()
 // different amounts of RAM.
 #define BITMAP_MAX_AREA 500000
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
 static int
 GetBackingScaleFactorForRendering(CGContextRef cgContext)
 {

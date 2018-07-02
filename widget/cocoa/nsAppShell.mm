@@ -34,7 +34,7 @@
 #include "mozilla/HangMonitor.h"
 #include "GeckoProfiler.h"
 #include "pratom.h"
-#if (0) // !defined(RELEASE_BUILD) || defined(DEBUG)
+#if (!defined(RELEASE_BUILD) || defined(DEBUG)) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 #include "nsSandboxViolationSink.h"
 #endif
 
@@ -55,7 +55,7 @@ public:
 private:
   ~MacWakeLockListener() {}
 
-#if(1)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Dummy class to make this happy, since 10.4 doesn't support
   // IOPMAssertions.
   NS_IMETHOD Callback(const nsAString& aTopic, const nsAString& aState) {
@@ -72,6 +72,7 @@ private:
     // "locked-foreground" notifications when multiple wake locks are held.
     if (aState.EqualsASCII("locked-foreground")) {
       // Prevent screen saver.
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
       CFStringRef cf_topic =
         ::CFStringCreateWithCharacters(kCFAllocatorDefault,
                                        reinterpret_cast<const UniChar*>
@@ -83,6 +84,12 @@ private:
                                       cf_topic,
                                       &mAssertionID);
       CFRelease(cf_topic);
+  #else
+      IOReturn success =
+        ::IOPMAssertionCreate(kIOPMAssertionTypeNoDisplaySleep,
+                              kIOPMAssertionLevelOn,
+                              &mAssertionID);
+  #endif
       if (success != kIOReturnSuccess) {
         NS_WARNING("failed to disable screensaver");
       }
@@ -104,7 +111,7 @@ private:
 // defined in nsCocoaWindow.mm
 extern int32_t             gXULModalLevel;
 
-#ifndef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // defined in nsChildView.mm
 extern uint32_t          gLastModifierState;
 #endif

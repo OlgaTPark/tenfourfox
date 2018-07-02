@@ -224,7 +224,12 @@ nsToolkit::RegisterForAllProcessMouseEvents()
   if (getenv("MOZ_DEBUG"))
     return;
 
-return; // We don't use this in TenFourFox right now. See issue 187.
+#if defined(__ppc__) || defined(__ppc64__)
+  return; // We don't use this in TenFourFox right now. See issue 187 and 88.
+#elif MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  if (!nsCocoaFeatures::OnLeopardOrLater())
+    return;
+#endif
 
   // Don't do this for apps that use native context menus.
 #ifdef MOZ_USE_NATIVE_POPUP_WINDOWS

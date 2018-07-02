@@ -51,7 +51,7 @@ SwipeTracker::SwipeTracker(nsChildView& aWidget,
   , mEventsHaveStartedNewGesture(false)
   , mRegisteredWithRefreshDriver(false)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
   SendSwipeEvent(eSwipeGestureStart, 0, 0.0);
   ProcessEvent(aSwipeStartEvent);
 #endif
@@ -60,7 +60,7 @@ SwipeTracker::SwipeTracker(nsChildView& aWidget,
 void
 SwipeTracker::Destroy()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
   UnregisterFromRefreshDriver();
 #endif
 }
@@ -104,7 +104,7 @@ SwipeTracker::ComputeSwipeSuccess() const
 nsEventStatus
 SwipeTracker::ProcessEvent(const PanGestureInput& aEvent)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
   // If the fingers have already been lifted, don't process this event for swiping.
   if (!mEventsAreControllingSwipe) {
     // Return nsEventStatus_eConsumeNoDefault for events from the swipe gesture

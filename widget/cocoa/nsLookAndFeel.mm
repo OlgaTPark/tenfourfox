@@ -24,7 +24,14 @@ enum {
   mozNSScrollerStyleLegacy       = 0,
   mozNSScrollerStyleOverlay      = 1
 };
-typedef int32_t NSInteger; // sigh
+#ifndef NSINTEGER_DEFINED
+  #if __LP64__
+    typedef long NSInteger; // sight too...
+  #else
+    typedef int NSInteger; // sigh
+  #endif /* __LP64__ */
+  #define NSINTEGER_DEFINED 1
+#endif /* NSINTEGER_DEFINED */
 typedef NSInteger mozNSScrollerStyle;
 
 @interface NSScroller(AvailableSinceLion)

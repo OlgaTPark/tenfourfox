@@ -3125,7 +3125,7 @@ IMEInputHandler::GetAttributedSubstringFromRange(NSRange& aRange,
   for (auto i = fontRanges.Length(); i > 0; --i) {
     const FontRange& fontRange = fontRanges[i - 1];
     NSString* fontName = nsCocoaUtils::ToNSString(fontRange.mFontName);
-    CGFloat fontSize = fontRange.mFontSize / mWidget->BackingScaleFactor();
+    CGFloat fontSize = fontRange.mFontSize DO_IF_USE_BACKINGSCALE(/ mWidget->BackingScaleFactor());
     NSFont* font = [NSFont fontWithName:fontName size:fontSize];
     if (!font) {
       font = [NSFont systemFontOfSize:fontSize];
@@ -3317,7 +3317,7 @@ IMEInputHandler::FirstRectForCharacterRange(NSRange& aRange,
   if (!rootWindow || !rootView) {
     return rect;
   }
-  rect = nsCocoaUtils::DevPixelsToCocoaPoints(r, mWidget->BackingScaleFactor());
+  rect = nsCocoaUtils::DevPixelsToCocoaPoints(r DO_IF_USE_BACKINGSCALE(, mWidget->BackingScaleFactor()));
   rect = [rootView convertRect:rect toView:nil];
   rect.origin = [rootWindow convertBaseToScreen:rect.origin];
 
@@ -3356,9 +3356,9 @@ IMEInputHandler::CharacterIndexForPoint(NSPoint& aPoint)
   NSPoint ptInWindow = [mainWindow convertScreenToBase:aPoint];
   NSPoint ptInView = [mView convertPoint:ptInWindow fromView:nil];
   charAt.refPoint.x =
-    static_cast<int32_t>(ptInView.x) * mWidget->BackingScaleFactor();
+    static_cast<int32_t>(ptInView.x) DO_IF_USE_BACKINGSCALE(* mWidget->BackingScaleFactor());
   charAt.refPoint.y =
-    static_cast<int32_t>(ptInView.y) * mWidget->BackingScaleFactor();
+    static_cast<int32_t>(ptInView.y) DO_IF_USE_BACKINGSCALE(* mWidget->BackingScaleFactor());
   mWidget->DispatchWindowEvent(charAt);
   if (!charAt.mSucceeded ||
       charAt.mReply.mOffset == WidgetQueryContentEvent::NOT_FOUND ||
