@@ -49,7 +49,9 @@
 extern "C" {
 	IMP class_lookupMethod(Class, SEL);
 };
-#define class_getMethodImplementation(x,y) class_lookupMethod(x,y)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  #define class_getMethodImplementation(x,y) class_lookupMethod(x,y)
+#endif
 extern "C" {
 	bool _NSHandleCarbonMenuEvent(EventRef x);
 };
@@ -1060,7 +1062,7 @@ static const NSUInteger kWindowBackgroundBlurRadius = 4;
 void
 nsCocoaWindow::SetWindowBackgroundBlur()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   if (!mWindow || ![mWindow isVisible] || [mWindow windowNumber] == -1)
@@ -1076,7 +1078,7 @@ nsCocoaWindow::SetWindowBackgroundBlur()
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 #else
-  return; // Not supported on 10.4.
+  return; // Not supported on 10.4 or 10.5.
 #endif
 }
 
@@ -1426,8 +1428,9 @@ NS_IMPL_ISUPPORTS0(FullscreenTransitionData)
 /* virtual */ bool
 nsCocoaWindow::PrepareForFullscreenTransition(nsISupports** aData)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 return false; // unsupported
-#if(0)
+#else
   nsCOMPtr<nsIScreen> widgetScreen = GetWidgetScreen();
   nsScreenCocoa* screen = static_cast<nsScreenCocoa*>(widgetScreen.get());
   NSScreen* cocoaScreen = screen->CocoaScreen();
@@ -1457,7 +1460,7 @@ nsCocoaWindow::PerformFullscreenTransition(FullscreenTransitionStage aStage,
                                            nsIRunnable* aCallback)
 {
 // We don't have CoreAnimation, so essentially, don't do anything!
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Uh, this does not seems to use CoreAnimation… */
   auto data = static_cast<FullscreenTransitionData*>(aData);
   FullscreenTransitionDelegate* delegate =
     [[FullscreenTransitionDelegate alloc] init];
@@ -2236,8 +2239,9 @@ void nsCocoaWindow::SetShowsToolbarButton(bool aShow)
 void nsCocoaWindow::SetShowsFullScreenButton(bool aShow)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 || defined(__ppc__) || defined(__ppc64__)
   return; // 10.4Fx doesn't support this.
-#if(0)
+#else
 
   if (!mWindow || ![mWindow respondsToSelector:@selector(toggleFullScreen:)] ||
       mSupportsNativeFullScreen == aShow) {
@@ -2931,7 +2935,7 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
 
 #endif
 
-#if(0) // Blocks blech! (bug 1045213)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 // Blocks blech! (bug 1045213)
 #if !defined(MAC_OS_X_VERSION_10_8) || \
     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
 
@@ -2955,10 +2959,11 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
 
 - (id)_cornerMask
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // We don't implement this, so just pass to the super, if it cares.
 // See bug 1045213.
 return [super _cornerMask];
-#if(0)
+#else
   if (!mUseMenuStyle) {
     return [super _cornerMask];
   }
@@ -3116,7 +3121,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   [self setTitlebarColor:[aState objectForKey:kStateActiveTitlebarColorKey] forActiveWindow:YES];
   [self setTitlebarColor:[aState objectForKey:kStateInactiveTitlebarColorKey] forActiveWindow:NO];
   [self setShowsToolbarButton:[[aState objectForKey:kStateShowsToolbarButton] boolValue]];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   [self setCollectionBehavior:[[aState objectForKey:kStateCollectionBehavior] unsignedIntValue]];
 #endif
 }
@@ -3137,7 +3142,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   }
   [state setObject:[NSNumber numberWithBool:[self showsToolbarButton]]
             forKey:kStateShowsToolbarButton];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   [state setObject:[NSNumber numberWithUnsignedInt: [self collectionBehavior]]
             forKey:kStateCollectionBehavior];
 #endif
@@ -3172,9 +3177,15 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 - (void)setUseBrightTitlebarForeground:(BOOL)aBrightForeground
 {
   mBrightTitlebarForeground = aBrightForeground;
-#if(0)
-  [[self standardWindowButton:NSWindowFullScreenButton] setNeedsDisplay:YES];
-#endif
+#if defined(__i386__) || defined(__x86_64__)
+#  if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
+#    define NSWindowFullScreenButton (NSWindowButton)7
+#  endif
+#  if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+  if (nsCocoaFeatures::OnLionOrLater()) /* For safety */
+#  endif /* 1070 */
+    [[self standardWindowButton:NSWindowFullScreenButton] setNeedsDisplay:YES];
+#endif /* Intel */
 }
 
 - (BOOL)useBrightTitlebarForeground
@@ -3541,7 +3552,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
     if ([self respondsToSelector:@selector(setBottomCornerRounded:)])
       [self setBottomCornerRounded:nsCocoaFeatures::OnLionOrLater()];
 
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     [self setAutorecalculatesContentBorderThickness:NO forEdge:NSMaxYEdge];
     [self setContentBorderThickness:0.0f forEdge:NSMaxYEdge];
 #endif
@@ -3678,7 +3689,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 
 - (void)setSheetAttachmentPosition:(CGFloat)aY
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGFloat topMargin = aY - [self titlebarHeight];
   [self setContentBorderThickness:topMargin forEdge:NSMaxYEdge];
 #else

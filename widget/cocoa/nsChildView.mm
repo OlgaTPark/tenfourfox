@@ -371,8 +371,10 @@ enum
   kUpArrowKeyCode         = 0x7E,
   kDownArrowKeyCode       = 0x7D
 };
+#if MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4
 #define unsignedIntegerValue unsignedIntValue
 #define numberWithUnsignedInteger numberWithUnsignedInt
+#endif
 
 #pragma mark -
 
@@ -406,7 +408,7 @@ FlipCocoaScreenCoordinate(NSPoint &inPoint)
   inPoint.y = nsCocoaUtils::FlippedScreenY(inPoint.y);
 }
 
-#ifndef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // Functions that we had to restore for 10.4. Damn you, Mozilla!
 // Maybe move these to nsCocoaUtils at some point ...
 static inline void
@@ -574,6 +576,20 @@ public:
     RefPtr<gfx::DrawTarget> drawTarget = BeginUpdate(aNewSize, aDirtyRegion);
     if (drawTarget) {
       aCallback(drawTarget, GetUpdateRegion());
+      EndUpdate();
+    }
+  }
+
+  void UpdateIfNeeded(const LayoutDeviceIntSize& aNewSize,
+                      const LayoutDeviceIntRegion& aDirtyRegion,
+                      void (*aCallback)(gfx::DrawTarget*,
+                                        const LayoutDeviceIntRegion&,
+                                        int extra),
+                      int extra)
+  {
+    RefPtr<gfx::DrawTarget> drawTarget = BeginUpdate(aNewSize, aDirtyRegion);
+    if (drawTarget) {
+      aCallback(drawTarget, GetUpdateRegion(), extra);
       EndUpdate();
     }
   }
@@ -759,6 +775,15 @@ void
 nsChildView::ReleaseTitlebarCGContext()
 {
   if (mTitlebarCGContext) {
+    // See note in RectTextureImage::UpdateFromCGContext
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+    if (!nsCocoaFeatures::OnSnowLeopardOrLater()) {
+      // Avoids a potential leak!
+      void* contextData = CGBitmapContextGetData(mTitlebarCGContext);
+      CGContextRelease(mTitlebarCGContext);
+      free(contextData);
+    } else
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1060 */
     CGContextRelease(mTitlebarCGContext);
     mTitlebarCGContext = nullptr;
   }
@@ -1461,7 +1486,7 @@ bool nsChildView::ShowsResizeIndicator(LayoutDeviceIntRect* aResizerRect)
 // This is needed for 10.4's SynthesizeNativeKeyEvent.
 static NSString* ToNSString(const nsAString& aString)
 {
-  return [NSString stringWithCharacters:aString.BeginReading()
+  return [NSString stringWithCharacters:(const unichar *)aString.BeginReading()
                                  length:aString.Length()];
 }
 
@@ -1604,7 +1629,7 @@ nsresult nsChildView::SynthesizeNativeMouseEvent(LayoutDeviceIntPoint aPoint,
   NSEvent* event = [NSEvent mouseEventWithType:(NSEventType)aNativeMessage
                                       location:windowPoint
                                  modifierFlags:aModifierFlags
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
                                      timestamp:[[NSProcessInfo processInfo] systemUptime]
 #else
                                      timestamp:[NSDate timeIntervalSinceReferenceDate]
@@ -1662,7 +1687,7 @@ nsresult nsChildView::SynthesizeNativeMouseScrollEvent(mozilla::LayoutDeviceIntP
     nsCocoaUtils::DevPixelsToCocoaPoints(aPoint DO_IF_USE_BACKINGSCALE(, BackingScaleFactor()));
 
   // Move the mouse cursor to the requested position and reconnect it to the mouse.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGWarpMouseCursorPosition(NSPointToCGPoint(pt));
   CGAssociateMouseAndMouseCursorPosition(true);
 
@@ -2539,7 +2564,7 @@ nsChildView::GetIMEUpdatePreference()
   return nsIMEUpdatePreference(nsIMEUpdatePreference::NOTIFY_SELECTION_CHANGE);
 }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 NSView<mozView>* nsChildView::GetEditorView()
 {
   NSView<mozView>* editorView = mView;
@@ -2598,7 +2623,7 @@ nsChildView::ConfigureAPZControllerThread()
 LayoutDeviceIntRect
 nsChildView::RectContainingTitlebarControls()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // Start with a thin strip at the top of the window for the highlight line.
   NSRect rect = NSMakeRect(0, 0, [mView bounds].size.width,
                            [(ChildView*)mView cornerRadius]);
@@ -2801,7 +2826,7 @@ DrawTitlebarHighlight(NSSize aWindowSize, CGFloat aRadius, CGFloat aDevicePixelW
   [path appendBezierPathWithRect:pathRect];
   pathRect = NSInsetRect(pathRect, aDevicePixelWidth, aDevicePixelWidth);
   CGFloat innerRadius = aRadius - aDevicePixelWidth;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   [path appendBezierPathWithRoundedRect:pathRect xRadius:innerRadius yRadius:innerRadius];
 #else
   // Only 10.5 has this; 10.4 needs an approximation.
@@ -2842,8 +2867,15 @@ static CGContextRef
 CreateCGContext(const LayoutDeviceIntSize& aSize)
 {
   CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+  // See note in RectTextureImage::UpdateFromCGContext
+  void* aContextData = NULL;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+  if (!nsCocoaFeatures::OnSnowLeopardOrLater()) {
+    aContextData = calloc(1U, aSize.width * aSize.height * 4U);
+  }
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1060 */
   CGContextRef ctx =
-    CGBitmapContextCreate(NULL,
+    CGBitmapContextCreate(aContextData,
                           aSize.width,
                           aSize.height,
                           8 /* bitsPerComponent */,
@@ -2955,7 +2987,7 @@ CGRect dgr = *(CGRect*)&dirtyTitlebarRect; CGContextClipToRect(ctx, dgr);
 
     [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:ctx flipped:[view isFlipped]]];
 
-#if(0)
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
     if ([window useBrightTitlebarForeground] && !nsCocoaFeatures::OnYosemiteOrLater() &&
         view == [window standardWindowButton:NSWindowFullScreenButton]) {
       // Make the fullscreen button visible on dark titlebar backgrounds by
@@ -3038,13 +3070,22 @@ DrawTopLeftCornerMask(CGContextRef aCtx, int aRadius)
 }
 
 static void MaybeDrawRoundedCornersCallback(gfx::DrawTarget* drawTarget,
-	const LayoutDeviceIntRegion& updateRegion) {
+	const LayoutDeviceIntRegion& updateRegion, int devPixelCornerRadius) {
     ClearRegion(drawTarget, updateRegion);
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
     gfx::BorrowedCGContext borrow(drawTarget);
     /*
     DrawTopLeftCornerMask(borrow.cg, mDevPixelCornerRadius);
     */
     borrow.Finish();
+#else  // Or rouded corners won't display correctly with OMTC+OpenGL
+    RefPtr<gfx::PathBuilder> builder = drawTarget->CreatePathBuilder();
+    builder->Arc(gfx::Point(devPixelCornerRadius, devPixelCornerRadius), devPixelCornerRadius, 0, 2.0f * M_PI);
+    RefPtr<gfx::Path> path = builder->Finish();
+    drawTarget->Fill(path,
+                     gfx::ColorPattern(gfx::Color(1.0, 1.0, 1.0, 1.0)),
+                     gfx::DrawOptions(1.0f, gfx::CompositionOp::OP_SOURCE));
+#endif
 }
 
 void
@@ -3070,7 +3111,7 @@ nsChildView::MaybeDrawRoundedCorners(GLManager* aManager,
   });
 #else
   mCornerMaskImage->UpdateIfNeeded(size, LayoutDeviceIntRegion(),
-	&MaybeDrawRoundedCornersCallback);
+	&MaybeDrawRoundedCornersCallback, mDevPixelCornerRadius);
 #endif
 
   // Use operator destination in: multiply all 4 channels with source alpha.
@@ -3169,7 +3210,7 @@ nsChildView::UpdateThemeGeometries(const nsTArray<ThemeGeometry>& aThemeGeometri
   int32_t contentOffset = drawsContentsIntoWindowFrame ? titlebarHeight : 0;
   int32_t devUnifiedHeight = titlebarHeight + unifiedToolbarBottom - contentOffset;
   [win setUnifiedToolbarHeight:DevPixelsToCocoaPoints(devUnifiedHeight)];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // This gets called a lot, and is useless spinning on 10.4.
   int32_t devSheetPosition = titlebarHeight + std::max(toolboxBottom, unifiedToolbarBottom) - contentOffset;
   [win setSheetAttachmentPosition:DevPixelsToCocoaPoints(devSheetPosition)];
@@ -3678,15 +3719,20 @@ RectTextureImage::BeginUpdate(const LayoutDeviceIntSize& aNewSize,
   return drawTarget.forget();
 }
 
+#ifndef NSFoundationVersionNumber10_6_3
+#  define NSFoundationVersionNumber10_6_3 751.21
+#endif
+
 #define NSFoundationVersionWithProperStrideSupportForSubtextureUpload NSFoundationVersionNumber10_6_3
 
 static bool
 CanUploadSubtextures()
 {
-return false;
-/*
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+  return false;
+#else
   return NSFoundationVersionNumber >= NSFoundationVersionWithProperStrideSupportForSubtextureUpload;
-*/
+#endif
 }
 
 void
@@ -3738,6 +3784,11 @@ RectTextureImage::UpdateFromCGContext(const LayoutDeviceIntSize& aNewSize,
   if (dt) {
     gfx::Rect rect(0, 0, size.width, size.height);
     gfxUtils::ClipToRegion(dt, GetUpdateRegion().ToUnknownRegion());
+    // NOTE: There's a little note in the Apple's documentation of CGBitmapContextGetData
+    // that drives backward-compatibility crazy!  In Mac OS X < 10.6, Apple 
+    // doesn't guarantees that CGBitmapContextGetData will return something != NULL
+    // (it returns somthing != NULL only if the bitmap context was created
+    // while providing memory).  This makes OMTC+OpenGL crash on Leopard!
     RefPtr<gfx::SourceSurface> sourceSurface =
       dt->CreateSourceSurfaceFromData(static_cast<uint8_t *>(CGBitmapContextGetData(aCGContext)),
                                       size,
@@ -3891,8 +3942,12 @@ GLPresenter::EndFrame()
 // in our native NSView (it is set in |draggingEntered:|). It is unset when the
 // drag session ends for this view, either with the mouse exiting or when a drop
 // occurs in this view.
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+NSPasteboard* globalDragPboard = nil;
+#else
 // restore bug 966986
 NSPasteboardWrapper* globalDragPboard = nil;
+#endif
 
 // gLastDragView and gLastDragMouseDownEvent are used to communicate information
 // to the drag service during drag invocation (starting a drag in from the view).
@@ -4240,7 +4295,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
     if (!mWaitingForPaint) {
 // 10.4 doesn't implement NSRunLoopCommonModes, and we never draw with
 // OpenGL anyway.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
       mWaitingForPaint = YES;
       // Use NSRunLoopCommonModes instead of the default NSDefaultRunLoopMode
       // so that the timer also fires while a native menu is open.
@@ -4586,11 +4641,14 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
 - (BOOL)isUsingOpenGL
 {
-return NO; // 10.4 doesn't support it.
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  return NO; // 10.4 doesn't support it.
+#else
   if (!mGeckoChild || ![self window])
     return NO;
 
   return mGLContext || mUsingOMTCompositor || [self isUsingMainThreadOpenGL];
+#endif
 }
 
 - (void)drawUsingOpenGL
@@ -4715,7 +4773,7 @@ extern "C" void CGContextSetCompositeOperation (CGContextRef,
     CGContextRelease(imgCtx);
   }
 
-#if NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // kCGBlendModeDestinationIn is the secret sauce which allows us to erase
   // already painted pixels. It's defined as R = D * Sa: multiply all channels
   // of the destination pixel with the alpha of the source pixel. In our case,
@@ -4851,7 +4909,7 @@ extern "C" void CGContextSetCompositeOperation (CGContextRef,
     // click-hold context menu by triggering the right mouseDown action.
     NSEvent* clickHoldEvent = [NSEvent mouseEventWithType:NSRightMouseDown
                                                   location:[theEvent locationInWindow]
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
                                              modifierFlags:[theEvent modifierFlags]
 #else
 modifierFlags:nsCocoaUtils::GetCocoaEventModifierFlags(theEvent)
@@ -5205,7 +5263,7 @@ modifierFlags:nsCocoaUtils::GetCocoaEventModifierFlags(theEvent)
 
 + (BOOL)isLionSmartMagnifyEvent:(NSEvent*)anEvent
 {
-#ifndef __LP64__
+#if defined(__ppc__) || defined(__ppc64__) || MAC_OS_X_VERSION_MAX_ALLOWED < 1060
   // Lion SUCKS!
   return NO;
 #else
@@ -5226,8 +5284,9 @@ modifierFlags:nsCocoaUtils::GetCocoaEventModifierFlags(theEvent)
 
 - (bool)shouldConsiderStartingSwipeFromEvent:(NSEvent*)anEvent
 {
+#if defined(__ppc__) || defined(__ppc64__) || MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 return false; // never on 10.6 or earlier
-#if(0)
+#else
   if (!nsCocoaFeatures::OnLionOrLater()) {
     return false;
   }
@@ -5330,7 +5389,7 @@ return false; // never on 10.6 or earlier
   if (!mGeckoChild)
     return;
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NSUInteger modifierFlags = [theEvent modifierFlags];
 #else
 NSUInteger modifierFlags = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent);
@@ -5373,7 +5432,11 @@ NSUInteger modifierFlags = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent);
   WidgetMouseEvent geckoEvent(true, eMouseUp, mGeckoChild,
                               WidgetMouseEvent::eReal);
   [self convertCocoaMouseEvent:theEvent toGeckoEvent:&geckoEvent];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+  if ([theEvent modifierFlags] & NSControlKeyMask)
+#else
   if (nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NSControlKeyMask)
+#endif
     geckoEvent.button = WidgetMouseEvent::eRightButton;
   else
     geckoEvent.button = WidgetMouseEvent::eLeftButton;
@@ -5796,7 +5859,7 @@ PanGestureTypeForEvent(NSEvent* aEvent)
 
   Modifiers modifiers = nsCocoaUtils::ModifiersForEvent(theEvent);
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NSTimeInterval beforeNow = [[NSProcessInfo processInfo] systemUptime] - [theEvent timestamp];
 #else
   // NSProcessInfo in 10.4 doesn't have systemUptime, so we have to gyrate a bit in Carbon.
@@ -5819,7 +5882,7 @@ PanGestureTypeForEvent(NSEvent* aEvent)
 #endif
   }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   if (usePreciseDeltas && hasPhaseInformation) {
     PanGestureInput panEvent(PanGestureTypeForEvent(theEvent),
                              eventIntervalTime, eventTimeStamp,
@@ -5866,7 +5929,7 @@ PanGestureTypeForEvent(NSEvent* aEvent)
 
 - (void)handleAsyncScrollEvent:(CGEventRef)cgEvent ofType:(CGEventType)type
 {
-#if(1)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Unfortunately there is no way to support APZC yet because there is
   // no documented way to convert a CGEventRef into an NSEvent on 10.4.
 #else
@@ -6054,7 +6117,7 @@ PanGestureTypeForEvent(NSEvent* aEvent)
 
   WidgetMouseEventBase* mouseEvent = outGeckoEvent->AsMouseEventBase();
   mouseEvent->buttons = 0;
-#if(0) // wtf, but this works.
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 // wtf, but this works.
   NSUInteger mouseButtons = [NSEvent pressedMouseButtons];
 
   if (mouseButtons & 0x01) {
@@ -6098,7 +6161,7 @@ PanGestureTypeForEvent(NSEvent* aEvent)
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 - (BOOL)shouldZoomOnDoubleClick
 {
   if ([NSWindow respondsToSelector:@selector(_shouldZoomOnDoubleClick)]) {
@@ -6902,7 +6965,7 @@ GetUSLayoutCharFromKeyTranslate(UInt32 aKeyCode, UInt32 aModifiers)
     [self initTSMDocument];
 
   // static void init_composition_event( *aEvent, int aType)
-  WidgetCompositionEvent event(true, aEventType, mGeckoChild);
+  WidgetCompositionEvent event(true, (EventMessage)aEventType, mGeckoChild);
   event.time = PR_IntervalNow();
   if (aEventType == eCompositionEnd)
     event.mData = mLastDispatchedCompositionString;
@@ -7101,7 +7164,7 @@ GetUSLayoutCharFromKeyTranslate(UInt32 aKeyCode, UInt32 aModifiers)
 #define MAX_BUFFER_SIZE 32
   char16_t buffer[MAX_BUFFER_SIZE];
   char16_t *bufPtr = (len >= MAX_BUFFER_SIZE) ? new char16_t[len + 1] : buffer;
-  [tmpStr getCharacters:bufPtr];
+  [tmpStr getCharacters:(unichar *)bufPtr];
   bufPtr[len] = char16_t('\0');
 
   if (len == 1 && !nsTSMManager::IsComposing()) {
@@ -7226,7 +7289,7 @@ GetUSLayoutCharFromKeyTranslate(UInt32 aKeyCode, UInt32 aModifiers)
   unsigned int len = [tmpStr length];
   char16_t buffer[MAX_BUFFER_SIZE];
   char16_t *bufPtr = (len >= MAX_BUFFER_SIZE) ? new char16_t[len + 1] : buffer;
-  [tmpStr getCharacters:bufPtr];
+  [tmpStr getCharacters:(unichar *)bufPtr];
   bufPtr[len] = char16_t('\0');
   mMarkedRange.length = len;
 
@@ -7903,7 +7966,7 @@ unsigned int modifiers = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NS
   NPCocoaEvent cocoaEvent;
 	
   // Fire a key event.
-  WidgetKeyboardEvent geckoEvent(true, message, mGeckoChild);
+  WidgetKeyboardEvent geckoEvent(true, (EventMessage)message, mGeckoChild);
   [self convertCocoaKeyEvent:theEvent toGeckoEvent:&geckoEvent];
 
   mGeckoChild->DispatchWindowEvent(geckoEvent);
@@ -7934,14 +7997,17 @@ unsigned int modifiers = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NS
 
 - (BOOL)inactiveWindowAcceptsMouseEvent:(NSEvent*)aEvent
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // 10.4Fx issue 19, see below
   OSStatus err;
   ProcessSerialNumber psn = { 0, kCurrentProcess };
+#endif
 
   // If we're being destroyed assume the default -- return YES.
   if (!mGeckoChild)
     return YES;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Do not accept non-click events, because we get tooltips and other things.
   // 10.4Fx issue 19, issue 168
   if (([aEvent type] != NSLeftMouseDown && [aEvent type] != NSRightMouseDown))
@@ -7965,6 +8031,7 @@ unsigned int modifiers = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NS
        [swin orderFrontRegardless]; // safe, because we are the
                // front app, the main window *and* the key window.
   }
+#endif
 
   WidgetMouseEvent geckoEvent(true, eMouseActivate, mGeckoChild,
                               WidgetMouseEvent::eReal);
@@ -8138,7 +8205,11 @@ unsigned int modifiers = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NS
       }
     }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+    unsigned int modifierFlags = [[NSApp currentEvent] modifierFlags];
+#else
     unsigned int modifierFlags = nsCocoaUtils::GetCocoaEventModifierFlags([NSApp currentEvent]);
+#endif
     uint32_t action = nsIDragService::DRAGDROP_ACTION_MOVE;
     // force copy = option, alias = cmd-option, default is move
     if (modifierFlags & NSAlternateKeyMask) {
@@ -8220,7 +8291,7 @@ unsigned int modifiers = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NS
   // This will be set back to nil when the drag session ends (mouse exits
   // the view or a drop happens within the view).
 // restore bug 966986
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   globalDragPboard = [[sender draggingPasteboard] retain];
 #else
   globalDragPboard =
@@ -9199,15 +9270,21 @@ BOOL
 ChildViewMouseTracker::WindowAcceptsEvent(NSWindow* aWindow, NSEvent* aEvent,
                                           ChildView* aView, BOOL aIsClickThrough)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Force us forward if we were not. 10.4Fx issue 19.
   if ([aEvent type] == NSLeftMouseDown || [aEvent type] == NSRightMouseDown) {
     ProcessSerialNumber psn = { 0, kCurrentProcess };
     OSStatus err = SetFrontProcessWithOptions(&psn, kSetFrontProcessFrontWindowOnly);
   }
+#endif
 
   // Right mouse down events may get through to all windows, even to a top level
   // window with an open sheet.
-  if (!aWindow) // || [aEvent type] == NSRightMouseDown)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  if (!aWindow)
+#else
+  if (!aWindow || [aEvent type] == NSRightMouseDown)
+#endif
     return YES;
 
   id delegate = [aWindow delegate];
@@ -9221,6 +9298,7 @@ ChildViewMouseTracker::WindowAcceptsEvent(NSWindow* aWindow, NSEvent* aEvent,
   NSWindow* topLevelWindow = nil;
   nsWindowType windowType = windowWidget->WindowType();
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Make us the main window as long as we are not a popup, dialogue or sheet
   // if we click on it.
   if (windowType != eWindowType_popup &&
@@ -9235,6 +9313,7 @@ ChildViewMouseTracker::WindowAcceptsEvent(NSWindow* aWindow, NSEvent* aEvent,
 		// front app, the main window *and* the key window.
 		// 10.4Fx issue 19 etc.
 }
+#endif
 
   switch (windowWidget->WindowType()) {
     case eWindowType_popup:
