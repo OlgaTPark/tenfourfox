@@ -1,4 +1,3 @@
-#if(0)
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "TextInputHandler.h"
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
 
 #include "mozilla/Logging.h"
 
@@ -2288,7 +2288,9 @@ IMEInputHandler::OnCurrentTextInputSourceChange(CFNotificationCenterRef aCenter,
       MOZ_LOG(gLog, LogLevel::Info,
         ("IMEInputHandler::OnCurrentTextInputSourceChange,\n"
          "  Current Input Source is changed to:\n"
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
          "    currentInputContext=%p\n"
+#endif
          "    %s\n"
          "      type=%s %s\n"
          "      overridden keyboard layout=%s\n"
@@ -2298,7 +2300,10 @@ IMEInputHandler::OnCurrentTextInputSourceChange(CFNotificationCenterRef aCenter,
          "    current ASCII capable Input Source=%s\n"
          "    current Keyboard Layout=%s\n"
          "    current ASCII capable Keyboard Layout=%s",
-         [NSTextInputContext currentInputContext], GetCharacters(is0),
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+         [NSTextInputContext currentInputContext], 
+#endif
+         GetCharacters(is0),
          GetCharacters(type0), tis.IsASCIICapable() ? "- ASCII capable " : "",
          GetCharacters(is4), GetCharacters(is5),
          GetCharacters(lang0), GetCharacters(bundleID0),
@@ -2379,7 +2384,11 @@ IMEInputHandler::GetCurrentTSMDocumentID()
   // The result of ::TSMGetActiveDocument() isn't modified for new active text
   // input context until [NSTextInputContext currentInputContext] is called.
   // Therefore, we need to call it here.
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   [NSTextInputContext currentInputContext];
+#else
+  [NSInputManager currentInputManager]; // ???
+#endif
   return ::TSMGetActiveDocument();
 }
 

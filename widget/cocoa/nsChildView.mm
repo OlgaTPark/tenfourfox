@@ -131,7 +131,7 @@ extern "C" {
   extern CGError CGSGetWindowAlpha(const CGSConnection cid, const CGSWindow wid, float* alpha);
 }
 
-#ifndef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 struct __TISInputSource;
 typedef __TISInputSource* TISInputSourceRef;
 TISInputSourceRef (*Leopard_TISCopyCurrentKeyboardInputSource)() = NULL;
@@ -150,8 +150,8 @@ TSMDocumentID nsTSMManager::sDocumentID = nullptr;
 NSString* nsTSMManager::sComposingString = nullptr;
 nsITimer* nsTSMManager::sSyncKeyScriptTimer = nullptr;
 uint32_t nsTSMManager::sIMEEnabledStatus = IMEState::ENABLED;
-#endif // NS_LEOPARD_AND_LATER
 uint32_t nsChildView::sSecureEventInputCount = 0;
+#endif // NS_LEOPARD_AND_LATER
 
 // defined in nsMenuBarX.mm
 extern NSMenu* sApplicationMenu; // Application menu shared by all menubars
@@ -170,7 +170,7 @@ static void blinkRect(Rect* r);
 static void blinkRgn(RgnHandle rgn);
 #endif
 
-#ifndef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // used by nsAppShell.mm
 uint32_t gLastModifierState = 0;
 #endif
@@ -711,6 +711,7 @@ nsChildView::nsChildView() : nsBaseWidget()
 {
   EnsureLogInitialized();
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
   if (nsCocoaFeatures::OnLeopardOrLater() && !Leopard_TISCopyCurrentKeyboardLayoutInputSource) {
     // This library would already be open for LMGetKbdType (and probably other
     // symbols), so merely using RTLD_DEFAULT in dlsym would be sufficient,
@@ -728,6 +729,7 @@ nsChildView::nsChildView() : nsBaseWidget()
       kOurTISPropertyInputSourceLanguages = *static_cast<CFStringRef*>(dlsym(hitoolboxHandle, "kTISPropertyInputSourceLanguages"));
     }
   }
+#endif
 }
 
 nsChildView::~nsChildView()
@@ -872,7 +874,7 @@ nsresult nsChildView::Create(nsIWidget* aParent,
   if ([mView isKindOfClass:[ChildView class]])
     [[WindowDataMap sharedWindowDataMap] ensureDataForWindow:[mView window]];
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   NS_ASSERTION(!mTextInputHandler, "mTextInputHandler has already existed");
   mTextInputHandler = new TextInputHandler(this, mView);
 #endif
@@ -1520,7 +1522,7 @@ nsresult nsChildView::SynthesizeNativeKeyEvent(int32_t aNativeKeyboardLayout,
                                                nsIObserver* aObserver)
 {
   AutoObserverNotifier notifier(aObserver, "keyevent");
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   return mTextInputHandler->SynthesizeNativeKeyEvent(aNativeKeyboardLayout,
                                                      aNativeKeyCode,
                                                      aModifierFlags,
@@ -1919,7 +1921,7 @@ NS_IMETHODIMP nsChildView::DispatchEvent(WidgetGUIEvent* event,
   debug_DumpEvent(stdout, event->widget, event, nsAutoCString("something"), 0);
 #endif
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   NS_ASSERTION(!(mTextInputHandler && mTextInputHandler->IsIMEComposing() &&
                  event->HasKeyEventMessage()),
     "Any key events should not be fired during IME composing");
@@ -2173,7 +2175,7 @@ static void ChildViewEnsureSecureEventInputDisabled()
 nsresult
 nsChildView::NotifyIMEInternal(const IMENotification& aIMENotification)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   switch (aIMENotification.mMessage) {
     case REQUEST_TO_COMMIT_COMPOSITION:
       NS_ENSURE_TRUE(mTextInputHandler, NS_ERROR_NOT_AVAILABLE);
@@ -2286,7 +2288,7 @@ nsChildView::SetInputContext(const InputContext& aContext,
   //NSLog(@"**** SetInputMode mStatus = %d", aContext.mStatus);
 #endif
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   NS_ENSURE_TRUE_VOID(mTextInputHandler);
 
   if (mTextInputHandler->IsFocused()) {
@@ -2351,7 +2353,7 @@ nsChildView::SetInputContext(const InputContext& aContext,
 NS_IMETHODIMP_(InputContext)
 nsChildView::GetInputContext()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   switch (mInputContext.mIMEState.mEnabled) {
     case IMEState::ENABLED:
     case IMEState::PLUGIN:
@@ -2385,7 +2387,7 @@ nsChildView::GetInputContext()
 NS_IMETHODIMP
 nsChildView::AttachNativeKeyEvent(mozilla::WidgetKeyboardEvent& aEvent)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   NS_ENSURE_TRUE(mTextInputHandler, NS_ERROR_NOT_AVAILABLE);
   return mTextInputHandler->AttachNativeKeyEvent(aEvent);
 #else
@@ -4009,6 +4011,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
     mCumulativeMagnification = 0.0;
     mCumulativeRotation = 0.0;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060 && !defined(__LP64__)
     mCurKeyEvent = nil;
     mKeyDownHandled = false;
     mKeyPressHandled = NO;
@@ -4017,6 +4020,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
     // initialization for NSTextInput
     mMarkedRange.location = NSNotFound;
     mMarkedRange.length = 0;
+#endif
 
     // We can't call forceRefreshOpenGL here because, in order to work around
     // the bug, it seems we need to have a draw already happening. Therefore,
@@ -4068,7 +4072,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
 // properly (see http://prod.lists.apple.com/archives/cocoa-dev/2013/Dec/msg00068.html ).
 // It seems to have something to do with the secret underlying NSInputContext
 // and NSTSMInputContext, which became NSTextInputContext in 10.6.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 // ComplexTextInputPanel's interpretKeyEvent hack won't work without this.
 // It makes calls to +[NSTextInputContext currentContext], deep in system
 // code, return the appropriate context.
@@ -4092,14 +4096,14 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
 - (void)installTextInputHandler:(TextInputHandler*)aHandler
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   mTextInputHandler = aHandler;
 #endif
 }
 
 - (void)uninstallTextInputHandler
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   mTextInputHandler = nullptr;
 #endif
 }
@@ -4186,7 +4190,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
 - (void)widgetDestroyed
 {
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   if (mTextInputHandler) {
     mTextInputHandler->OnDestroyWidget(mGeckoChild);
     mTextInputHandler = nullptr;
@@ -6203,6 +6207,7 @@ PanGestureTypeForEvent(NSEvent* aEvent)
 }
 #endif
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060 && !defined(__LP64__)
 // Backout bug 519972
 // This is a big one!
 // Damn you, Masayuki and Steven!
@@ -6999,10 +7004,11 @@ GetUSLayoutCharFromKeyTranslate(UInt32 aKeyCode, UInt32 aModifiers)
   mGeckoChild->DispatchWindowEvent(textEvent);
 }
 // Whew!
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1060 && !defined(__LP64__) */
 
 #pragma mark -
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
 // NSTextInputClient implementation
 
 - (NSRange)markedRange
@@ -7475,6 +7481,7 @@ GetUSLayoutCharFromKeyTranslate(UInt32 aKeyCode, UInt32 aModifiers)
 
 #pragma mark -
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060 && !defined(__LP64__)
 // More backouts for TenFourFox
 + (NSEvent*)makeNewCocoaEventWithType:(NSEventType)type fromEvent:(NSEvent*)theEvent
 {
@@ -7680,6 +7687,7 @@ static const char* ToEscapedString(NSString* aString, nsAutoCString& aBuf)
 }
 // Double whew!
 // End of NSTextInput
+#endif /* #if MAC_OS_X_VERSION_MIN_REQUIRED < 1060 && !defined(__LP64__) */
 
 #pragma mark -
 
@@ -7698,7 +7706,7 @@ static const char* ToEscapedString(NSString* aString, nsAutoCString& aBuf)
 }
 
 // This is Leopard-specific.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
 - (void)keyDown:(NSEvent*)theEvent
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
@@ -8074,7 +8082,7 @@ unsigned int modifiers = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NS
   if (isMozWindow)
     [[self window] setSuppressMakeKeyFront:NO];
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   if (mGeckoChild->GetInputContext().IsPasswordEditor()) {
     TextInputHandler::EnableSecureEventInput();
   } else {
@@ -8101,7 +8109,7 @@ unsigned int modifiers = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NS
   if (listener)
     listener->WindowDeactivated();
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   TextInputHandler::EnsureSecureEventInputDisabled();
 #else
   ChildViewEnsureSecureEventInputDisabled();
@@ -8775,7 +8783,7 @@ unsigned int modifiers = nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NS
 
 @end
 
-#ifndef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060 && !defined(__LP64__)
 
 #pragma mark -
 
@@ -9296,9 +9304,9 @@ ChildViewMouseTracker::WindowAcceptsEvent(NSWindow* aWindow, NSEvent* aEvent,
     return YES;
 
   NSWindow* topLevelWindow = nil;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   nsWindowType windowType = windowWidget->WindowType();
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Make us the main window as long as we are not a popup, dialogue or sheet
   // if we click on it.
   if (windowType != eWindowType_popup &&

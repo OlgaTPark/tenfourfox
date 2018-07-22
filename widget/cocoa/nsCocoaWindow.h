@@ -419,7 +419,7 @@ protected:
     return widget.forget();
   }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   virtual nsresult NotifyIMEInternal(
                      const IMENotification& aIMENotification) override;
 #endif

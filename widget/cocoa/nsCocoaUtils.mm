@@ -759,6 +759,7 @@ nsCocoaUtils::ModifiersForEvent(NSEvent* aNativeEvent)
 
   Modifiers result = 0;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
   // Account for Carbon events here too. (See bug 801601.)
   // XXX: Do we need to always do this, or only if this is a non-native event?
   UInt32 carbonModifiers = ::GetCurrentKeyModifiers();
@@ -773,6 +774,7 @@ nsCocoaUtils::ModifiersForEvent(NSEvent* aNativeEvent)
   if (carbonModifiers & cmdKey)
     result |= MODIFIER_META;
   // XXX MODIFIER_NUMLOCK
+#endif
 
   if (modifiers & NSShiftKeyMask) {
     result |= MODIFIER_SHIFT;

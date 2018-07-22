@@ -881,7 +881,7 @@ nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
   // to worry about getting an NSInternalInconsistencyException here.
   NSEvent* currentEvent = [NSApp currentEvent];
   if (currentEvent) {
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
     TextInputHandler::sLastModifierState =
       [currentEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask;
 #else

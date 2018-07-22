@@ -2427,7 +2427,7 @@ void nsCocoaWindow::SetPopupWindowLevel()
 }
 
 // Revert bug 807893; 10.4 uses code in nsChildView.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
 nsresult
 nsCocoaWindow::NotifyIMEInternal(const IMENotification& aIMENotification)
 {
@@ -2691,7 +2691,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
   nsChildView* mainChildView =
     static_cast<nsChildView*>([[(BaseWindow*)window mainChildView] widget]);
   if (mainChildView) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
     if (mainChildView->GetInputContext().IsPasswordEditor()) {
       TextInputHandler::EnableSecureEventInput();
     } else {
@@ -2718,7 +2718,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
   if ([window isSheet])
     [WindowDelegate paintMenubarForWindow:[NSApp mainWindow]];
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   TextInputHandler::EnsureSecureEventInputDisabled();
 #else
   // ChildView should handle it for us.
