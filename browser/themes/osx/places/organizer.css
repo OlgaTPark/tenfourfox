@@ -76,14 +76,21 @@
 #placesToolbar > toolbarbutton {
   list-style-image: url("chrome://browser/skin/places/toolbar.png");
   margin: 4px 4px 5px;
+%if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
   padding: 1px 3px;
   border: 1px solid @toolbarbuttonBorderColor@;
   border-radius: @toolbarbuttonCornerRadius@;
   box-shadow: @loweredShadow@;
   background: @toolbarbuttonBackground@;
   background-origin: border-box;
+%else
+  padding: 0;
+  height: 22px;
+  -moz-appearance: toolbarbutton;
+%endif
 }
 
+%if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
 #placesToolbar > toolbarbutton:not([disabled="true"]):active:hover,
 #placesToolbar > toolbarbutton[open="true"] {
   background: @toolbarbuttonPressedBackgroundColor@;
@@ -104,6 +111,7 @@
   border-color: @toolbarbuttonInactiveBorderColor@;
   background-image: @toolbarbuttonInactiveBackgroundImage@;
 }
+%endif
 
 #placesToolbar > toolbarbutton[disabled="true"] > .toolbarbutton-icon {
   opacity: 0.5;
@@ -156,17 +164,23 @@
 #back-button:-moz-locale-dir(ltr),
 #forward-button:-moz-locale-dir(rtl) {
   -moz-image-region: rect(0px, 16px, 16px, 0px);
+%if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+%endif
   margin-right: 0;
+%if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
   border-right: 0;
+%endif
 }
 
 #forward-button:-moz-locale-dir(ltr),
 #back-button:-moz-locale-dir(rtl) {
   -moz-image-region: rect(0px, 32px, 16px, 16px);
+%if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
+%endif
   margin-left: 0;
 }
 

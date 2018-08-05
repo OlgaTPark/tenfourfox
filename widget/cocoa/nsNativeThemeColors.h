@@ -87,19 +87,44 @@ static const int sSnowLeopardThemeColors[][2] = {
   { 0xA7, 0xDE }  // gradient end
 };
 // We won't need Lion for 10.4Fx! Good riddance!
+
+#if defined(__i386__) || defined(__x86_64__)
+static const int sLionThemeColors[][2] = {
+  /* { active window, inactive window } */
+  // titlebar and toolbar:
+  { 0xD1, 0xEE }, // start grey (Snow)
+  { 0xB2, 0xE1 }, // fill color -> end grey
+  { 0x59, 0x87 }, // bottom separator line -> bottom separator line
+  { 0xD0, 0xF0 }, // top separator line -> top separator line
+  // statusbar:
+  { 0x51, 0x99 }, // first top border (Snow)
+  { 0xE8, 0xF6 }, // second top border (Snow)
+  { 0xCB, 0xEA }, // gradient start (Snow)
+  { 0xA7, 0xDE }  // gradient end (Snow)
+};
+#endif /* defined(__i386__) || defined(__x86_64__) */
 #endif
 
 __attribute__((unused))
 static int NativeGreyColorAsInt(ColorName name, BOOL isMain)
 {
-#if(0)
+  // If we're targetting 10.5+, we render with CoreUI and we can use color 
+  // variants.  Otherwise, we use the common tiger theme.
+#if (defined(__i386__) || defined(__x86_64__)) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1050
+  #if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
   if (nsCocoaFeatures::OnLionOrLater())
+  #endif /* 1070 */
     return sLionThemeColors[name][isMain ? 0 : 1];
-
-  return sSnowLeopardThemeColors[name][isMain ? 0 : 1];
-#else
+  #if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+  if (nsCocoaFeatures::OnSnowLeopardOrLater())
+  #endif /* 1060 */
+    return sSnowLeopardThemeColors[name][isMain ? 0 : 1];
+  #if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  if (nsCocoaFeatures::OnLeopardOrLater())
+  #endif /* 1050 */
+    return sLeopardThemeColors[name][isMain ? 0 : 1];
+#endif /* (__i386__ || __x86_64__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1050 */
   return sTigerThemeColors[name][isMain ? 0 : 1];
-#endif
 }
 
 __attribute__((unused))

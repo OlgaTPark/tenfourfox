@@ -52,7 +52,7 @@ extern "C" {
   CG_EXTERN void CGContextSetCTM(CGContextRef, CGAffineTransform);
   CG_EXTERN void CGContextSetBaseCTM(CGContextRef, CGAffineTransform);
   typedef CFTypeRef CUIRendererRef;
-  void CUIDraw(CUIRendererRef r, CGRect rect, CGContextRef ctx, CFDictionaryRef options, CFDictionaryRef* result);
+  void CUIDraw(CUIRendererRef r, CGRect rect, CGContextRef ctx, CFDictionaryRef options, CFDictionaryRef* result) WEAK_IMPORT_ATTRIBUTE;
 }
 
 // Workaround for NSCell control tint drawing
@@ -108,8 +108,9 @@ extern "C" {
 static void
 DrawFocusRingForCellIfNeeded(NSCell* aCell, NSRect aWithFrame, NSView* aInView)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 MOZ_CRASH("never call DrawFocusRingForCellIfNeeded");
-#if(0)
+#else
   if ([aCell showsFirstResponder]) {
     CGContextRef cgContext = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
     CGContextSaveGState(cgContext);
@@ -140,8 +141,6 @@ MOZ_CRASH("never call DrawFocusRingForCellIfNeeded");
 static bool
 FocusIsDrawnByDrawWithFrame(NSCell* aCell)
 {
-return true;
-
 #if defined(MAC_OS_X_VERSION_10_8) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_8
   // When building with the 10.8 SDK or higher, focus rings don't draw as part
   // of -[NSCell drawWithFrame:inView:] and must be drawn by a separate call
@@ -149,6 +148,8 @@ return true;
   // See the NSButtonCell section under
   // https://developer.apple.com/library/mac/releasenotes/AppKit/RN-AppKitOlderNotes/#X10_8Notes
   return false;
+#elif MAC_OS_X_VERSION_MAX_ALLOWED < 1090
+  return true;
 #else
   if (!nsCocoaFeatures::OnYosemiteOrLater()) {
     // When building with the 10.7 SDK or lower, focus rings always draw as
@@ -241,6 +242,7 @@ DrawCellIncludingFocusRing(NSCell* aCell, NSRect aWithFrame, NSView* aInView)
   return mIsHorizontal;
 }
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 1050
 // 10.4 doesn't have this.
 static inline CGRect NSRectToCGRect(NSRect nsRect)
 {
@@ -260,6 +262,7 @@ static inline NSRect NSRectFromCGRect( CGRect cgrect )
     return ((union ConversionUnion *)&cgrect)->ns;
 }
 #endif
+#endif /* #if MAC_OS_X_VERSION_MAX_ALLOWED < 1050 */
 
 - (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView
 {
@@ -374,7 +377,7 @@ static void DrawFocusRing(NSRect rect, float radius)
 
 // Workaround for Bug 542048
 // On 64-bit, NSSearchFieldCells don't draw focus rings.
-//#if defined(__x86_64__)
+#if defined(__x86_64__) || MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 // HA HA! Mozilla did the work for us here! Tiger needs this too! Cameron
 
 @interface SearchFieldCellWithFocusRing : ContextAwareSearchFieldCell {} @end
@@ -385,11 +388,11 @@ static void DrawFocusRing(NSRect rect, float radius)
 {
   [super drawWithFrame:rect inView:controlView];
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   if (!nsCocoaFeatures::OnLeopardOrLater() && [self showsFirstResponder]) {
     DrawFocusRing(NSMakeRect(rect.origin.x, rect.origin.y + 2, rect.size.width - 3, rect.size.height - 4), 0);
   }
-
-#if(0)
+#else
   if (FocusIsDrawnByDrawWithFrame(self)) {
     // For some reason, -[NSSearchFieldCell drawWithFrame:inView] doesn't draw a
     // focus ring in 64 bit mode, no matter what SDK is used or what OS X version
@@ -410,7 +413,7 @@ static void DrawFocusRing(NSRect rect, float radius)
 
 @end
 
-//#endif
+#endif
 // We also need this for Tiger
 @interface ComboBoxCellWithFocusRing : NSComboBoxCell {} @end
 
@@ -472,19 +475,18 @@ static NSControlSize CocoaSizeForEnum(int32_t enumControlSize) {
     return NSRegularControlSize;
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 static NSString* CUIControlSizeForCocoaSize(NSControlSize aControlSize)
 {
-NS_NOTREACHED("CUIControlSizeForCocoaSize should never get called");
-return @"regular";
-#if(0)
+  // Only called by nsNativeThemeCocoa::DrawSegment who's already disabled
   if (aControlSize == NSRegularControlSize)
     return @"regular";
   else if (aControlSize == NSSmallControlSize)
     return @"small";
   else
     return @"mini";
-#endif
 }
+#endif
 
 static void InflateControlRect(NSRect* rect, NSControlSize cocoaControlSize, const float marginSet[][3][4])
 {
@@ -624,7 +626,7 @@ nsNativeThemeCocoa::nsNativeThemeCocoa()
   [mCheckboxCell setButtonType:NSSwitchButton];
   [mCheckboxCell setAllowsMixedState:YES];
 
-#if(1) // defined(__x86_64__)
+#if defined(__x86_64__) || MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   mSearchFieldCell = [[SearchFieldCellWithFocusRing alloc] initTextCell:@""];
 #else
   mSearchFieldCell = [[ContextAwareSearchFieldCell alloc] initTextCell:@""];
@@ -636,7 +638,7 @@ nsNativeThemeCocoa::nsNativeThemeCocoa()
 
   mDropdownCell = [[NSPopUpButtonCell alloc] initTextCell:@"" pullsDown:NO];
 
-#if(1)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   mComboBoxCell = [[ComboBoxCellWithFocusRing alloc] initTextCell:@""];
 #else
   mComboBoxCell = [[NSComboBoxCell alloc] initTextCell:@""];
@@ -1002,7 +1004,9 @@ RenderWithCoreUILegacy(CGRect aRect, CGContextRef cgContext, NSDictionary* aOpti
   if (aRect.size.width * aRect.size.height <= BITMAP_MAX_AREA) {
     CUIRendererRef renderer = [NSWindow respondsToSelector:@selector(coreUIRenderer)]
       ? [NSWindow coreUIRenderer] : nil;
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1050
     CUIDraw(renderer, aRect, cgContext, (CFDictionaryRef)aOptions, NULL);
+#endif
   }
 }
 
@@ -1222,7 +1226,7 @@ nsNativeThemeCocoa::DrawMenuIcon(CGContextRef cgContext, const CGRect& aRect,
                                  const NSSize& aIconSize, NSString* aImageName,
                                  bool aCenterHorizontally)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   // Adjust size and position of our drawRect.
@@ -2118,11 +2122,10 @@ nsNativeThemeCocoa::SeparatorAdjustedRect(CGRect aRect, nsIFrame* aLeft,
   return aRect;
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 static NSString* ToolbarButtonPosition(BOOL aIsFirst, BOOL aIsLast)
 {
-NS_NOTREACHED("never call ToolbarButtonPosition");
-return @"";
-#if(0)
+  // Only used by nsNativeThemeCocoa::DrawSegment who's already disabled.
   if (aIsFirst) {
     if (aIsLast)
       return @"kCUISegmentPositionOnly";
@@ -2131,8 +2134,8 @@ return @"";
   if (aIsLast)
     return @"kCUISegmentPositionLast";
   return @"kCUISegmentPositionMiddle";
-#endif
 }
+#endif
 
 struct SegmentedControlRenderSettings {
   const CGFloat* heights;
@@ -2244,8 +2247,9 @@ nsNativeThemeCocoa::DrawSegment(CGContextRef cgContext, const HIRect& inBoxRect,
                                 EventStates inState, nsIFrame* aFrame,
                                 const SegmentedControlRenderSettings& aSettings)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 NS_NOTREACHED("never call nsNativeThemeCocoa::DrawSegment");
-#if(0)
+#else
   BOOL isActive = IsActive(aFrame, aSettings.isToolbarControl);
   BOOL isFocused = inState.HasState(NS_EVENT_STATE_FOCUS);
   BOOL isSelected = IsSelectedButton(aFrame);
@@ -2442,7 +2446,7 @@ ToolbarCanBeUnified(CGContextRef cgContext, const HIRect& inBoxRect, NSWindow* a
 }
 
 // We don't need this routine for 10.4.
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 // By default, kCUIWidgetWindowFrame drawing draws rounded corners in the
 // upper corners. Depending on the context type, it fills the background in
 // the corners with black or leaves it transparent. Unfortunately, this corner
@@ -2480,7 +2484,7 @@ nsNativeThemeCocoa::DrawUnifiedToolbar(CGContextRef cgContext, const HIRect& inB
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGContextSaveGState(cgContext);
   CGContextClipToRect(cgContext, inBoxRect);
 
@@ -2581,7 +2585,7 @@ nsNativeThemeCocoa::DrawStatusBar(CGContextRef cgContext, const HIRect& inBoxRec
     return;
 
 // backout bug 668195
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGContextSaveGState(cgContext);
   CGContextClipToRect(cgContext, inBoxRect);
 
@@ -2628,7 +2632,7 @@ nsNativeThemeCocoa::DrawNativeTitlebar(CGContextRef aContext, CGRect aTitlebarRe
                                        CGFloat aUnifiedHeight, BOOL aIsMain, BOOL aIsFlipped)
 {
   CGFloat unifiedHeight = std::max(aUnifiedHeight, aTitlebarRect.size.height);
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   DrawNativeTitlebarToolbarWithSquareCorners(aContext, aTitlebarRect, unifiedHeight, aIsMain, aIsFlipped);
 #else
   // HIThemeDrawTitleBarWidget draws relative to the content area, not the
@@ -2720,7 +2724,7 @@ DrawVibrancyBackground(CGContextRef cgContext, CGRect inBoxRect,
                        nsIFrame* aFrame, nsITheme::ThemeGeometryType aThemeGeometryType,
                        int aCornerRadiusIfOpaque = 0)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   ChildView* childView = ChildViewForFrame(aFrame);
   if (childView) {
     NSRect rect = NSRectFromCGRect(inBoxRect);
@@ -2756,8 +2760,11 @@ DrawVibrancyBackground(CGContextRef cgContext, CGRect inBoxRect,
 static bool
 ScrollbarTrackAndThumbDrawSeparately()
 {
-return false;
-  //return nsLookAndFeel::UseOverlayScrollbars() || nsCocoaFeatures::OnLionOrLater();
+#if defined(__ppc__) || defined(__ppc64__)
+  return false;
+#else
+  return nsLookAndFeel::UseOverlayScrollbars() || nsCocoaFeatures::OnLionOrLater();
+#endif
 }
 
 bool
@@ -2902,7 +2909,10 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       break;
 
     case NS_THEME_MENUITEM:
-    /*case NS_THEME_CHECKMENUITEM:*/ { // backout bug 1012445
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    case NS_THEME_CHECKMENUITEM:
+#endif
+      { // backout bug 1012445
       if (VibrancyManager::SystemSupportsVibrancy()) {
         ThemeGeometryType type = ThemeGeometryTypeForWidget(aFrame, aWidgetType);
         DrawVibrancyBackground(cgContext, macRect, aFrame, type);
@@ -2926,7 +2936,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       }
 
 // backout bug 1012445
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
       if (aWidgetType == NS_THEME_CHECKMENUITEM) {
         DrawMenuIcon(cgContext, macRect, eventState, aFrame, kCheckmarkSize, kCheckmarkImage, false);
       }
@@ -2992,7 +3002,9 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       DrawFocusOutline(cgContext, macRect, eventState, aWidgetType, aFrame);
       break;
 
-    /* case NS_THEME_MOZ_MAC_HELP_BUTTON: backout bug 970079 */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* backout bug 970079 */
+    case NS_THEME_MOZ_MAC_HELP_BUTTON:
+#endif
     case NS_THEME_MAC_DISCLOSURE_BUTTON_OPEN:
     case NS_THEME_MAC_DISCLOSURE_BUTTON_CLOSED:
       DrawPushButton(cgContext, macRect, eventState, aWidgetType, aFrame);
@@ -3045,10 +3057,11 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       break;
 
     case NS_THEME_TOOLBAR_BUTTON:
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
       DrawButton(cgContext, kThemePushButton, macRect,
       	IsDefaultButton(aFrame), kThemeButtonOn, kThemeAdornmentNone,
       	eventState, aFrame);
-#if(0)
+#else
       DrawSegment(cgContext, macRect, eventState, aFrame, toolbarButtonRenderSettings);
 #endif
       break;
@@ -3251,7 +3264,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
     case NS_THEME_SCROLLBAR_THUMB_VERTICAL:
     case NS_THEME_SCROLLBAR_THUMB_HORIZONTAL:
 // Lion only. Sucks!
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if (ScrollbarTrackAndThumbDrawSeparately()) {
         BOOL isOverlay = nsLookAndFeel::UseOverlayScrollbars();
         BOOL isHorizontal = (aWidgetType == NS_THEME_SCROLLBAR_THUMB_HORIZONTAL);
@@ -3304,7 +3317,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
     case NS_THEME_SCROLLBAR_TRACK_HORIZONTAL:
     case NS_THEME_SCROLLBAR_TRACK_VERTICAL:
 // Lion sucks my turgid wang again. Geez.
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if (ScrollbarTrackAndThumbDrawSeparately()) {
         BOOL isOverlay = nsLookAndFeel::UseOverlayScrollbars();
         if (!isOverlay || IsParentScrollbarRolledOver(aFrame)) {
@@ -3363,17 +3376,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
         [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:cgContext flipped:YES]];
         CGContextSaveGState(cgContext);
         NSSetFocusRingStyle(NSFocusRingOnly);
-#if(0)
-        NSRectFill(NSRectFromCGRect(macRect));
-#else
-/* How the hell did this compile in 40 but not 43? */
-    union ConversionUnion
-    {
-        NSRect ns;
-        CGRect cg;
-    };
-	NSRectFill((((union ConversionUnion *)&macRect)->ns));
-#endif
+        NSRectFill(*((NSRect*)&macRect));
         CGContextRestoreGState(cgContext);
         [NSGraphicsContext setCurrentContext:savedContext];
       }
@@ -3399,9 +3402,10 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       break;
     
     case NS_THEME_TAB:
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
       // XXX: This may need modification for Australis
       DrawTab(cgContext, macRect, eventState, aFrame);
-#if(0)
+#else
       DrawSegment(cgContext, macRect, eventState, aFrame, tabRenderSettings);
 #endif
       break;
@@ -3416,7 +3420,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
 
     case NS_THEME_MAC_VIBRANCY_LIGHT:
     case NS_THEME_MAC_VIBRANCY_DARK: {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
       ThemeGeometryType type = ThemeGeometryTypeForWidget(aFrame, aWidgetType);
       DrawVibrancyBackground(cgContext, macRect, aFrame, type);
 #endif
@@ -3613,7 +3617,9 @@ nsNativeThemeCocoa::GetWidgetOverflow(nsDeviceContext* aContext, nsIFrame* aFram
     case NS_THEME_BUTTON:
     case NS_THEME_MAC_DISCLOSURE_BUTTON_OPEN:
     case NS_THEME_MAC_DISCLOSURE_BUTTON_CLOSED:
-    //case NS_THEME_MOZ_MAC_HELP_BUTTON: // backout bug 970079
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 // backout bug 970079
+    case NS_THEME_MOZ_MAC_HELP_BUTTON:
+#endif
     case NS_THEME_TOOLBAR_BUTTON:
     case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
@@ -3703,14 +3709,14 @@ nsNativeThemeCocoa::GetMinimumWidgetSize(nsPresContext* aPresContext,
       break;
     }
 
-/* backout bug 970079
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* backout bug 970079 */
     case NS_THEME_MOZ_MAC_HELP_BUTTON:
     {
       aResult->SizeTo(kHelpButtonSize.width, kHelpButtonSize.height);
       *aIsOverridable = false;
       break;
     }
-*/
+#endif
 
     case NS_THEME_TOOLBAR_BUTTON:
     {
@@ -3995,7 +4001,9 @@ nsNativeThemeCocoa::WidgetStateChanged(nsIFrame* aFrame, uint8_t aWidgetType,
     case NS_THEME_WINDOW_TITLEBAR:
     case NS_THEME_TOOLBOX:
     case NS_THEME_TOOLBAR:
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
     case NS_THEME_TOOLBAR_BUTTON: // backout bug 672050
+#endif
     case NS_THEME_STATUSBAR:
     case NS_THEME_STATUSBAR_PANEL:
     case NS_THEME_STATUSBAR_RESIZER_PANEL:
@@ -4097,7 +4105,10 @@ nsNativeThemeCocoa::ThemeSupportsWidget(nsPresContext* aPresContext, nsIFrame* a
     case NS_THEME_WINDOW:
     case NS_THEME_WINDOW_BUTTON_BOX:
     case NS_THEME_WINDOW_TITLEBAR:
-    //case NS_THEME_CHECKMENUITEM: // backout bug 1012445
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    // NOTE: NS_THEME_CHECKMENUITEM doesn't displays when running this on 10.5
+    case NS_THEME_CHECKMENUITEM: // backout bug 1012445
+#endif
     case NS_THEME_MENUPOPUP:
     case NS_THEME_MENUARROW:
     case NS_THEME_MENUITEM:
@@ -4110,14 +4121,18 @@ nsNativeThemeCocoa::ThemeSupportsWidget(nsPresContext* aPresContext, nsIFrame* a
     case NS_THEME_RADIO:
     case NS_THEME_RADIO_CONTAINER:
     case NS_THEME_GROUPBOX:
-    // case NS_THEME_MOZ_MAC_HELP_BUTTON: // backout bug 970079
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    case NS_THEME_MOZ_MAC_HELP_BUTTON: // backout bug 970079
+#endif
     case NS_THEME_MAC_DISCLOSURE_BUTTON_OPEN:
     case NS_THEME_MAC_DISCLOSURE_BUTTON_CLOSED:
     case NS_THEME_BUTTON:
     case NS_THEME_BUTTON_ARROW_UP:
     case NS_THEME_BUTTON_ARROW_DOWN:
     case NS_THEME_BUTTON_BEVEL:
-    // case NS_THEME_TOOLBAR_BUTTON: // backout bug 970079
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    case NS_THEME_TOOLBAR_BUTTON: // backout bug 970079
+#endif
     case NS_THEME_SPINNER:
     case NS_THEME_SPINNER_UP_BUTTON:
     case NS_THEME_SPINNER_DOWN_BUTTON:
@@ -4207,7 +4222,9 @@ nsNativeThemeCocoa::WidgetIsContainer(uint8_t aWidgetType)
    case NS_THEME_PROGRESSBAR:
    case NS_THEME_METERBAR:
    case NS_THEME_RANGE:
-   // case NS_THEME_MOZ_MAC_HELP_BUTTON: // backout bug 970079
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+   case NS_THEME_MOZ_MAC_HELP_BUTTON: // backout bug 970079
+#endif
    case NS_THEME_MAC_DISCLOSURE_BUTTON_OPEN:
    case NS_THEME_MAC_DISCLOSURE_BUTTON_CLOSED:
     return false;
@@ -4221,7 +4238,9 @@ nsNativeThemeCocoa::ThemeDrawsFocusForWidget(uint8_t aWidgetType)
   if (aWidgetType == NS_THEME_DROPDOWN ||
       aWidgetType == NS_THEME_DROPDOWN_TEXTFIELD ||
       aWidgetType == NS_THEME_BUTTON ||
-      // aWidgetType == NS_THEME_MOZ_MAC_HELP_BUTTON || // backout bug 970079
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+      aWidgetType == NS_THEME_MOZ_MAC_HELP_BUTTON || // backout bug 970079
+#endif
       aWidgetType == NS_THEME_MAC_DISCLOSURE_BUTTON_OPEN ||
       aWidgetType == NS_THEME_MAC_DISCLOSURE_BUTTON_CLOSED ||
       aWidgetType == NS_THEME_RADIO ||
@@ -4247,7 +4266,9 @@ nsNativeThemeCocoa::WidgetAppearanceDependsOnWindowFocus(uint8_t aWidgetType)
     case NS_THEME_TAB_PANELS:
     case NS_THEME_BUTTON_ARROW_UP:
     case NS_THEME_BUTTON_ARROW_DOWN:
-    //case NS_THEME_CHECKMENUITEM: // backout bug 1012445
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    case NS_THEME_CHECKMENUITEM: // backout bug 1012445
+#endif
     case NS_THEME_MENUPOPUP:
     case NS_THEME_MENUARROW:
     case NS_THEME_MENUITEM:

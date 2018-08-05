@@ -51,6 +51,9 @@ menuitem.subviewbutton:not(.panel-subview-footer) {
 /* Override OSX-specific toolkit styles for the bookmarks panel */
 menu.subviewbutton > .menu-right {
   -moz-margin-end: 0;
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  -moz-appearance: none;
+%endif
 }
 
 menu.subviewbutton > .menu-right > image {
@@ -58,8 +61,12 @@ menu.subviewbutton > .menu-right > image {
   * so we set the -moz-appearance rule on the image
   * (which doesn't inherit the _moz-menuactive attribute) instead.
   */
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  -moz-appearance: menuarrow;
+%else
 /* backout 333910 */
   -moz-image-region: rect(0, 9px, 10px, 0);
+%endif
 }
 
 .widget-overflow-list .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {

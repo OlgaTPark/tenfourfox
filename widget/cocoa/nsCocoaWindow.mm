@@ -3950,8 +3950,9 @@ static void
 DrawNativeTitlebar(CGContextRef aContext, CGRect aTitlebarRect,
                    CGFloat aUnifiedToolbarHeight, BOOL aIsMain)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 NS_NOTREACHED("never call DrawNativeTitlebar");
-#if(0)
+#else
   nsNativeThemeCocoa::DrawNativeTitlebar(aContext, aTitlebarRect, aUnifiedToolbarHeight, aIsMain, NO);
 
   if (nsCocoaFeatures::OnLionOrLater()) {
@@ -3969,7 +3970,7 @@ NS_NOTREACHED("never call DrawNativeTitlebar");
 static void
 TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 678002 */
   ToolbarWindow *window = (ToolbarWindow*)aInfo;
   if (![window drawsContentsIntoWindowFrame]) {
     NSRect titlebarRect = [window titlebarRect];
@@ -3993,7 +3994,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 
 - (void)setFill
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   float patternWidth = [mWindow frame].size.width;
 
   CGPatternCallbacks callbacks = {0, &TitlebarDrawCallback, NULL};

@@ -82,24 +82,29 @@ menuitem[src] > .menu-iconic-left > .menu-iconic-icon {
 .menu-right,
 .menu-accel-container {
   -moz-margin-start: 21px;
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  -moz-margin-end: -9px;
+%endif
   -moz-box-pack: end;
 }
 
 /* The native menuarrow we use is 9px wide on 10.7+ and 8px wide on 10.6,
  * so it needs to be 'pulled in' one pixel more by the negative margin in
  * order to align properly: */
-/*
+%if MACOSX_DEPLOYMENT_TARGET != 1040
 @media not all and (-moz-mac-lion-theme) {
   .menu-right {
     -moz-margin-end: -10px;
   }
 }
-*/
+%else
 .menu-accel-container {
   -moz-margin-end: -9px;
 }
+%endif
 
 .menu-right {
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   -moz-margin-end: -10px;
   width: 9px;
   list-style-image: url("chrome://global/skin/menu/menu-arrow.png");
@@ -116,6 +121,10 @@ menuitem[src] > .menu-iconic-left > .menu-iconic-icon {
 
 .menu-right:-moz-locale-dir(rtl) {
   transform: scaleX(-1);
+%else
+  list-style-image: none;
+  -moz-appearance: menuarrow;
+%endif
 }
 
 /* ::::: menu/menuitems in menubar ::::: */
@@ -185,6 +194,12 @@ menulist[editable="true"] > menupopup > :-moz-any(menuitem, menucaption) > .menu
 
 /* ::::: checked menuitems ::::: */
 
+%if MACOSX_DEPLOYMENT_TARGET != 1050 && MACOSX_DEPLOYMENT_TARGET != 1040
+:not(menulist) > menupopup > menuitem[checked="true"],
+:not(menulist) > menupopup > menuitem[selected="true"] {
+  -moz-appearance: checkmenuitem;
+}
+%else
 /* backout bug 1012445 */
 :not(menulist) > menupopup > menuitem[checked="true"] > .menu-iconic-left,
 :not(menulist) > menupopup > menuitem[selected="true"] > .menu-iconic-left {
@@ -203,6 +218,7 @@ menulist[editable="true"] > menupopup > :-moz-any(menuitem, menucaption) > .menu
 :not(menulist) > menupopup > menuitem[selected="true"][_moz-menuactive="true"]:not([disabled="true"]) > .menu-iconic-left {
   background-image: -moz-image-rect("chrome://global/skin/menu/menu-check.png", 0, 22, 11, 11);
 }
+%endif
 
 menulist:not([editable="true"]) > menupopup > menuitem[checked="true"]::before,
 menulist:not([editable="true"]) > menupopup > menuitem[selected="true"]::before {
