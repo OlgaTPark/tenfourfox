@@ -453,8 +453,10 @@ mozilla_sampler_log(const char *fmt, va_list args)
 
 void mozilla_sampler_init(void* stackTop)
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
    // 10.4Fx does not support the Sampler; it doesn't grok PPC or 10.4.
    return;
+#endif
 
   sInitCount++;
 
@@ -533,8 +535,10 @@ void mozilla_sampler_init(void* stackTop)
 
 void mozilla_sampler_shutdown()
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
   // 10.4Fx does not support the Sampler; it doesn't grok PPC or 10.4.
   return;
+#endif
 
   sInitCount--;
 
@@ -587,7 +591,9 @@ void mozilla_sampler_save()
 
 mozilla::UniquePtr<char[]> mozilla_sampler_get_profile(double aSinceTime)
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return nullptr; // 10.4Fx
+#endif
   GeckoSampler *t = tlsTicker.get();
   if (!t) {
     return nullptr;
@@ -599,7 +605,9 @@ return nullptr; // 10.4Fx
 #ifndef SPS_STANDALONE
 JSObject *mozilla_sampler_get_profile_data(JSContext *aCx, double aSinceTime)
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return nullptr; // 10.4Fx
+#endif
   GeckoSampler *t = tlsTicker.get();
   if (!t) {
     return nullptr;
@@ -693,7 +701,9 @@ void mozilla_sampler_save_profile_to_file(const char* aFilename)
 
 const char** mozilla_sampler_get_features()
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return nullptr; // 10.4Fx
+#endif
   static const char* features[] = {
 #if defined(MOZ_PROFILING) && defined(HAVE_NATIVE_UNWIND)
     // Walk the C++ stack.
@@ -765,7 +775,9 @@ void mozilla_sampler_start(int aProfileEntries, double aInterval,
                            const char** aThreadNameFilters, uint32_t aFilterCount)
 
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return; // 10.4Fx
+#endif
   LOG("BEGIN mozilla_sampler_start");
 
   if (!stack_key_initialized)
@@ -873,7 +885,9 @@ return; // 10.4Fx
 
 void mozilla_sampler_stop()
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return; // 10.4Fx
+#endif
   LOG("BEGIN mozilla_sampler_stop");
 
   if (!stack_key_initialized)
@@ -981,8 +995,10 @@ bool mozilla_sampler_feature_active(const char* aName)
 
 bool mozilla_sampler_is_active()
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 // We never run the sampler.
 return false;
+#endif
   return sIsProfiling;
 }
 
@@ -998,7 +1014,9 @@ void mozilla_sampler_frame_number(int frameNumber)
 
 void mozilla_sampler_lock()
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return;
+#endif
   profiler_stop();
 #ifndef SPS_STANDALONE
   nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
@@ -1009,7 +1027,9 @@ return;
 
 void mozilla_sampler_unlock()
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return;
+#endif
 #ifndef SPS_STANDALONE
   nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
   if (os)
@@ -1019,7 +1039,9 @@ return;
 
 bool mozilla_sampler_register_thread(const char* aName, void* aGuessStackTop)
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return false;
+#endif
   if (sInitCount == 0) {
     return false;
   }
@@ -1043,7 +1065,9 @@ return false;
 
 void mozilla_sampler_unregister_thread()
 {
+#if defined(XP_MACOSX) && (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050 || defined(__ppc__) || defined(__ppc64__))
 return; // 10.4Fx
+#endif
   // Don't check sInitCount count here -- we may be unregistering the
   // thread after the sampler was shut down.
   if (!stack_key_initialized) {
