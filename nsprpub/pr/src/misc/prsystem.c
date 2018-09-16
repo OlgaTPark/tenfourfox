@@ -177,8 +177,9 @@ PR_IMPLEMENT(PRStatus) PR_GetSystemInfo(PRSysInfo cmd, char *buf, PRUint32 bufle
 */
 PR_IMPLEMENT(PRInt32) PR_GetNumberOfProcessors( void )
 {
-    return 1;
-#if(0)
+#if defined(DARWIN) && (__ppc__ || __ppc64__ || __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ <= 1040)
+    return 1; /* Issue 231 */
+#else
     PRInt32     numCpus;
 #if defined(WIN32)
     SYSTEM_INFO     info;

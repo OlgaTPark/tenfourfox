@@ -3430,7 +3430,7 @@ js::GetCPUCount()
         // To reveal that sysconf(_SC_NPROCESSORS_ONLN) is a fallback to the below alternative ;-)
         long n = sysconf(_SC_NPROCESSORS_ONLN);
         ncpus = (n > 0) ? unsigned(n) : 1;
-  #else /* Issue 231 */
+  #else /* Issue 231 and 292 */
         int mib[2];
         unsigned int maxproc = 1;
         size_t len = sizeof(maxproc);

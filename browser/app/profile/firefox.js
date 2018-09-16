@@ -21,6 +21,32 @@
 #endif
 #endif
 
+# The following macro hacks are the only way to know were on Intel
+# Do not work: #if defined(__i386__) || defined(__x86_64__)
+# Do not put any space before '#' or it won't be interpreted !!!!
+#ifndef __i386__
+#ifdef VPX_X86_ASM
+#if VPX_X86_ASM
+#define __i386__ 1
+#endif
+#endif
+#ifdef HAVE_X86_AVX2
+#if HAVE_X86_AVX2
+#define __i386__ 1
+#endif
+#endif
+#ifdef LIBJPEG_X86_ASM
+#if LIBJPEG_X86_ASM
+#define __i386__ 1
+#endif
+#endif
+#ifdef LIBJPEG_TURBO_X86_ASM
+#if LIBJPEG_TURBO_X86_ASM
+#define __i386__ 1
+#endif
+#endif
+#endif
+
 pref("browser.chromeURL","chrome://browser/content/");
 pref("browser.hiddenWindowChromeURL", "chrome://browser/content/hiddenWindow.xul");
 
@@ -223,8 +249,12 @@ pref("browser.fixup.domainwhitelist.localhost", true);
 pref("general.useragent.locale", "@AB_CD@");
 pref("general.skins.selectedSkin", "classic/1.0");
 
+#ifdef __i386__
+pref("general.smoothScroll", true);
+#else
 // too slow on TenFourFox
 pref("general.smoothScroll", false);
+#endif
 #ifdef UNIX_BUT_NOT_MAC
 pref("general.autoScroll", false);
 #else
@@ -1018,10 +1048,18 @@ pref("browser.sessionstore.interval", 25000);
 // 0 = everywhere, 1 = unencrypted sites, 2 = nowhere
 pref("browser.sessionstore.privacy_level", 0);
 // how many tabs can be reopened (per window)
+#ifdef __i386__
+pref("browser.sessionstore.max_tabs_undo", 10); // I want old values…
+#else
 pref("browser.sessionstore.max_tabs_undo", 4);
+#endif
 // how many windows can be reopened (per session) - on non-OS X platforms this
 // pref may be ignored when dealing with pop-up windows to ensure proper startup
+#ifdef __i386__
+pref("browser.sessionstore.max_windows_undo", 3); // My precccccciousssss…
+#else
 pref("browser.sessionstore.max_windows_undo", 2);
+#endif
 // number of crashes that can occur before the about:sessionrestore page is displayed
 // (this pref has no effect if more than 6 hours have passed since the last crash)
 pref("browser.sessionstore.max_resumed_crashes", 1);

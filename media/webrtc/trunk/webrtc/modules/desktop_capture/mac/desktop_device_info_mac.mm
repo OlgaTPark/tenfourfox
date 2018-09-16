@@ -116,9 +116,15 @@ void DesktopDeviceInfoMac::InitializeApplicationList() {
   for (NSDictionary *ra in running) {
   // This is maybe useless since -runningApplications returns all user's 
   // applications but -launchedApplications only returns applications with a GUI
+    #if __LP64__
+    ProcessSerialNumber psn = {
+      .highLongOfPSN = [[ra objectForKey:@"NSApplicationProcessSerialNumberHigh"]unsignedIntValue], 
+      .lowLongOfPSN = [[ra objectForKey:@"NSApplicationProcessSerialNumberLow"]unsignedIntValue]};
+    #else
     ProcessSerialNumber psn = {
       .highLongOfPSN = [[ra objectForKey:@"NSApplicationProcessSerialNumberHigh"]unsignedLongValue], 
       .lowLongOfPSN = [[ra objectForKey:@"NSApplicationProcessSerialNumberLow"]unsignedLongValue]};
+    #endif
     CFDictionaryRef infoDict = ProcessInformationCopyDictionary(&psn, kProcessDictionaryIncludeAllInformationMask);
     if (::CFBooleanGetValue((CFBooleanRef)CFDictionaryGetValue(infoDict, @"LSBackgroundOnly")) ||
         ::CFBooleanGetValue((CFBooleanRef)CFDictionaryGetValue(infoDict, @"LSUIElement")))

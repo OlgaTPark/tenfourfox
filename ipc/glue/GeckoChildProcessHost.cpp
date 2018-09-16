@@ -208,12 +208,19 @@ nsresult GeckoChildProcessHost::GetArchitecturesForBinary(const char *path, uint
 {
   *result = 0;
 
+#if  MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Because 10.4Fx only runs PPC plugins, and we don't support plugins, we'll
   // just make this always say PPC.
-  *result |= base::PROCESS_ARCH_PPC;
+  #if defined(__ppc__) || defined(__ppc64__)
+    *result |= base::PROCESS_ARCH_PPC;
+  #elif defined(__i386__)
+    *result |= base::PROCESS_ARCH_I386;
+  #elif defined(__x86_64__)
+    *result |= base::PROCESS_ARCH_X86_64;
+  #endif
   return NS_OK;
 
-#if(0)
+#else
 
 #ifdef MOZ_WIDGET_COCOA
   CFURLRef url = ::CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
@@ -262,7 +269,7 @@ nsresult GeckoChildProcessHost::GetArchitecturesForBinary(const char *path, uint
 
 uint32_t GeckoChildProcessHost::GetSupportedArchitecturesForProcessType(GeckoProcessType type)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 #ifdef MOZ_WIDGET_COCOA
   if (type == GeckoProcessType_Plugin) {
 

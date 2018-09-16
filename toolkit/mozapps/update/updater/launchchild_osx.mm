@@ -9,7 +9,9 @@
 #include <crt_externs.h>
 #include <stdlib.h>
 #include <stdio.h>
-// #include <spawn.h> // we don't have this in 10.4.
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  #include <spawn.h> // we don't have this in 10.4.
+#endif
 #include "readstrings.h"
 
 #define MAC_OS_X_VERSION_10_6_HEX 0x00001060
@@ -52,7 +54,7 @@ bool OnSnowLeopardOrLater()
 
 void LaunchChild(int argc, char **argv)
 {
-#if(1)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 || defined(__ppc__) || defined(__ppc64__)
 /* Use the old 3.6 code. -- Cameron */
   int i;
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -91,17 +93,19 @@ void LaunchChild(int argc, char **argv)
   [child launch];
   [pool release];
 #else // the 4.0 code as of beta 7
-  // We prefer CPU_TYPE_X86_64 on 10.6 and CPU_TYPE_X86 on 10.5,
-  // if that isn't possible we let the OS pick the next best 
-  // thing (CPU_TYPE_ANY).
-  cpu_type_t cpu_types[CPU_ATTR_COUNT];
-  if (OnSnowLeopardOrLater()) {
-    cpu_types[0] = CPU_TYPE_X86_64;
-  }
-  else {
-    cpu_types[0] = CPU_TYPE_X86;
-  }
-  cpu_types[1] = CPU_TYPE_ANY;
+  // Prefer the currently running architecture (this is the same as the
+  // architecture that launched the updater) and fallback to CPU_TYPE_ANY if it
+  // is no longer available after the update.
+  cpu_type_t pref_cpu_types[2] = {
+  #if defined(__i386__)
+    CPU_TYPE_X86,
+  #elif defined(__x86_64__)
+    CPU_TYPE_X86_64,
+  #elif defined(__ppc__)
+    CPU_TYPE_POWERPC,
+  #endif
+    CPU_TYPE_ANY
+  };
 
   // Initialize spawn attributes.
   posix_spawnattr_t spawnattr;

@@ -150,7 +150,7 @@ bool Wrapper::finalizeInBackground(Value priv) const
     if (IsInsideNursery(&priv.toObject()))
         return true;
 #if defined(__ppc__) || defined(__ppc64__)
-return false; // speculative fix
+return false; // See TenFourFox issue 479.
 #endif
     return IsBackgroundFinalized(priv.toObject().asTenured().getAllocKind());
 }

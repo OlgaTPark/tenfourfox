@@ -6085,7 +6085,7 @@ MALLOC_OUT:
 
 	osx_use_jemalloc = (default_zone->version == SNOW_LEOPARD_MALLOC_ZONE_T_VERSION ||
 			    default_zone->version == LION_MALLOC_ZONE_T_VERSION);
-#ifdef __ppc__
+#if defined(__ppc__) || __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1060
 	osx_use_jemalloc |= (default_zone->version == LEOPARD_MALLOC_ZONE_T_VERSION);
 #endif
 
@@ -6244,7 +6244,7 @@ MEMALIGN(size_t alignment, size_t size)
 {
 	void *ret;
 
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
 	DARWIN_ONLY(return (szone->memalign)(szone, alignment, size));
 #endif
 

@@ -392,7 +392,7 @@ NSString
 void
 ExecNewBinary(NSString* launchPath, NSDictionary* args)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   NSLog(@" launching webrt at path: %@\n", launchPath);
 
   NSUInteger numArgs = [args count];

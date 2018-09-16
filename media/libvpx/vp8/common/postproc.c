@@ -818,7 +818,7 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
     }
     oci->postproc_state.last_frame_valid = 1;
 
-#if(0)
+#if !(defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__)))
     if (flags & VP8D_ADDNOISE)
     {
         if (oci->postproc_state.last_q != q
