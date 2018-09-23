@@ -625,7 +625,7 @@ MaybeAddNsprLogFileAccess(std::vector<std::wstring>& aAllowedFilesReadWrite)
 bool
 GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExtraOpts, base::ProcessArchitecture arch)
 {
-#if(1)
+#ifndef MOZ_PLUGINS
   NS_NOTREACHED("*** PerformAsyncLaunchInternal not implemented ***");
   return false;
 #else

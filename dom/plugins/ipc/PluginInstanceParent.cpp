@@ -134,7 +134,7 @@ PluginInstanceParent::PluginInstanceParent(PluginModuleParent* parent,
     , mPluginWndProc(nullptr)
     , mNestedEventState(false)
 #endif // defined(XP_WIN)
-#if(0)
+#ifdef MOZ_PLUGINS
 #if defined(XP_MACOSX)
     , mShWidth(0)
     , mShHeight(0)
@@ -158,7 +158,7 @@ PluginInstanceParent::~PluginInstanceParent()
     NS_ASSERTION(!(mPluginHWND || mPluginWndProc),
         "Subclass was not reset correctly before the dtor was reached!");
 #endif
-#if(0)
+#ifdef MOZ_PLUGINS
 #if defined(MOZ_WIDGET_COCOA)
     if (mShWidth != 0 && mShHeight != 0) {
         DeallocShmem(mShSurface);
@@ -469,7 +469,7 @@ bool
 PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginDrawingModel(
     const int& drawingModel, NPError* result)
 {
-#if(0)
+#ifdef MOZ_PLUGINS
     bool allowed = false;
 
     switch (drawingModel) {
@@ -531,7 +531,7 @@ bool
 PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginEventModel(
     const int& eventModel, NPError* result)
 {
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
     *result = mNPNIface->setvalue(mNPP, NPPVpluginEventModel,
                                   (void*)(intptr_t)eventModel);
@@ -892,7 +892,7 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
         }
         surface = gfxSharedImageSurface::Open(newSurface.get_Shmem());
     }
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
     else if (newSurface.type() == SurfaceDescriptor::TIOSurfaceDescriptor) {
         IOSurfaceDescriptor iodesc = newSurface.get_IOSurfaceDescriptor();
@@ -1004,7 +1004,7 @@ PluginInstanceParent::AsyncSetWindow(NPWindow* aWindow)
     window.height = aWindow->height;
     window.clipRect = aWindow->clipRect;
     window.type = aWindow->type;
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
     double scaleFactor = 1.0;
     mNPNIface->getvalue(mNPP, NPNVcontentsScaleFactor, &scaleFactor);
@@ -1026,8 +1026,9 @@ PluginInstanceParent::AsyncSetWindow(NPWindow* aWindow)
 nsresult
 PluginInstanceParent::GetImageContainer(ImageContainer** aContainer)
 {
+#ifndef MOZ_PLUGINS
 return NS_ERROR_FAILURE;
-#if(0)
+#else
     if (IsUsingDirectDrawing()) {
         // Use the image container created by the most recent direct surface
         // call, if any. We don't create one if no surfaces were presented
@@ -1079,7 +1080,7 @@ return NS_ERROR_FAILURE;
 nsresult
 PluginInstanceParent::GetImageSize(nsIntSize* aSize)
 {
-#if(0)
+#ifdef MOZ_PLUGINS
     if (IsUsingDirectDrawing()) {
         if (!mImageContainer) {
             return NS_ERROR_NOT_AVAILABLE;
@@ -1117,7 +1118,7 @@ PluginInstanceParent::DidComposite()
     Unused << SendNPP_DidComposite();
 }
 
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
 nsresult
 PluginInstanceParent::IsRemoteDrawingCoreAnimation(bool *aDrawing)
@@ -1374,7 +1375,7 @@ PluginInstanceParent::NPP_SetWindow(const NPWindow* aWindow)
     window.type = aWindow->type;
 #endif
 
-#if(0)
+#ifdef MOZ_PLUGINS
 #if defined(XP_MACOSX)
     double floatScaleFactor = 1.0;
     mNPNIface->getvalue(mNPP, NPNVcontentsScaleFactor, &floatScaleFactor);
@@ -1562,7 +1563,7 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
 {
     PLUGIN_LOG_DEBUG_FUNCTION;
 
-#if(0)
+#ifdef MOZ_PLUGINS
 #if defined(XP_MACOSX)
     NPCocoaEvent* npevent = reinterpret_cast<NPCocoaEvent*>(event);
 #else

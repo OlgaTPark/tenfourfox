@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MacIOSurface.h"
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(MOZ_PLUGINS)
 #include <OpenGL/gl.h>
 #include <QuartzCore/QuartzCore.h>
 #include <dlfcn.h>

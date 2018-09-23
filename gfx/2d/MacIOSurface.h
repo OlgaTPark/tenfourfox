@@ -7,7 +7,7 @@
 #ifndef MacIOSurface_h__
 #define MacIOSurface_h__
 #ifdef XP_DARWIN
-#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060 || defined(MOZ_PLUGINS)
 #include <QuartzCore/QuartzCore.h>
 #include <CoreVideo/CoreVideo.h>
 #include <dlfcn.h>

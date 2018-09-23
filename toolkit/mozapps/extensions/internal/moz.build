@@ -18,13 +18,17 @@ EXTRA_JS_MODULES.addons += [
     'XPIProviderUtils.js',
 ]
 
-# Don't ship unused providers on Android
 # Hackity hack hack hack:
 # Neither PluginProvider nor GMPProvider are supported on 10.4Fx.
-if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'android':
+if CONFIG['MOZ_PLUGINS']:
     EXTRA_JS_MODULES.addons += [
-        'PluginProvider.jsm',
+        'GMPProvider.jsm',
     ]
+    # Don't ship unused providers on Android
+    if CONFIG['MOZ_WIDGET_TOOLKIT'] != 'android':
+        EXTRA_JS_MODULES.addons += [
+            'PluginProvider.jsm',
+        ]
 
 EXTRA_PP_JS_MODULES.addons += [
     'AddonConstants.jsm',

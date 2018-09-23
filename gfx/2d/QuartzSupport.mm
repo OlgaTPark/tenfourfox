@@ -6,7 +6,7 @@
 
 #include "QuartzSupport.h"
 // 10.4 doesn't support any of this.
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(MOZ_PLUGINS)
 #include "nsDebug.h"
 #include "MacIOSurface.h"
 
