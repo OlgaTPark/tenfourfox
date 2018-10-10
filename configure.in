@@ -3761,6 +3761,7 @@ LIBJPEG_TURBO_AS=
 LIBJPEG_TURBO_ASFLAGS=
 MOZ_PERMISSIONS=1
 MOZ_PLACES=1
+MOZ_PLUGINS=
 MOZ_SOCIAL=1
 MOZ_PREF_EXTENSIONS=1
 MOZ_PROFILELOCKING=1
@@ -4964,6 +4965,19 @@ if test -n "$MOZ_IPDL_TESTS"; then
 fi
 
 AC_SUBST(MOZ_IPDL_TESTS)
+
+# Backout bug 647118 (re-enable --enable-plugins flag because it's still supported on 10.6)
+# See also changes in config/autoconf.mk.in and toolkit/mozapps/extensions/extensions.manifest
+dnl ========================================================
+dnl = Disable plugin support		
+dnl ========================================================
+MOZ_ARG_ENABLE_BOOL(plugins,
+[  --enable-plugins       Enable plugins support],
+    MOZ_PLUGINS=1,
+    MOZ_PLUGINS=)
+if test "$MOZ_PLUGINS"; then
+  AC_DEFINE(MOZ_PLUGINS)
+fi
 
 dnl ========================================================
 dnl = Disable building dbm
@@ -8605,6 +8619,7 @@ AC_SUBST(MOZ_DEBUG_SYMBOLS)
 AC_SUBST(MOZ_DEBUG_LDFLAGS)
 AC_SUBST(WARNINGS_AS_ERRORS)
 AC_SUBST_SET(MOZ_EXTENSIONS)
+AC_SUBST(MOZ_PLUGINS)
 AC_SUBST(MOZ_ENABLE_PROFILER_SPS)
 AC_SUBST(MOZ_JPROF)
 AC_SUBST(MOZ_INSTRUMENTS)
