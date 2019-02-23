@@ -82,7 +82,7 @@ FFmpegRuntimeLinker::Link()
     const char* lib = sLibs[i];
 #ifdef XP_DARWIN
     /* Loading FFMPEG on Mac OS X (macOS is a typo) fails because mozilla 
-      searches for sybols defined in libavutil with a handle to libavcodec.
+      searches for symbols defined in libavutil with a handle to libavcodec.
       This is due to the fact that NSPR uses NSAddressOfSymbol & cie who limits
       its researches only to libavcodec and not its dependencies.  We don't have
       this issue with dlsym().  */

@@ -25,7 +25,7 @@
 
 #if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5)
 #define NS_LEOPARD_AND_LATER 1
-#error The 10.4 SDK is the only supported target!
+// #error The 10.4 SDK is the only supported target!
 #endif 
 
 // "Borrowed" in part from the QTKit framework's QTKitDefines.h.  This is

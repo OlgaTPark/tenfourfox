@@ -285,7 +285,7 @@ ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
     TableRecord *records = new TableRecord[count];
     for (uint32_t i=3; i<(sizer/4); i+=4) { // Skip header
 #ifndef __ppc__
-#error need little-endian version
+#warning need little-endian version
 #endif
         uint32_t tag = wtable[i];
         if (tag == 0x43464620) // 'CFF '

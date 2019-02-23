@@ -282,7 +282,7 @@ void nsCocoaUtils::HideOSChromeOnScreen(bool aShouldHide, NSScreen* aScreen)
 // Not on 10.4.
 // Restore the 38 code, since we don't have NSApplicationPresentationOptions
 // (and the NSScreen* pointer so that we know which screen the window's on).
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+#if(0)
   NSApplicationPresentationOptions options =
     sHiddenCount <= 0 ? NSApplicationPresentationDefault :
     NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar;

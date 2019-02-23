@@ -8,7 +8,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-#if (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
+#if defined(__ppc__) || defined(__ppc64__) || (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
 #import <Carbon/Carbon.h>
 #endif
 
@@ -33,7 +33,7 @@ class nsIWidget;
 #endif
 {
   nsMenuX* mGeckoMenu; // weak ref
-#if (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
+#if defined(__ppc__) || defined(__ppc64__) || (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
   EventHandlerRef mEventHandler;
 #endif
 }

@@ -155,8 +155,12 @@ if CONFIG['MOZ_WEBRTC']:
         ]
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
+    if not CONFIG['CLANG_CC'] and not CONFIG['CLANG_CXX']:
+        # We link with libatomic only if we're compiling with GCC
+        OS_LIBS += [
+            'atomic',
+        ]
     OS_LIBS += [
-        'atomic',
         '-framework OpenGL',
         '-framework SystemConfiguration',
         '-framework QTKit',

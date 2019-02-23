@@ -177,9 +177,12 @@ toolbarseparator {
 %if MACOSX_DEPLOYMENT_TARGET == 1040
   background: url(chrome://browser/skin/Toolbar-background-noise.png),
               linear-gradient(hsl(0,0%,94%), hsl(0,0%,79%));
-%else
+%elif MACOSX_DEPLOYMENT_TARGET == 1050
   background: url(chrome://browser/skin/Toolbar-background-noise.png),
               linear-gradient(hsl(0,0%,94%), hsl(0,0%,75%));
+%else
+  background: url(chrome://browser/skin/Toolbar-background-noise.png),
+              linear-gradient(hsl(0,0%,94%), hsl(0,0%,83.5%));
 %endif
   background-clip: border-box;
   background-origin: border-box !important;

@@ -737,7 +737,9 @@ protected:
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   RefPtr<mozilla::widget::TextInputHandler> mTextInputHandler;
 #endif
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
   static uint32_t	sSecureEventInputCount; // bug 807893
+#endif
   InputContext          mInputContext;
 
   NSView<mozView>*      mParentView;

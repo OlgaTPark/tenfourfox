@@ -1774,14 +1774,26 @@ WINNT) ;;
 Darwin)
     if test -n "$MOZ_IOS"; then
         MOZ_ENABLE_PROFILER_SPS=
+    else
+        case "${CPU_ARCH}" in
+        i386 | x86 | x86_64)
+            MOZ_ENABLE_PROFILER_SPS=1
+        ;;
+        *)
+            dnl SPS doesn't support PPC, and we don't support SPS, so there.
+            MOZ_ENABLE_PROFILER_SPS=
+        ;;
+        esac
+        # Also: crashes on Intel if SDK is < 10.5
+        if test $(bc -q <<< "( $MACOSX_DEPLOYMENT_TARGET * 100) < 1050 " ) -eq 1; then
+            MOZ_ENABLE_PROFILER_SPS=
+        fi
     fi
     ;;
 *)
     MOZ_ENABLE_PROFILER_SPS=
     ;;
 esac
-dnl SPS doesn't support PPC, and we don't support SPS, so there.
-MOZ_ENABLE_PROFILER_SPS=
 
 if test -n "$MOZ_ENABLE_PROFILER_SPS"; then
     AC_DEFINE(MOZ_ENABLE_PROFILER_SPS)
