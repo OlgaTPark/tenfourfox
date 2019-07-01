@@ -1,4 +1,3 @@
-#if(0)
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -25,6 +24,7 @@
 // PerformAsyncLaunchInternal()).  For this reason it shouldn't link in other
 // browser modules when loaded.  Instead it should use dlsym() to load
 // pointers to the methods it wants to call in other modules.
+#ifdef MOZ_PLUGINS
 
 #if !defined(__LP64__)
 

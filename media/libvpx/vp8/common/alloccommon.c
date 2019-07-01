@@ -126,7 +126,7 @@ allocation_fail:
 
 void vp8_setup_version(VP8_COMMON *cm)
 {
-#if(0)
+#if !(defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__)))
     switch (cm->version)
     {
     case 0:
@@ -176,7 +176,7 @@ void vp8_create_common(VP8_COMMON *oci)
     vp8_default_bmode_probs(oci->fc.bmode_prob);
 
     oci->mb_no_coeff_skip = 1;
-#if(0)
+#if defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__))
     oci->no_lpf = 0;
     oci->filter_type = NORMAL_LOOPFILTER;
 #else

@@ -85,7 +85,9 @@
 @BINPATH@/@DLL_PREFIX@xul@DLL_SUFFIX@
 #endif
 #ifdef XP_MACOSX
+#ifdef MOZ_PLUGINS
 @BINPATH@/@MOZ_CHILD_PROCESS_NAME@.app/
+#endif
 @BINPATH@/@DLL_PREFIX@plugin_child_interpose@DLL_SUFFIX@
 #else
 @BINPATH@/@MOZ_CHILD_PROCESS_NAME@

@@ -15,6 +15,7 @@
 
 #include <QuickTime/QuickTime.h>
 
+#include "mozilla/Preferences.h"
 #include "webrtc/modules/video_capture/device_info_impl.h"
 #include "webrtc/modules/video_capture/video_capture_config.h"
 #include "webrtc/modules/video_capture/video_capture_impl.h"
@@ -24,10 +25,16 @@
 // 10.4 support must be decided runtime. We will just decide which framework to
 // use at compile time "work" classes. One for QTKit, one for QuickTime
 // We don't support QTKit in TenFourFox, even though it exists.
-#if __MAC_OS_X_VERSION_MIN_REQUIRED == __MAC_10_4 // QuickTime version
+// NB: QuickTime is hardly faster (I mean less CPU) than QTKit on 10.5 and 10.6.
+//     Unfornately this framework is only available in 32-bit PPC and Intel.
+#ifndef __MAC_10_5
+  #define __MAC_10_5 1050
+#endif
+#if !__LP64__ // QuickTime version
 #include "webrtc/modules/video_capture/mac/quicktime/video_capture_quick_time.h"
 #include "webrtc/modules/video_capture/mac/quicktime/video_capture_quick_time_info.h"
-#else
+#endif /* !__LP64__ */
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_5
 #include "webrtc/modules/video_capture/mac/qtkit/video_capture_qtkit.h"
 #include "webrtc/modules/video_capture/mac/qtkit/video_capture_qtkit_info.h"
 #endif
@@ -94,6 +101,17 @@ bool CheckQTVersion()
     return true;
 }
 
+/* As said before, QuickTime is only available in 32-bit.  If we want a 64-bit 
+ TenFiveFox and TenSixFox we could only use QTKit.  Because QuickTime is faster 
+ in 32-bit but only 10.4 users have the honour to use it, I added an about:config
+ setting (tenfourfox.video_capture.UseQTKitIn32bitMode) who allows the user to 
+ choose between the two frameworks in TenFiveFox and TenSixFox.  If you change 
+ this settings, make sure to restart the browser in order to make it effective.
+ */
+#if !__LP64__ && __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_5
+  static char _doUseQTKitIn32Bit = -1;
+#endif
+
 /**************************************************************************
  *
  *    Create/Destroy a VideoCaptureModule
@@ -122,7 +140,14 @@ VideoCaptureModule* VideoCaptureImpl::Create(
         return NULL;
     }
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED == __MAC_10_4 // QuickTime version
+#if !__LP64__ // QuickTime version
+  #if __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_5
+    if (_doUseQTKitIn32Bit < 0)
+      _doUseQTKitIn32Bit = (char)mozilla::Preferences::GetBool("tenfourfox.video_capture.UseQTKitIn32bitMode", false);
+
+	if (!_doUseQTKitIn32Bit)
+  #endif /* __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_5 */
+	{
     if (webrtc::videocapturemodule::CheckQTVersion() == false)
     {
         WEBRTC_TRACE(webrtc::kTraceError, webrtc::kTraceVideoCapture, id,
@@ -164,8 +189,9 @@ VideoCaptureModule* VideoCaptureImpl::Create(
                  "framework to capture",
                  deviceUniqueIdUTF8);
     return newCaptureModule;
-
-#else // QTKit version
+	} /* if (!_doUseQTKitIn32Bit) */
+#endif /* !__LP64__ */
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_5 // QTKit version
 
     WEBRTC_TRACE(webrtc::kTraceInfo, webrtc::kTraceVideoCapture, id,
                  "Using QTKit framework to capture video", id);
@@ -216,7 +242,14 @@ VideoCaptureImpl::CreateDeviceInfo(const int32_t id)
         return NULL;
     }
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED == __MAC_10_4 // QuickTime version
+#if !__LP64__ // QuickTime version
+  #if __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_5
+    if (_doUseQTKitIn32Bit < 0)
+      _doUseQTKitIn32Bit = (char)mozilla::Preferences::GetBool("tenfourfox.video_capture.UseQTKitIn32bitMode", false);
+
+    if (!_doUseQTKitIn32Bit)
+  #endif /* __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_5 */
+	{
     if (webrtc::videocapturemodule::CheckQTVersion() == false)
     {
         WEBRTC_TRACE(webrtc::kTraceError, webrtc::kTraceVideoCapture, id,
@@ -241,8 +274,9 @@ VideoCaptureImpl::CreateDeviceInfo(const int32_t id)
     WEBRTC_TRACE(webrtc::kTraceInfo, webrtc::kTraceVideoCapture, id,
                  "VideoCaptureModule created for id", id);
     return newCaptureInfoModule;
-
-#else // QTKit version
+    } /* if (!_doUseQTKitIn32Bit) */
+#endif /* !__LP64__ */
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_5 // QTKit version
     webrtc::videocapturemodule::VideoCaptureMacQTKitInfo* newCaptureInfoModule =
         new webrtc::videocapturemodule::VideoCaptureMacQTKitInfo(id);
 

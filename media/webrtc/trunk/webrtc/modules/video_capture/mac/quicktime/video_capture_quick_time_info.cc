@@ -13,6 +13,7 @@
  *
  */
 
+#ifndef __LP64__ /* …because QuickTime is 32-bit only */
 #include "webrtc/modules/video_capture/video_capture_config.h"
 #include "webrtc/modules/video_capture/mac/quicktime/video_capture_quick_time_info.h"
 
@@ -385,3 +386,4 @@ VideoCaptureMacQuickTimeInfo::VideoCaptureMacName::VideoCaptureMacName() :
 }
 }  // namespace videocapturemodule
 }  // namespace webrtc
+#endif /* __LP64__ */

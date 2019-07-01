@@ -11,6 +11,7 @@
 #include "GfxInfo.h"
 #include "nsUnicharUtils.h"
 #include "nsCocoaFeatures.h"
+#include "nsCocoaUtils.h" /* For Backing-scale factor */
 #include "mozilla/Preferences.h"
 #include <algorithm>
 
@@ -38,9 +39,11 @@ GfxInfo::GfxInfo()
 static OperatingSystem
 OSXVersionToOperatingSystem(uint32_t aOSXVersion)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 || MAC_OS_X_VERSION_MAX_ALLOWED >= 1050
   if (nsCocoaFeatures::ExtractMajorVersion(aOSXVersion) == 10) {
     switch (nsCocoaFeatures::ExtractMinorVersion(aOSXVersion)) {
+      case 5:
+        return DRIVER_OS_OS_X_10_5;
       case 6:
         return DRIVER_OS_OS_X_10_6;
       case 7:
@@ -338,6 +341,17 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
 
   // Don't evaluate special cases when we're evaluating the downloaded blocklist.
   if (!aDriverInfo.Length()) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+    // Backout M801601, TenFourFox Issue 182
+    // Many WebGL issues on 10.5, especially:
+    //   * bug 631258: WebGL shader paints using textures belonging to other processes on Mac OS 10.5
+    //   * bug 618848: Post process shaders and texture mapping crash OS X 10.5
+    if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL &&
+        !nsCocoaFeatures::OnSnowLeopardOrLater()) {
+      *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;
+      return NS_OK;
+    }
+#endif
     if (aFeature == nsIGfxInfo::FEATURE_WEBGL_MSAA) {
       // Blacklist all ATI cards on OSX, except for
       // 0x6760 and 0x9488
@@ -360,7 +374,7 @@ GfxInfo::FindMonitors(JSContext* aCx, JS::HandleObject aOutArray)
   // CVDisplayLinkGetNominalOutputVideoRefreshPeriod, but that's a little
   // involved. Ideally we could query it from vsync. For now, we leave it out.
   int32_t deviceCount = 0;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   for (NSScreen* screen in [NSScreen screens]) {
 #else
   NSArray *screens = [NSScreen screens];
@@ -378,8 +392,11 @@ GfxInfo::FindMonitors(JSContext* aCx, JS::HandleObject aOutArray)
 
     JS::Rooted<JS::Value> screenHeight(aCx, JS::Int32Value((int)rect.size.height));
     JS_SetProperty(aCx, obj, "screenHeight", screenHeight);
-
+#if USE_BACKING_SCALE_FACTOR
+    JS::Rooted<JS::Value> scale(aCx, JS::NumberValue(nsCocoaUtils::GetBackingScaleFactor(screen)));
+#else
     JS::Rooted<JS::Value> scale(aCx, JS::NumberValue(1.0f));
+#endif
     JS_SetProperty(aCx, obj, "scale", scale);
 
     JS::Rooted<JS::Value> element(aCx, JS::ObjectValue(*obj));

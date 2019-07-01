@@ -90,7 +90,7 @@
   locale/@AB_CD@/mozapps/downloads/settingsChange.dtd             (%chrome/mozapps/downloads/settingsChange.dtd)
   locale/@AB_CD@/mozapps/downloads/downloads.dtd                  (%chrome/mozapps/downloads/downloads.dtd)
   locale/@AB_CD@/mozapps/downloads/downloads.properties           (%chrome/mozapps/downloads/downloads.properties)
-  locale/@AB_CD@/mozapps/extensions/extensions.dtd                (%chrome/mozapps/extensions/extensions.dtd)
+* locale/@AB_CD@/mozapps/extensions/extensions.dtd                (%chrome/mozapps/extensions/extensions.dtd)
   locale/@AB_CD@/mozapps/extensions/extensions.properties         (%chrome/mozapps/extensions/extensions.properties)
   locale/@AB_CD@/mozapps/extensions/blocklist.dtd                 (%chrome/mozapps/extensions/blocklist.dtd)
   locale/@AB_CD@/mozapps/extensions/about.dtd                     (%chrome/mozapps/extensions/about.dtd)
@@ -114,7 +114,7 @@
   locale/@AB_CD@/mozapps/xpinstall/xpinstallConfirm.dtd           (%chrome/mozapps/extensions/xpinstallConfirm.dtd)
   locale/@AB_CD@/mozapps/xpinstall/xpinstallConfirm.properties    (%chrome/mozapps/extensions/xpinstallConfirm.properties)
 % locale pluginproblem @AB_CD@ %locale/@AB_CD@/pluginproblem/
-  locale/@AB_CD@/pluginproblem/pluginproblem.dtd                  (%chrome/pluginproblem/pluginproblem.dtd)
+* locale/@AB_CD@/pluginproblem/pluginproblem.dtd                  (%chrome/pluginproblem/pluginproblem.dtd)
 % locale alerts @AB_CD@ %locale/@AB_CD@/alerts/
   locale/@AB_CD@/alerts/alert.dtd                                (%chrome/alerts/alert.dtd)
   locale/@AB_CD@/alerts/alert.properties                         (%chrome/alerts/alert.properties)

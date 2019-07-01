@@ -79,9 +79,14 @@ void AppCapturerMac::Start(Callback* callback) {
 }
 
 void AppCapturerMac::Capture(const DesktopRegion& region) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   // Check that selected process exists
   NSRunningApplication *ra = [NSRunningApplication runningApplicationWithProcessIdentifier:process_id_];
+  #else
+  bool ra = GetProcessForPID(process_id_, NULL) == noErr;
+  #endif /* MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 */
+
   if (!ra) {
     callback_->OnCaptureCompleted(NULL);
     return;

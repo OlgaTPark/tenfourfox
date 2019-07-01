@@ -141,7 +141,7 @@ class PlatformData {
  public:
   PlatformData() : profiled_thread_(mach_thread_self())
   {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     profiled_pthread_ = pthread_from_mach_thread_np(profiled_thread_);
 #endif
   }
@@ -363,8 +363,11 @@ Sampler::GetProfiledThread(PlatformData* aData)
 #include <sys/syscall.h>
 pid_t gettid()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   return (pid_t) syscall(SYS_thread_selfid);
+#elif !defined(__LP64__)
+  // Don't work in 64-bit because cast from (void*) to (pid_t) loses information.
+  return (pid_t)pthread_self();
 #else
   return (pid_t)0;
 #endif

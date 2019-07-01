@@ -90,8 +90,15 @@ function testCanonicalNaN() {
 
     // Evil: write a JSVAL_TYPE_OBJECT type tag...
     // Fix for little endian emulation (see bug851792.js)
-    uint32[0] = 0x87ffffff; //0xffffff87;
-    uint32[1] = 0x87ffffff; //0xffffff87;
+	if (f64[0] = 42, uint32[0] != 0) {
+        // Big endian
+        uint32[0] = 0x87ffffff;
+        uint32[1] = 0x87ffffff;
+	} else {
+        // Little endian
+        uint32[0] = 0xffffff87;
+        uint32[1] = 0xffffff87;
+	}
 
     // Make sure this value is interpreted as a double.
     for (var i=0; i<100; i++) {

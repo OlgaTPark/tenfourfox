@@ -159,6 +159,7 @@ button {
   margin: 0 6px;
   padding: 0;
   text-shadow: @loweredShadow@;
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   -moz-appearance: none;
   padding: 0 2px;
   border: 1px solid @toolbarbuttonBorderColor@;
@@ -166,4 +167,7 @@ button {
   box-shadow: @loweredShadow@;
   background: @toolbarbuttonBackground@;
   background-origin: border-box;
+%else
+  -moz-appearance: toolbarbutton;
+%endif
 }

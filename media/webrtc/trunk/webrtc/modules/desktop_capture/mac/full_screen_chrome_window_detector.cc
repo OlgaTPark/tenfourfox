@@ -11,7 +11,7 @@
 #include "webrtc/modules/desktop_capture/mac/full_screen_chrome_window_detector.h"
 
 #include <assert.h>
-#if(0)
+#if  MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 // Not in 10.4
 #include <libproc.h>
 #endif
@@ -31,7 +31,7 @@ const int64_t kUpdateIntervalMs = 500;
 
 // Returns true if the window is minimized.
 bool IsWindowMinimized(CGWindowID id) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CFArrayRef window_id_array =
       CFArrayCreate(NULL, reinterpret_cast<const void **>(&id), 1, NULL);
   CFArrayRef window_array =
@@ -58,7 +58,7 @@ bool IsWindowMinimized(CGWindowID id) {
 // Returns true if the window is occupying a full screen.
 bool IsWindowFullScreen(const MacDesktopConfiguration& desktop_config,
                         CFDictionaryRef window) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   bool fullscreen = false;
 
   CFDictionaryRef bounds_ref = reinterpret_cast<CFDictionaryRef>(
@@ -86,7 +86,7 @@ bool IsWindowFullScreen(const MacDesktopConfiguration& desktop_config,
 }
 
 std::string GetWindowTitle(CGWindowID id) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CFArrayRef window_id_array =
       CFArrayCreate(NULL, reinterpret_cast<const void **>(&id), 1, NULL);
   CFArrayRef window_array =
@@ -111,7 +111,7 @@ std::string GetWindowTitle(CGWindowID id) {
 }
 
 int GetWindowOwnerPid(CGWindowID id) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CFArrayRef window_id_array =
       CFArrayCreate(NULL, reinterpret_cast<const void **>(&id), 1, NULL);
   CFArrayRef window_array =
@@ -138,7 +138,7 @@ int GetWindowOwnerPid(CGWindowID id) {
 // Returns the window that is full-screen and has the same title and owner pid
 // as the input window.
 CGWindowID FindFullScreenWindowWithSamePidAndTitle(CGWindowID id) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   int pid = GetWindowOwnerPid(id);
   std::string title = GetWindowTitle(id);
 
@@ -196,7 +196,7 @@ CGWindowID FindFullScreenWindowWithSamePidAndTitle(CGWindowID id) {
 }
 
 bool IsChromeWindow(CGWindowID id) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   int pid = GetWindowOwnerPid(id);
   char buffer[PROC_PIDPATHINFO_MAXSIZE];
   int path_length = proc_pidpath(pid, buffer, sizeof(buffer));
@@ -220,7 +220,7 @@ FullScreenChromeWindowDetector::~FullScreenChromeWindowDetector() {}
 
 CGWindowID FullScreenChromeWindowDetector::FindFullScreenWindow(
     CGWindowID original_window) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   if (!IsChromeWindow(original_window) || !IsWindowMinimized(original_window))
     return kCGNullWindowID;
 
@@ -249,7 +249,7 @@ CGWindowID FullScreenChromeWindowDetector::FindFullScreenWindow(
 
 void FullScreenChromeWindowDetector::UpdateWindowListIfNeeded(
     CGWindowID original_window) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   if (IsChromeWindow(original_window) &&
       (TickTime::Now() - last_udpate_time_).Milliseconds()
           > kUpdateIntervalMs) {

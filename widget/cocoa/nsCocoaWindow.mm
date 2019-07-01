@@ -49,7 +49,9 @@
 extern "C" {
 	IMP class_lookupMethod(Class, SEL);
 };
-#define class_getMethodImplementation(x,y) class_lookupMethod(x,y)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  #define class_getMethodImplementation(x,y) class_lookupMethod(x,y)
+#endif
 extern "C" {
 	bool _NSHandleCarbonMenuEvent(EventRef x);
 };
@@ -305,7 +307,7 @@ nsresult nsCocoaWindow::Create(nsIWidget* aParent,
     }
     // now we can convert newBounds to device pixels for the window we created,
     // as the child view expects a rect expressed in the dev pix of its parent
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
     double scale = BackingScaleFactor();
     newBounds.x *= scale;
     newBounds.y *= scale;
@@ -774,7 +776,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
           parentIsSheet) {
         piParentWidget->GetSheetWindowParent(&topNonSheetWindow);
         [NSApp endSheet:nativeParentWindow];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
         [nativeParentWindow setAcceptsMouseMovedEvents:NO]; // bug 675208
+#endif
       }
 
       nsCocoaWindow* sheetShown = nullptr;
@@ -789,7 +793,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
           // Only set contextInfo if our parent isn't a sheet.
           NSWindow* contextInfo = parentIsSheet ? nil : mSheetWindowParent;
           [TopLevelWindowData deactivateInWindow:mSheetWindowParent];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
           [mWindow setAcceptsMouseMovedEvents:YES]; // bug 675208
+#endif
           [NSApp beginSheet:mWindow
              modalForWindow:mSheetWindowParent
               modalDelegate:mDelegate
@@ -816,7 +822,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
       NSInteger windowNumber = [mWindow windowNumber];
       [mWindow _setWindowNumber:-1];
       [mWindow _setWindowNumber:windowNumber];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
       [mWindow setAcceptsMouseMovedEvents:YES];
+#endif
       // For reasons that aren't yet clear, calls to [NSWindow orderFront:] or
       // [NSWindow makeKeyAndOrderFront:] can sometimes trigger "Error (1000)
       // creating CGSWindow", which in turn triggers an internal inconsistency
@@ -850,7 +858,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
     }
     else {
       NS_OBJC_BEGIN_TRY_LOGONLY_BLOCK;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
       [mWindow setAcceptsMouseMovedEvents:YES];
+#endif
       if (mWindowType == eWindowType_toplevel &&
           [mWindow respondsToSelector:@selector(setAnimationBehavior:)]) {
         NSWindowAnimationBehavior behavior;
@@ -896,7 +906,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
         // hide the sheet
         [NSApp endSheet:mWindow];
         
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
         [mWindow setAcceptsMouseMovedEvents:NO];
+#endif
 
         [TopLevelWindowData deactivateInWindow:mWindow];
 
@@ -927,7 +939,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
           // If there are no sibling sheets, but the parent is a sheet, restore
           // it.  It wasn't sent any deactivate events when it was hidden, so
           // don't call through Show, just let the OS put it back up.
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 	  [nativeParentWindow setAcceptsMouseMovedEvents:YES];
+#endif
           [NSApp beginSheet:nativeParentWindow
              modalForWindow:sheetParent
               modalDelegate:[nativeParentWindow delegate]
@@ -940,7 +954,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
           NS_OBJC_BEGIN_TRY_LOGONLY_BLOCK;
           [sheetParent makeKeyAndOrderFront:nil];
           NS_OBJC_END_TRY_LOGONLY_BLOCK;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 	  [sheetParent setAcceptsMouseMovedEvents:YES];
+#endif
         }
         SendSetZLevelEvent();
       }
@@ -965,9 +981,11 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
       if (mWindowType == eWindowType_popup)
         [NSApp _removeWindowFromCache:mWindow];
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
       // it's very important to turn off mouse moved events when hiding a window, otherwise
       // the windows' tracking rects will interfere with each other. (bug 356528)
       [mWindow setAcceptsMouseMovedEvents:NO];
+#endif
 
       // If our popup window is a non-native context menu, tell the OS (and
       // other programs) that a menu has closed.
@@ -1044,7 +1062,7 @@ static const NSUInteger kWindowBackgroundBlurRadius = 4;
 void
 nsCocoaWindow::SetWindowBackgroundBlur()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   if (!mWindow || ![mWindow isVisible] || [mWindow windowNumber] == -1)
@@ -1060,7 +1078,7 @@ nsCocoaWindow::SetWindowBackgroundBlur()
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 #else
-  return; // Not supported on 10.4.
+  return; // Not supported on 10.4 or 10.5.
 #endif
 }
 
@@ -1196,27 +1214,29 @@ void nsCocoaWindow::SetSizeConstraints(const SizeConstraints& aConstraints)
     (mWindowType == eWindowType_popup) ? NSZeroRect : NSMakeRect(0.0, 0.0, 60, 60);
   rect = [mWindow frameRectForContentRect:rect];
 
-  //CGFloat scaleFactor = BackingScaleFactor();
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor = BackingScaleFactor();
+#endif
 
   SizeConstraints c = aConstraints;
   c.mMinSize.width =
-    std::max(nsCocoaUtils::CocoaPointsToDevPixels(rect.size.width),
+    std::max(nsCocoaUtils::CocoaPointsToDevPixels(rect.size.width DO_IF_USE_BACKINGSCALE(, scaleFactor)),
            c.mMinSize.width);
   c.mMinSize.height =
-    std::max(nsCocoaUtils::CocoaPointsToDevPixels(rect.size.height),
+    std::max(nsCocoaUtils::CocoaPointsToDevPixels(rect.size.height DO_IF_USE_BACKINGSCALE(, scaleFactor)),
            c.mMinSize.height);
 
   NSSize minSize = {
-    nsCocoaUtils::DevPixelsToCocoaPoints(c.mMinSize.width),
-    nsCocoaUtils::DevPixelsToCocoaPoints(c.mMinSize.height)
+    nsCocoaUtils::DevPixelsToCocoaPoints(c.mMinSize.width DO_IF_USE_BACKINGSCALE(, scaleFactor)),
+    nsCocoaUtils::DevPixelsToCocoaPoints(c.mMinSize.height DO_IF_USE_BACKINGSCALE(, scaleFactor))
   };
   [mWindow setMinSize:minSize];
 
   NSSize maxSize = {
     c.mMaxSize.width == NS_MAXSIZE ?
-      FLT_MAX : nsCocoaUtils::DevPixelsToCocoaPoints(c.mMaxSize.width),
+      FLT_MAX : nsCocoaUtils::DevPixelsToCocoaPoints(c.mMaxSize.width DO_IF_USE_BACKINGSCALE(, scaleFactor)),
     c.mMaxSize.height == NS_MAXSIZE ?
-      FLT_MAX : nsCocoaUtils::DevPixelsToCocoaPoints(c.mMaxSize.height)
+      FLT_MAX : nsCocoaUtils::DevPixelsToCocoaPoints(c.mMaxSize.height DO_IF_USE_BACKINGSCALE(, scaleFactor))
   };
   [mWindow setMaxSize:maxSize];
 
@@ -1408,8 +1428,9 @@ NS_IMPL_ISUPPORTS0(FullscreenTransitionData)
 /* virtual */ bool
 nsCocoaWindow::PrepareForFullscreenTransition(nsISupports** aData)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 return false; // unsupported
-#if(0)
+#else
   nsCOMPtr<nsIScreen> widgetScreen = GetWidgetScreen();
   nsScreenCocoa* screen = static_cast<nsScreenCocoa*>(widgetScreen.get());
   NSScreen* cocoaScreen = screen->CocoaScreen();
@@ -1439,7 +1460,7 @@ nsCocoaWindow::PerformFullscreenTransition(FullscreenTransitionStage aStage,
                                            nsIRunnable* aCallback)
 {
 // We don't have CoreAnimation, so essentially, don't do anything!
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Uh, this does not seems to use CoreAnimation… */
   auto data = static_cast<FullscreenTransitionData*>(aData);
   FullscreenTransitionDelegate* delegate =
     [[FullscreenTransitionDelegate alloc] init];
@@ -1452,11 +1473,11 @@ nsCocoaWindow::PerformFullscreenTransition(FullscreenTransitionStage aStage,
     ReleaseFullscreenTransitionAnimation();
   }
 
-  NSDictionary* dict = @{
-    NSViewAnimationTargetKey: data->mTransitionWindow,
-    NSViewAnimationEffectKey: aStage == eBeforeFullscreenToggle ?
-      NSViewAnimationFadeInEffect : NSViewAnimationFadeOutEffect
-  };
+  NSDictionary* dict = [NSDictionary dictionaryWithObjects:(id[]){
+         data->mTransitionWindow, 
+         aStage == eBeforeFullscreenToggle ? NSViewAnimationFadeInEffect : NSViewAnimationFadeOutEffect} 
+                                                   forKeys:(id[]){NSViewAnimationTargetKey, NSViewAnimationEffectKey} 
+                                                     count:2U];
   mFullscreenTransitionAnimation =
     [[NSViewAnimation alloc] initWithViewAnimations:@[dict]];
   [mFullscreenTransitionAnimation setDelegate:delegate];
@@ -1583,14 +1604,21 @@ nsresult nsCocoaWindow::DoResize(double aX, double aY,
 
   // ConstrainSize operates in device pixels, so we need to convert using
   // the backing scale factor here
-  //CGFloat scale = BackingScaleFactor();
-  int32_t width = NSToIntRound(aWidth);
-  int32_t height = NSToIntRound(aHeight);
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scale = BackingScaleFactor();
+#endif
+  int32_t width = NSToIntRound(aWidth DO_IF_USE_BACKINGSCALE(* scale));
+  int32_t height = NSToIntRound(aHeight DO_IF_USE_BACKINGSCALE(* scale));
   ConstrainSize(&width, &height);
 
   LayoutDeviceIntRect newBounds(NSToIntRound(aX), NSToIntRound(aY),
-                                width, //NSToIntRound(width / scale),
-                                height); //NSToIntRound(height / scale));
+#if USE_BACKING_SCALE_FACTOR
+                                NSToIntRound(width / scale),
+                                NSToIntRound(height / scale));
+#else
+                                width, 
+                                height);
+#endif
 
   // constrain to the screen that contains the largest area of the new rect
   FitRectToVisibleAreaForScreen(newBounds, aConstrainToCurrentScreen ?
@@ -1640,9 +1668,11 @@ NS_IMETHODIMP nsCocoaWindow::GetClientBounds(mozilla::LayoutDeviceIntRect& aRect
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  //CGFloat scaleFactor = BackingScaleFactor();
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat scaleFactor = BackingScaleFactor();
+#endif
   if (!mWindow) {
-    aRect = nsCocoaUtils::CocoaRectToGeckoRectDevPix(NSZeroRect);
+    aRect = nsCocoaUtils::CocoaRectToGeckoRectDevPix(NSZeroRect DO_IF_USE_BACKINGSCALE(, scaleFactor));
     return NS_OK;
   }
 
@@ -1654,7 +1684,7 @@ NS_IMETHODIMP nsCocoaWindow::GetClientBounds(mozilla::LayoutDeviceIntRect& aRect
     r = [mWindow contentRectForFrameRect:[mWindow frame]];
   }
 
-  aRect = nsCocoaUtils::CocoaRectToGeckoRectDevPix(r);
+  aRect = nsCocoaUtils::CocoaRectToGeckoRectDevPix(r DO_IF_USE_BACKINGSCALE(, scaleFactor));
 
   return NS_OK;
 
@@ -1669,7 +1699,7 @@ nsCocoaWindow::UpdateBounds()
     frame = [mWindow frame];
   }
   mBounds = nsCocoaUtils::CocoaRectToGeckoRectDevPix(
-    frame).ToUnknownRect();
+    frame DO_IF_USE_BACKINGSCALE(, BackingScaleFactor())).ToUnknownRect();
 }
 
 NS_IMETHODIMP nsCocoaWindow::GetScreenBounds(LayoutDeviceIntRect &aRect)
@@ -1677,7 +1707,7 @@ NS_IMETHODIMP nsCocoaWindow::GetScreenBounds(LayoutDeviceIntRect &aRect)
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
 #ifdef DEBUG
-  LayoutDeviceIntRect r = nsCocoaUtils::CocoaRectToGeckoRectDevPix([mWindow frame]);
+  LayoutDeviceIntRect r = nsCocoaUtils::CocoaRectToGeckoRectDevPix([mWindow frame] DO_IF_USE_BACKINGSCALE(, BackingScaleFactor()));
   NS_ASSERTION(mWindow && mBounds == r.ToUnknownRect(), "mBounds out of sync!");
 #endif
 
@@ -1687,7 +1717,7 @@ NS_IMETHODIMP nsCocoaWindow::GetScreenBounds(LayoutDeviceIntRect &aRect)
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
 double
 nsCocoaWindow::GetDefaultScaleInternal()
 {
@@ -1697,7 +1727,7 @@ nsCocoaWindow::GetDefaultScaleInternal()
 static CGFloat
 GetBackingScaleFactor(NSWindow* aWindow)
 {
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   NSRect frame = [aWindow frame];
   if (frame.size.width > 0 && frame.size.height > 0) {
     return nsCocoaUtils::GetBackingScaleFactor(aWindow);
@@ -1808,7 +1838,7 @@ nsCocoaWindow::RoundsWidgetCoordinatesTo()
   }
   return 1;
 }
-#endif
+#endif /* USE_BACKING_SCALE_FACTOR */
 
 NS_IMETHODIMP nsCocoaWindow::SetCursor(nsCursor aCursor)
 {
@@ -2049,7 +2079,9 @@ NS_IMETHODIMP nsCocoaWindow::SetFocus(bool aState)
     if ([mWindow isMiniaturized]) {
       [mWindow deminiaturize:nil];
     }
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
     [mWindow setAcceptsMouseMovedEvents:YES];
+#endif
     [mWindow makeKeyAndOrderFront:nil];
     SendSetZLevelEvent();
   }
@@ -2066,7 +2098,7 @@ LayoutDeviceIntPoint nsCocoaWindow::WidgetToScreenOffset()
   if (mWindow) {
     rect = [mWindow contentRectForFrameRect:[mWindow frame]];
   }
-  r = nsCocoaUtils::CocoaRectToGeckoRectDevPix(rect);
+  r = nsCocoaUtils::CocoaRectToGeckoRectDevPix(rect DO_IF_USE_BACKINGSCALE(, BackingScaleFactor()));
 
   return r.TopLeft();
 
@@ -2094,12 +2126,14 @@ nsCocoaWindow::ClientToWindowSize(const LayoutDeviceIntSize& aClientSize)
   if (!mWindow)
     return LayoutDeviceIntSize(0, 0);
 
-  //CGFloat backingScale = BackingScaleFactor();
+#if USE_BACKING_SCALE_FACTOR
+  CGFloat backingScale = BackingScaleFactor();
+#endif
   LayoutDeviceIntRect r(0, 0, aClientSize.width, aClientSize.height);
-  NSRect rect = nsCocoaUtils::DevPixelsToCocoaPoints(r);
+  NSRect rect = nsCocoaUtils::DevPixelsToCocoaPoints(r DO_IF_USE_BACKINGSCALE(, backingScale));
 
   NSRect inflatedRect = [mWindow frameRectForContentRect:rect];
-  r = nsCocoaUtils::CocoaRectToGeckoRectDevPix(inflatedRect);
+  r = nsCocoaUtils::CocoaRectToGeckoRectDevPix(inflatedRect DO_IF_USE_BACKINGSCALE(, backingScale));
   return r.Size();
 
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(LayoutDeviceIntSize(0,0));
@@ -2205,8 +2239,9 @@ void nsCocoaWindow::SetShowsToolbarButton(bool aShow)
 void nsCocoaWindow::SetShowsFullScreenButton(bool aShow)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 || defined(__ppc__) || defined(__ppc64__)
   return; // 10.4Fx doesn't support this.
-#if(0)
+#else
 
   if (!mWindow || ![mWindow respondsToSelector:@selector(toggleFullScreen:)] ||
       mSupportsNativeFullScreen == aShow) {
@@ -2392,7 +2427,7 @@ void nsCocoaWindow::SetPopupWindowLevel()
 }
 
 // Revert bug 807893; 10.4 uses code in nsChildView.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
 nsresult
 nsCocoaWindow::NotifyIMEInternal(const IMENotification& aIMENotification)
 {
@@ -2499,7 +2534,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 
 - (void)windowDidResize:(NSNotification *)aNotification
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   BaseWindow* window = [aNotification object];
   [window updateTrackingArea];
 #endif
@@ -2517,7 +2552,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
   if (!mGeckoWindow)
     return;
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // Because of Cocoa's peculiar treatment of zero-size windows (see comments
   // at GetBackingScaleFactor() above), we sometimes have a situation where
   // our concept of backing scale (based on the screen where the zero-sized
@@ -2656,7 +2691,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
   nsChildView* mainChildView =
     static_cast<nsChildView*>([[(BaseWindow*)window mainChildView] widget]);
   if (mainChildView) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
     if (mainChildView->GetInputContext().IsPasswordEditor()) {
       TextInputHandler::EnableSecureEventInput();
     } else {
@@ -2683,7 +2718,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
   if ([window isSheet])
     [WindowDelegate paintMenubarForWindow:[NSApp mainWindow]];
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   TextInputHandler::EnsureSecureEventInputDisabled();
 #else
   // ChildView should handle it for us.
@@ -2763,7 +2798,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 
 - (void)windowDidChangeBackingProperties:(NSNotification *)aNotification
 {
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   NSWindow *window = (NSWindow *)[aNotification object];
@@ -2818,9 +2853,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 static float
 GetDPI(NSWindow* aWindow)
 {
-  // We don't support this. Cameron
-  return 96.0f;
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   NSScreen* screen = [aWindow screen];
   if (!screen)
     return 96.0f;
@@ -2841,6 +2874,9 @@ GetDPI(NSWindow* aWindow)
   CGFloat backingScale = GetBackingScaleFactor(aWindow);
 
   return dpi * backingScale;
+#else
+  // We don't support this. Cameron
+  return 96.0f;
 #endif
 }
 
@@ -2899,7 +2935,7 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
 
 #endif
 
-#if(0) // Blocks blech! (bug 1045213)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 // Blocks blech! (bug 1045213)
 #if !defined(MAC_OS_X_VERSION_10_8) || \
     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
 
@@ -2923,10 +2959,11 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
 
 - (id)_cornerMask
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // We don't implement this, so just pass to the super, if it cares.
 // See bug 1045213.
 return [super _cornerMask];
-#if(0)
+#else
   if (!mUseMenuStyle) {
     return [super _cornerMask];
   }
@@ -3006,7 +3043,7 @@ return [super _cornerMask];
   mScheduledShadowInvalidation = NO;
   mDisabledNeedsDisplay = NO;
   mDPI = GetDPI(self);
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   mTrackingArea = nil;
   mDirtyRect = NSZeroRect;
   mBeingShown = NO;
@@ -3063,7 +3100,7 @@ return [super _cornerMask];
 {
   [mActiveTitlebarColor release];
   [mInactiveTitlebarColor release];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   [self removeTrackingArea];
 #endif
   ChildViewMouseTracker::OnDestroyWindow(self);
@@ -3084,7 +3121,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   [self setTitlebarColor:[aState objectForKey:kStateActiveTitlebarColorKey] forActiveWindow:YES];
   [self setTitlebarColor:[aState objectForKey:kStateInactiveTitlebarColorKey] forActiveWindow:NO];
   [self setShowsToolbarButton:[[aState objectForKey:kStateShowsToolbarButton] boolValue]];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   [self setCollectionBehavior:[[aState objectForKey:kStateCollectionBehavior] unsignedIntValue]];
 #endif
 }
@@ -3105,7 +3142,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   }
   [state setObject:[NSNumber numberWithBool:[self showsToolbarButton]]
             forKey:kStateShowsToolbarButton];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   [state setObject:[NSNumber numberWithUnsignedInt: [self collectionBehavior]]
             forKey:kStateCollectionBehavior];
 #endif
@@ -3140,9 +3177,15 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 - (void)setUseBrightTitlebarForeground:(BOOL)aBrightForeground
 {
   mBrightTitlebarForeground = aBrightForeground;
-#if(0)
-  [[self standardWindowButton:NSWindowFullScreenButton] setNeedsDisplay:YES];
-#endif
+#if defined(__i386__) || defined(__x86_64__)
+#  if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
+#    define NSWindowFullScreenButton (NSWindowButton)7
+#  endif
+#  if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+  if (nsCocoaFeatures::OnLionOrLater()) /* For safety */
+#  endif /* 1070 */
+    [[self standardWindowButton:NSWindowFullScreenButton] setNeedsDisplay:YES];
+#endif /* Intel */
 }
 
 - (BOOL)useBrightTitlebarForeground
@@ -3210,8 +3253,9 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 
 - (void)removeTrackingArea
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   NS_NOTREACHED("never call removeTrackingArea");
-#if(0)
+#else
   if (mTrackingArea) {
     [[self trackingAreaView] removeTrackingArea:mTrackingArea];
     [mTrackingArea release];
@@ -3222,8 +3266,9 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 
 - (void)updateTrackingArea
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   NS_NOTREACHED("never call updateTrackingArea");
-#if(0)
+#else
   [self removeTrackingArea];
 
   NSView* view = [self trackingAreaView];
@@ -3507,7 +3552,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
     if ([self respondsToSelector:@selector(setBottomCornerRounded:)])
       [self setBottomCornerRounded:nsCocoaFeatures::OnLionOrLater()];
 
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     [self setAutorecalculatesContentBorderThickness:NO forEdge:NSMaxYEdge];
     [self setContentBorderThickness:0.0f forEdge:NSMaxYEdge];
 #endif
@@ -3644,7 +3689,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 
 - (void)setSheetAttachmentPosition:(CGFloat)aY
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   CGFloat topMargin = aY - [self titlebarHeight];
   [self setContentBorderThickness:topMargin forEdge:NSMaxYEdge];
 #else
@@ -3905,8 +3950,9 @@ static void
 DrawNativeTitlebar(CGContextRef aContext, CGRect aTitlebarRect,
                    CGFloat aUnifiedToolbarHeight, BOOL aIsMain)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 NS_NOTREACHED("never call DrawNativeTitlebar");
-#if(0)
+#else
   nsNativeThemeCocoa::DrawNativeTitlebar(aContext, aTitlebarRect, aUnifiedToolbarHeight, aIsMain, NO);
 
   if (nsCocoaFeatures::OnLionOrLater()) {
@@ -3924,7 +3970,7 @@ NS_NOTREACHED("never call DrawNativeTitlebar");
 static void
 TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 678002 */
   ToolbarWindow *window = (ToolbarWindow*)aInfo;
   if (![window drawsContentsIntoWindowFrame]) {
     NSRect titlebarRect = [window titlebarRect];
@@ -3948,7 +3994,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 
 - (void)setFill
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   float patternWidth = [mWindow frame].size.width;
 
   CGPatternCallbacks callbacks = {0, &TitlebarDrawCallback, NULL};
@@ -3988,6 +4034,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 
 @implementation PopupWindow
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
 // Restored by backout of bug 675208 (10.4Fx).
 // The OS treats our custom popup windows very strangely -- many mouse events
 // sent to them never reach their target NSView objects.  (That these windows
@@ -4117,6 +4164,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
+#endif /* Bug 675208 for Leopard's NSTrackingArea */
 
 
 - (id)initWithContentRect:(NSRect)contentRect styleMask:(NSUInteger)styleMask

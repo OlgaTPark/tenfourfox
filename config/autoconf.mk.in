@@ -4,3 +4,4 @@ include $(DEPTH)/config/emptyvars.mk
 @ALLSUBSTS@
 include $(topsrcdir)/config/baseconfig.mk
 endif
+MOZ_PLUGINS	= @MOZ_PLUGINS@

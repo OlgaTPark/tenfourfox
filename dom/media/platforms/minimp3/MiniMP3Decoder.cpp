@@ -28,6 +28,14 @@ MiniMP3Decoder::MiniMP3Decoder(const AudioInfo& aConfig,
 #error Unknown audio sample type
 #endif
 
+  // The following is MANDATORY or minimp3 will EXEC_BAD_ACCESS!!!
+  mMP3Decoder.last_buf_size = 0; // Otherwise will EXEC_BAD_ACCESS in mp_decode_layer3 after reloading the mp3 page several times
+  memset(mMP3Decoder.synth_buf_offset, 0, sizeof(mMP3Decoder.synth_buf_offset)); // Otherwise will EXEC_BAD_ACCESS in mp3_decode_frame!!!
+
+  // Fixs the audio glitch heard at the start of decoding:
+  memset(mMP3Decoder.mdct_buf, 0, sizeof(mMP3Decoder.mdct_buf));
+  memset(mMP3Decoder.synth_buf, 0, sizeof(mMP3Decoder.synth_buf));
+
 #if DEBUG
   fprintf(stderr, "MiniMP3Decoder::MiniMP3Decoder\n");
 #endif

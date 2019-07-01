@@ -294,7 +294,7 @@ private:
   nsCOMPtr<nsIWidget>         mWidget;
   RefPtr<nsPluginHost>      mPluginHost;
   
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
   static nsCOMPtr<nsITimer>                *sCATimer;
   static nsTArray<nsPluginInstanceOwner*>  *sCARefreshListeners;

@@ -79,15 +79,13 @@ CreateTextureHostOGL(const SurfaceDescriptor& aDesc,
       break;
     }
 
-#if(0)
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
     case SurfaceDescriptor::TSurfaceDescriptorMacIOSurface: {
       const SurfaceDescriptorMacIOSurface& desc =
         aDesc.get_SurfaceDescriptorMacIOSurface();
       result = new MacIOSurfaceTextureHostOGL(aFlags, desc);
       break;
     }
-#endif
 #endif
 
 #ifdef MOZ_WIDGET_GONK

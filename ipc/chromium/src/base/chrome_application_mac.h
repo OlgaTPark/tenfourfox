@@ -22,7 +22,7 @@
  // Array of objects implementing the CrApplicationEventHookProtocol
   scoped_nsobject<NSMutableArray> eventHooks_;
 }
-#if(0)
+#ifdef OBJC_NEW_PROPERTIES
 @property(readonly,
           getter=isHandlingSendEvent,
           nonatomic) BOOL handlingSendEvent;

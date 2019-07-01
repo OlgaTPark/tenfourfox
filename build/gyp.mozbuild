@@ -106,6 +106,9 @@ flavors = {
 }
 gyp_vars['OS'] = flavors.get(os)
 
+if CONFIG['MACOSX_DEPLOYMENT_TARGET']:
+    gyp_vars['macosx_deployment_target'] = CONFIG['MACOSX_DEPLOYMENT_TARGET']
+
 arches = {
     'x86_64': 'x64',
     'x86': 'ia32',

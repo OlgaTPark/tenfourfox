@@ -24,7 +24,14 @@ enum {
   mozNSScrollerStyleLegacy       = 0,
   mozNSScrollerStyleOverlay      = 1
 };
-typedef int32_t NSInteger; // sigh
+#ifndef NSINTEGER_DEFINED
+  #if __LP64__
+    typedef long NSInteger; // sight too...
+  #else
+    typedef int NSInteger; // sigh
+  #endif /* __LP64__ */
+  #define NSINTEGER_DEFINED 1
+#endif /* NSINTEGER_DEFINED */
 typedef NSInteger mozNSScrollerStyle;
 
 @interface NSScroller(AvailableSinceLion)
@@ -347,7 +354,7 @@ nsLookAndFeel::GetIntImpl(IntID aID, int32_t &aResult)
       aResult = 4;
       break;
     case eIntID_ScrollArrowStyle:
-#if(0)
+#if defined(__i386__) || defined(__x86_64__)
       if (nsCocoaFeatures::OnLionOrLater()) {
         // OS X Lion's scrollbars have no arrows
         aResult = eScrollArrow_None;
@@ -522,7 +529,7 @@ nsLookAndFeel::GetFloatImpl(FloatID aID, float &aResult)
 
 bool nsLookAndFeel::UseOverlayScrollbars()
 {
-#if(0)
+#if defined(__i386__) || defined(__x86_64__)
   return GetInt(eIntID_UseOverlayScrollbars) != 0;
 #else
   return false; // Unpossible before 10.7.
@@ -531,7 +538,7 @@ bool nsLookAndFeel::UseOverlayScrollbars()
 
 bool nsLookAndFeel::SystemWantsOverlayScrollbars()
 {
-#if(0)
+#if defined(__i386__) || defined(__x86_64__)
   return ([NSScroller respondsToSelector:@selector(preferredScrollerStyle)] &&
           [NSScroller preferredScrollerStyle] == mozNSScrollerStyleOverlay);
 #else
@@ -541,7 +548,7 @@ bool nsLookAndFeel::SystemWantsOverlayScrollbars()
 
 bool nsLookAndFeel::AllowOverlayScrollbarsOverlap()
 {
-#if(0)
+#if defined(__i386__) || defined(__x86_64__)
   return (UseOverlayScrollbars() && nsCocoaFeatures::OnMountainLionOrLater());
 #else
   return false; // Unpossible before 10.7.

@@ -7,7 +7,9 @@
 
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
-//#include <spawn.h>
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  #include <spawn.h>
+#endif
 #include <sys/wait.h>
 
 #include <string>
@@ -51,7 +53,7 @@ bool LaunchApp(const std::vector<std::string>& argv,
                ChildPrivileges privs,
                bool wait, ProcessHandle* process_handle,
                ProcessArchitecture arch) {
-#if(1)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   perror("LaunchApp not supported");
   return false;
 #else

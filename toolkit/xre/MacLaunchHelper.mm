@@ -10,7 +10,9 @@
 #include "nsIAppStartup.h"
 
 #include <stdio.h>
-// #include <spawn.h> // 10.4 doesn't have spawn. It's rated PG. No sex.
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  #include <spawn.h> // 10.4 doesn't have spawn. It's rated PG. No sex.
+#endif
 #include <crt_externs.h>
 
 #include "nsObjCExceptions.h"
@@ -23,7 +25,7 @@
 
 using namespace mozilla;
 
-#if(0) // We don't need to use this.
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 && !defined(__ppc__) && !defined(__ppc64__) // We don't need to use this.
 namespace {
 cpu_type_t pref_cpu_types[2] = {
 #if defined(__i386__)
@@ -48,7 +50,7 @@ cpu_type_t cpu_x64_86_types[2] = {
 void LaunchChildMac(int aArgc, char** aArgv,
                     uint32_t aRestartType, pid_t *pid)
 {
-#if(1)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 || defined(__ppc__) || defined(__ppc64__)
 /* Use the 3.6 code for 10.4Fx, except that we now extract the pid for
    consumers, unless (!pid). -- Cameron */
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;

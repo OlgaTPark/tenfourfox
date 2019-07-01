@@ -73,11 +73,13 @@ DisableFontActivation()
 
 gfxPlatformMac::gfxPlatformMac()
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
     if (nsCocoaFeatures::OnSnowLeopardOrLater()) // backout bug 850408
+#endif
     DisableFontActivation();
     mFontAntiAliasingThreshold = ReadAntiAliasingThreshold();
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && defined(USE_SKIA)
     uint32_t canvasMask = BackendTypeBit(BackendType::CAIRO) |
                           BackendTypeBit(BackendType::SKIA) |
                           BackendTypeBit(BackendType::COREGRAPHICS);
@@ -105,18 +107,19 @@ gfxPlatformMac::gfxPlatformMac()
         }
     }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     MacIOSurfaceLib::LoadLibrary();
 #endif
 }
 
 gfxPlatformMac::~gfxPlatformMac()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     gfxCoreTextShaper::Shutdown();
 #endif
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 ByteCount
 gfxPlatformMac::GetCachedDirSizeForFont(nsString name)
 {
@@ -141,6 +144,7 @@ gfxPlatformMac::SetCachedDirForFont(nsString name, uint8_t* table, ByteCount siz
 	FontDirWrapper *k = new FontDirWrapper(sizer, table);
 	PlatformFontDirCache.Put(name, k);
 }
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1060 */
 
 
 gfxPlatformFontList*
@@ -227,6 +231,7 @@ gfxPlatformMac::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags)
     NS_ASSERTION(!(aFormatFlags & gfxUserFontSet::FLAG_FORMAT_NOT_USED),
                  "strange font format hint set");
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
     // TenFourFox issue 261. Prevent loading certain known bad font URIs.
     nsCString spec;
     nsresult rv = aFontURI->GetAsciiSpec(spec);
@@ -245,7 +250,9 @@ gfxPlatformMac::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags)
 	spec.Equals("http://fonts.gstatic.com/ea/notosansjapanese/v6/NotoSansJP-Regular.otf") ||
 	spec.Equals("http://fonts.gstatic.com/ea/notosansjapanese/v6/NotoSansJP-Bold.otf") ||
 	spec.Equals("https://www.icloud.com/fonts/SFNSText-Light.woff") ||
+    spec.Equals("https://icloud.cdn-apple.com/fonts/SFNSText-Light.woff") || /* UPDATE: CDN */
 	spec.Equals("https://www.icloud.com/fonts/SFNSText-Medium.woff") ||
+    spec.Equals("https://icloud.cdn-apple.com/fonts/SFNSText-Medium.woff") || /* UPDATE: CDN */
 	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_bold.woff") ||
 	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_bold.ttf") ||
 	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_medium.woff") ||
@@ -288,11 +295,14 @@ gfxPlatformMac::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags)
 "Warning: TenFourFox blocking ATSUI-incompatible webfont %s.\n", spec.get());
 	return false;
     }
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1060 */
 
     // accept supported formats
     if (aFormatFlags & (gfxUserFontSet::FLAG_FORMATS_COMMON |
-                        //gfxUserFontSet::FLAG_FORMAT_TRUETYPE_AAT)) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+                        gfxUserFontSet::FLAG_FORMAT_TRUETYPE_AAT |
                         // No AAT in TenFourFox!
+#endif
                         0)) {
         return true;
     }
@@ -532,8 +542,9 @@ gfxPlatformMac::ReadAntiAliasingThreshold()
 bool
 gfxPlatformMac::UseAcceleratedSkiaCanvas()
 {
-return false;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+  return false;
+#else
   // Lion or later is required
   // Bug 1249659 - Lion has some gfx issues so disabled on lion and earlier
   return nsCocoaFeatures::OnMountainLionOrLater() && gfxPlatform::UseAcceleratedSkiaCanvas();
@@ -543,8 +554,9 @@ return false;
 bool
 gfxPlatformMac::UseProgressivePaint()
 {
-return false;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+  return false;
+#else
   // Progressive painting requires cross-process mutexes, which don't work so
   // well on OS X 10.6 so we disable there.
   return nsCocoaFeatures::OnLionOrLater() && gfxPlatform::UseProgressivePaint();
@@ -554,8 +566,9 @@ return false;
 bool
 gfxPlatformMac::AccelerateLayersByDefault()
 {
-return false;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+  return false;
+#else
   // 10.6.2 and lower have a bug involving textures and pixel buffer objects
   // that caused bug 629016, so we don't allow OpenGL-accelerated layers on
   // those versions of the OS.
@@ -773,7 +786,7 @@ gfxPlatformMac::GetPlatformCMSOutputProfile(void* &mem, size_t &size)
     mem = nullptr;
     size = 0;
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     CGColorSpaceRef cspace = ::CGDisplayCopyColorSpace(::CGMainDisplayID());
     if (!cspace) {
         cspace = ::CGColorSpaceCreateDeviceRGB();
@@ -804,7 +817,7 @@ gfxPlatformMac::GetPlatformCMSOutputProfile(void* &mem, size_t &size)
 
     ::CFRelease(iccp);
 #else
-    // 10.4 lacks ::CGColorSpaceCopyICCProfile, so we need an equivalent.
+    // 10.4 lacks ::CGColorSpaceCopyICCProfile and CGDisplayCopyColorSpace, so we need an equivalent.
     CMProfileRef cmProfile;
     CMProfileLocation *location;
     UInt32 locationSize;

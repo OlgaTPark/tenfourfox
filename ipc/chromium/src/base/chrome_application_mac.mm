@@ -1,32 +1,34 @@
-#if(0)
 // Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#ifdef MOZ_PLUGINS
 
 #import "chrome_application_mac.h"
 
 #include "base/logging.h"
 
-#if(0)
 @interface CrApplication ()
+#ifdef OBJC_NEW_PROPERTIES
 @property(readwrite,
           getter=isHandlingSendEvent,
           nonatomic) BOOL handlingSendEvent;
 #else
 // Stubs to emulate @property in 10.4.
-@interface CrApplication : NSObject {
-	BOOL handlingSendEvent_;
-}
 - (BOOL)isHandlingSendEvent;
+- (void)setHandlingSendEvent:(BOOL)isHandling;
 #endif
 @end
 
 @implementation CrApplication
-#if(0)
+#ifdef OBJC_NEW_PROPERTIES
 @synthesize handlingSendEvent = handlingSendEvent_;
 #else
 - (BOOL)isHandlingSendEvent {
-	return handlingSendEvent_;
+    return handlingSendEvent_;
+}
+
+- (void)setHandlingSendEvent:(BOOL)isHandling {
+    handlingSendEvent_ = isHandling;
 }
 #endif
 

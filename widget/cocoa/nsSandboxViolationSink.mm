@@ -1,17 +1,16 @@
-#if(0)
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsSandboxViolationSink.h"
-
+#include "nsCocoaDebugUtils.h"
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 #include <unistd.h>
 #include <time.h>
 #include <asl.h>
 #include <dispatch/dispatch.h>
 #include <notify.h>
-#include "nsCocoaDebugUtils.h"
 #include "mozilla/Preferences.h"
 
 int nsSandboxViolationSink::mNotifyToken = 0;

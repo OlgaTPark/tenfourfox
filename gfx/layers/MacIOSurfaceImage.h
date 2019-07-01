@@ -5,7 +5,7 @@
 
 #ifndef GFX_MACIOSURFACEIMAGE_H
 #define GFX_MACIOSURFACEIMAGE_H
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060 || defined(MOZ_PLUGINS)
 
 #include "ImageContainer.h"
 #include "mozilla/gfx/MacIOSurface.h"

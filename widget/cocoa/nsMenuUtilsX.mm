@@ -51,7 +51,7 @@ NSString* nsMenuUtilsX::GetTruncatedCocoaLabel(const nsString& itemLabel)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
 
-#if(0)
+#if defined(__LP64__) || MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   // We want to truncate long strings to some reasonable pixel length but there is no
   // good API for doing that which works for all OS versions and architectures. For now
   // we'll do nothing for consistency and depend on good user interface design to limit

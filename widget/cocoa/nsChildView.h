@@ -168,7 +168,11 @@ typedef NSInteger NSEventGestureAxis;
 #ifdef ACCESSIBILITY
                               mozAccessible,
 #endif
-                              mozView, NSTextInput> //Client>
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
+                              mozView, NSTextInputClient>
+#else
+                              mozView, NSTextInput>
+#endif
 {
 @private
   // the nsChildView that created the view. It retains this NSView, so
@@ -182,9 +186,9 @@ typedef NSInteger NSEventGestureAxis;
   // for Gecko's leak detector to detect leaked TextInputHandler objects.
   // This is initialized by [mozView installTextInputHandler:aHandler] and
   // cleared by [mozView uninstallTextInputHandler].
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   mozilla::widget::TextInputHandler* mTextInputHandler;  // [WEAK]
-#endif
+#else
 
 // backout bug 519972
   // The following variables are only valid during key down event processing.
@@ -204,6 +208,7 @@ typedef NSInteger NSEventGestureAxis;
   NSRange mMarkedRange;
   // When this is YES the next key up event (keyUp:) will be ignored.
   BOOL mIgnoreNextKeyUpEvent;
+#endif
 
   // when mouseDown: is called, we store its event here (strong)
   NSEvent* mLastMouseDownEvent;
@@ -338,6 +343,7 @@ typedef NSInteger NSEventGestureAxis;
 - (NSEvent*)lastKeyDownEvent;
 @end
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED <= 1050
 // We don't use bug 519972 at all in TenFourFox.
 //-------------------------------------------------------------------------
 //
@@ -391,6 +397,7 @@ private:
   static void EnableIME(bool aEnable);
   static void SetRomanKeyboardsOnly(bool aRomanOnly);
 };
+#endif
 
 class ChildViewMouseTracker {
 
@@ -413,7 +420,9 @@ public:
   static NSWindow* sWindowUnderMouse;
   static NSPoint sLastScrollEventScreenLocation;
   
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   static NSWindow* WindowForEvent(NSEvent* aEvent);
+#endif
 };
 
 //-------------------------------------------------------------------------
@@ -461,7 +470,7 @@ public:
   NS_IMETHOD              GetScreenBounds(LayoutDeviceIntRect& aRect) override;
 
 // Disable backing scale support; let nsIWidget handle the last two.
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // Returns the "backing scale factor" of the view's window, which is the
   // ratio of pixels in the window's backing store to Cocoa points. Prior to
   // HiDPI support in OS X 10.7, this was always 1.0, but in HiDPI mode it
@@ -584,7 +593,7 @@ public:
   static uint32_t GetCurrentInputEventCount();
   static void UpdateCurrentInputEventCount();
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   NSView<mozView>* GetEditorView();
 #endif
 
@@ -592,7 +601,7 @@ public:
 
   NS_IMETHOD        ReparentNativeWidget(nsIWidget* aNewParent) override;
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   mozilla::widget::TextInputHandler* GetTextInputHandler()
   {
     return mTextInputHandler;
@@ -603,7 +612,7 @@ public:
   NSColor*          VibrancyFillColorForThemeGeometryType(nsITheme::ThemeGeometryType aThemeGeometryType);
   NSColor*          VibrancyFontSmoothingBackgroundColorForThemeGeometryType(nsITheme::ThemeGeometryType aThemeGeometryType);
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
   // unit conversion convenience functions
   int32_t           CocoaPointsToDevPixels(CGFloat aPts) const {
     return nsCocoaUtils::CocoaPointsToDevPixels(aPts, BackingScaleFactor());
@@ -725,10 +734,12 @@ protected:
 protected:
 
   NSView<mozView>*      mView;      // my parallel cocoa view (ChildView or NativeScrollbarView), [STRONG]
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   RefPtr<mozilla::widget::TextInputHandler> mTextInputHandler;
 #endif
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
   static uint32_t	sSecureEventInputCount; // bug 807893
+#endif
   InputContext          mInputContext;
 
   NSView<mozView>*      mParentView;

@@ -42,8 +42,11 @@ public:
     // with embedded color bitmaps (Apple Color Emoji), as Core Text renders
     // the glyphs with non-linear scaling at small pixel sizes.
     virtual bool ProvidesGlyphWidths() const override {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
         return false; // see gfxMacFont::GetGlyphWidth
-        //return mFontEntry->HasFontTable(TRUETYPE_TAG('s','b','i','x'));
+#else
+        return mFontEntry->HasFontTable(TRUETYPE_TAG('s','b','i','x'));
+#endif
     }
 
     virtual int32_t GetGlyphWidth(DrawTarget& aDrawTarget,
@@ -88,13 +91,17 @@ protected:
     // MacOSFontEntry, it is not retained or released by gfxMacFont
     CGFontRef             mCGFont;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 /* Also works on 1050 */
     // a Core Text font reference, created only if we're using CT to measure
     // glyph widths; otherwise null.
-    //CTFontRef             mCTFont; // not supported in 10.4
+    CTFontRef             mCTFont; // not supported in 10.4
+#endif
 
     cairo_font_face_t    *mFontFace;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     nsAutoPtr<gfxFontShaper> mCoreTextShaper;
+#endif
 
     Metrics               mMetrics;
     uint32_t              mSpaceGlyph;

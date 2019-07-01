@@ -78,7 +78,7 @@ nsPrintDialogServiceX::Show(nsIDOMWindow *aParent, nsIPrintSettings *aSettings,
   [NSPrintOperation setCurrentOperation:printOperation];
 
   NSPrintPanel* panel = [NSPrintPanel printPanel];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   [panel setOptions:NSPrintPanelShowsCopies
     | NSPrintPanelShowsPageRange
     | NSPrintPanelShowsPaperSize
@@ -87,7 +87,7 @@ nsPrintDialogServiceX::Show(nsIDOMWindow *aParent, nsIPrintSettings *aSettings,
 #endif
   PrintPanelAccessoryController* viewController =
     [[PrintPanelAccessoryController alloc] initWithSettings:aSettings];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   [panel addAccessoryController:viewController];
   [viewController release];
 #else

@@ -383,7 +383,14 @@
             </hbox>
             <hbox class="view-header global-info-container plugin-info-container">
               <hbox class="global-info" flex="1" align="center">
+#ifdef MOZ_PLUGINS
+                <button class="button-link global-info-plugincheck"
+                        label="&info.plugincheck.label;"
+                        tooltiptext="&info.plugincheck.tooltip;"
+                        command="cmd_pluginCheck"/>
+#else
               <label value="&info.plugincheck.label;"/>
+#endif
                 <spacer flex="5000"/> <!-- Necessary to allow the message to wrap -->
               </hbox>
             </hbox>

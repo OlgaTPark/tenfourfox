@@ -644,8 +644,8 @@ else
     AC_PATH_PROGS(STRIP, strip, echo not_strip)
 
     # 10.4's strip won't work anymore
-    AC_MSG_WARN([Forcing strip to /opt/local/bin/strip])
-    STRIP="/opt/local/bin/strip"
+    # AC_MSG_WARN([Forcing strip to /opt/local/bin/strip])
+    # STRIP="/opt/local/bin/strip"
 
     AC_PATH_PROGS(WINDRES, windres, echo not_windres)
     if test -z "$HOST_CC"; then

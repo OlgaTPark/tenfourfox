@@ -1136,7 +1136,10 @@ gfxPlatform::SupportsAzureContentForDrawTarget(DrawTarget* aTarget)
 bool
 gfxPlatform::UseAcceleratedSkiaCanvas()
 {
-#if(0)
+#ifdef USE_SKIA
+  // WARNING: if Skia is disabled, returning true causes an awful crash in 
+  //          mozilla::dom:CanvasRenderingContext2D::CheckErrorTarget (inlined from RefCounted.h - I-don't-remember-what)
+  // It's a mozilla bug because building (TFX or unmodified Firefox) with --disable-skia builds a crashy app!
   return gfxPrefs::CanvasAzureAccelerated() &&
          mPreferredCanvasBackend == BackendType::SKIA;
 #endif
@@ -1145,7 +1148,7 @@ gfxPlatform::UseAcceleratedSkiaCanvas()
 
 bool gfxPlatform::HaveChoiceOfHWAndSWCanvas()
 {
-#if(0)
+#ifdef USE_SKIA
   return mPreferredCanvasBackend == BackendType::SKIA;
 #endif
   return false;
@@ -2025,7 +2028,7 @@ gfxPlatform::CanUseDirect3D11ANGLE()
 bool
 gfxPlatform::ShouldUseLayersAcceleration()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 //1060 /* Could improve OMTC performance on 10.5 */
   const char *acceleratedEnv = PR_GetEnv("MOZ_ACCELERATED");
   if (gfxPrefs::LayersAccelerationDisabled() ||
       InSafeMode() ||

@@ -39,7 +39,6 @@
 #include "cairo.h"
 
 #if CAIRO_HAS_QUARTZ_SURFACE
-#define CGFloat float
 #include "TargetConditionals.h"
 
 #if !TARGET_OS_IPHONE
@@ -48,6 +47,15 @@
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreText/CoreText.h>
 #endif
+
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat;
+  #else	/* !defined(__LP64__) || !__LP64__ */
+    typedef float CGFloat;
+  #endif	/* !defined(__LP64__) || !__LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif	/* CGFLOAT_DEFINED */
 
 CAIRO_BEGIN_DECLS
 

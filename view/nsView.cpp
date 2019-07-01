@@ -20,6 +20,9 @@
 #include "nsContentUtils.h" // for nsAutoScriptBlocker
 #include "mozilla/TimelineConsumers.h"
 #include "mozilla/CompositeTimelineMarker.h"
+#if defined(XP_MACOSX) && defined(MOZ_WIDGET_COCOA)
+  #include "nsCocoaUtils.h" /* For safety with USE_BACKING_SCALE_FACTOR */
+#endif /* defined(XP_MACOSX) && defined(MOZ_WIDGET_COCOA) */
 
 using namespace mozilla;
 
@@ -242,8 +245,7 @@ LayoutDeviceIntRect nsView::CalcWidgetBounds(nsWindowType aType)
     LayoutDeviceIntRect::FromUnknownRect(viewBounds.ToNearestPixels(p2a));
 
 // Doesn't occur on 10.4.
-#if(0)
-#if defined(XP_MACOSX) || (MOZ_WIDGET_GTK == 3)
+#if (defined(XP_MACOSX) && USE_BACKING_SCALE_FACTOR) || (MOZ_WIDGET_GTK == 3)
   // cocoa and GTK round widget coordinates to the nearest global "display
   // pixel" integer value. So we avoid fractional display pixel values by
   // rounding to the nearest value that won't yield a fractional display pixel.
@@ -268,7 +270,6 @@ LayoutDeviceIntRect nsView::CalcWidgetBounds(nsWindowType aType)
       newBounds.height -= round;
     }
   }
-#endif
 #endif
 
   // Compute where the top-left of our widget ended up relative to the parent

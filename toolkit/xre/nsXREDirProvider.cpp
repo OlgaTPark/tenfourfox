@@ -142,8 +142,8 @@ nsXREDirProvider::SetProfile(nsIFile* aDir, nsIFile* aLocalDir)
   if (NS_FAILED(rv))
     return rv;
 
-#if(0) // Despite it being my patch historically, it doesn't work on 10.4.
-#ifdef XP_MACOSX
+#ifdef XP_MACOSX // Despite it being my patch historically, it doesn't work on 10.4.
+  #if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
   bool same;
   if (NS_SUCCEEDED(aDir->Equals(aLocalDir, &same)) && !same) {
     // Ensure that the cache directory is not indexed by Spotlight
@@ -165,8 +165,8 @@ nsXREDirProvider::SetProfile(nsIFile* aDir, nsIFile* aLocalDir)
       }
     }
   }
-#endif
-#endif
+  #endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050 */
+#endif /* XP_MACOSX */
 
   mProfileDir = aDir;
   mProfileLocalDir = aLocalDir;

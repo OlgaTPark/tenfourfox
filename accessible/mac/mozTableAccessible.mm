@@ -9,15 +9,30 @@
 #import "nsCocoaUtils.h"
 
 /* Stubs for 10.4 SDK */
-#define numberWithInteger numberWithInt
-#define numberWithUnsignedInteger numberWithUnsignedInt
-#define __IntToNSString(x) ([NSString stringWithFormat:@"%i", x])
-#define NSAccessibilityRowIndexRangeAttribute @"AXRowIndexRange"
-#define NSAccessibilityColumnIndexRangeAttribute @"AXColumnIndexRange"
-#define NSAccessibilityRowHeaderUIElementsAttribute @"AXRowHeaderUIElements"
-#define NSAccessibilityColumnHeaderUIElementsAttribute @"AXColumnHeaderUIElements"
-#define NSAccessibilityRowCountAttribute @"AXRowCount"
-#define NSAccessibilityColumnCountAttribute @"AXColumnCount"
+#if __LP64__ || NS_BUILD_32_LIKE_64
+  #define numberWithInteger numberWithLong
+  #define numberWithUnsignedInteger numberWithUnsignedLong
+#else
+  #define numberWithInteger numberWithInt
+  #define numberWithUnsignedInteger numberWithUnsignedInt
+#endif
+/* According to Clang documentation and some reverse-engineering, @(int) gives an NSNumber, made with [NSNumber numberWithInt:] */
+//#define __IntToNSString(x) ([NSString stringWithFormat:@"%i", x])
+//#define __IntToNSString(x)  ([NSNumber numberWithInt:x])
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+  #define NSAccessibilityRowIndexRangeAttribute @"AXRowIndexRange"
+  #define NSAccessibilityColumnIndexRangeAttribute @"AXColumnIndexRange"
+  #define NSAccessibilityRowHeaderUIElementsAttribute @"AXRowHeaderUIElements"
+  #define NSAccessibilityColumnHeaderUIElementsAttribute @"AXColumnHeaderUIElements"
+#endif
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  #define NSAccessibilityRowCountAttribute @"AXRowCount"
+  #define NSAccessibilityColumnCountAttribute @"AXColumnCount"
+#endif
+/* For compatibility with Clang */
+#if !defined(__has_feature)
+  #define __has_feature(x)  0
+#endif
 
 @implementation mozTablePartAccessible
 - (BOOL)isLayoutTablePart;
@@ -79,16 +94,16 @@
 {
   if (AccessibleWrap* accWrap = [self getGeckoAccessible]) {
     TableAccessible* table = accWrap->AsTable();
-#if(0)
+#if __has_feature(objc_boxed_nsvalue_expressions) || __has_feature(objc_boxed_expressions)
     if ([attribute isEqualToString:NSAccessibilityRowCountAttribute])
       return @(table->RowCount());
     if ([attribute isEqualToString:NSAccessibilityColumnCountAttribute])
       return @(table->ColCount());
 #else
     if ([attribute isEqualToString:NSAccessibilityRowCountAttribute])
-      return __IntToNSString(table->RowCount());
+      return [NSNumber numberWithInt:table->RowCount()];
     if ([attribute isEqualToString:NSAccessibilityColumnCountAttribute])
-      return __IntToNSString(table->ColCount());
+      return [NSNumber numberWithInt:table->ColCount()];
 #endif
     if ([attribute isEqualToString:NSAccessibilityRowsAttribute]) {
       // Create a new array with the list of table rows.
@@ -105,16 +120,16 @@
       return nativeArray;
     }
   } else if (ProxyAccessible* proxy = [self getProxyAccessible]) {
-#if(0)
+#if __has_feature(objc_boxed_nsvalue_expressions) || __has_feature(objc_boxed_expressions)
     if ([attribute isEqualToString:NSAccessibilityRowCountAttribute])
       return @(proxy->TableRowCount());
     if ([attribute isEqualToString:NSAccessibilityColumnCountAttribute])
       return @(proxy->TableColumnCount());
 #else
     if ([attribute isEqualToString:NSAccessibilityRowCountAttribute])
-      return __IntToNSString(proxy->TableRowCount());
+      return [NSNumber numberWithInt:proxy->TableRowCount()];
     if ([attribute isEqualToString:NSAccessibilityColumnCountAttribute])
-      return __IntToNSString(proxy->TableColumnCount());
+      return [NSNumber numberWithInt:proxy->TableColumnCount()];
 #endif
     if ([attribute isEqualToString:NSAccessibilityRowsAttribute]) {
       // Create a new array with the list of table rows.

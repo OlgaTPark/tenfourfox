@@ -653,9 +653,11 @@ MessagePumpNSApplication::MessagePumpNSApplication()
 void MessagePumpNSApplication::DoRun(Delegate* delegate) {
   bool last_running_own_loop_ = running_own_loop_;
 
+#ifdef MOZ_PLUGINS
   // TODO(dmaclach): Get rid of this gratuitous sharedApplication.
   // Tests should be setting up their applications on their own.
-  //[CrApplication sharedApplication];
+  [CrApplication sharedApplication];
+#endif
 
   if (![NSApp isRunning]) {
     running_own_loop_ = false;
@@ -732,7 +734,7 @@ void MessagePumpNSApplication::Quit() {
 // before it sends the event throught the event handling mechanism, and
 // returning it to its previous value once the event has been sent.
 NSAutoreleasePool* MessagePumpNSApplication::CreateAutoreleasePool() {
-#if(0)
+#ifdef MOZ_PLUGINS
   NSAutoreleasePool* pool = nil;
   DCHECK([NSApp isKindOfClass:[CrApplication class]]);
   if (![static_cast<CrApplication*>(NSApp) isHandlingSendEvent]) {
@@ -749,10 +751,13 @@ NSAutoreleasePool* MessagePumpNSApplication::CreateAutoreleasePool() {
 // 10.4 does not have isMainThread, so we simulate it, assuming that the
 // first thread through will be the main thread, and then others will not.
 MessagePump* MessagePumpMac::Create() {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  if ([NSThread isMainThread]) {
+#else
   static int threads_created = 0;
-  //if ([NSThread isMainThread]) {
   if (!threads_created) {
     threads_created++;
+#endif
     return new MessagePumpNSApplication;
   }
 
