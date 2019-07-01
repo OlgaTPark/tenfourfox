@@ -144,6 +144,9 @@
 #include "nsComputedDOMStyle.h"
 #include "mozilla/Preferences.h"
 
+#include "nsIIOService.h"
+#include "nsISpeculativeConnect.h"
+
 using namespace mozilla;
 using namespace mozilla::dom;
 
@@ -186,6 +189,14 @@ Element::QueryInterface(REFNSIID aIID, void** aInstancePtr)
   // Give the binding manager a chance to get an interface for this element.
   return OwnerDoc()->BindingManager()->GetBindingImplementation(this, aIID,
                                                                 aInstancePtr);
+}
+
+void
+Element::SetCustomElementData(CustomElementData* aData)
+{
+  nsDOMSlots *slots = DOMSlots();
+  MOZ_ASSERT(!slots->mCustomElementData, "Custom element data may not be changed once set.");
+  slots->mCustomElementData = aData;
 }
 
 EventStates
@@ -1186,10 +1197,10 @@ Element::SetAttribute(const nsAString& aName,
     if (IsHTMLElement() && IsInHTMLDocument()) {
       nsAutoString lower;
       nsContentUtils::ASCIIToLower(aName, lower);
-      nameAtom = do_GetAtom(lower);
+      nameAtom = NS_AtomizeMainThread(lower);
     }
     else {
-      nameAtom = do_GetAtom(aName);
+      nameAtom = NS_AtomizeMainThread(aName);
     }
     if (!nameAtom) {
       aError.Throw(NS_ERROR_OUT_OF_MEMORY);
@@ -1271,7 +1282,7 @@ Element::GetAttributeNS(const nsAString& aNamespaceURI,
     return;
   }
 
-  nsCOMPtr<nsIAtom> name = do_GetAtom(aLocalName);
+  nsCOMPtr<nsIAtom> name = NS_AtomizeMainThread(aLocalName);
   bool hasAttr = GetAttr(nsid, name, aReturn);
   if (!hasAttr) {
     SetDOMStringToNull(aReturn);
@@ -1303,7 +1314,7 @@ Element::RemoveAttributeNS(const nsAString& aNamespaceURI,
                            const nsAString& aLocalName,
                            ErrorResult& aError)
 {
-  nsCOMPtr<nsIAtom> name = do_GetAtom(aLocalName);
+  nsCOMPtr<nsIAtom> name = NS_AtomizeMainThread(aLocalName);
   int32_t nsid =
     nsContentUtils::NameSpaceManager()->GetNameSpaceID(aNamespaceURI);
 
@@ -1389,7 +1400,7 @@ Element::HasAttributeNS(const nsAString& aNamespaceURI,
     return false;
   }
 
-  nsCOMPtr<nsIAtom> name = do_GetAtom(aLocalName);
+  nsCOMPtr<nsIAtom> name = NS_AtomizeMainThread(aLocalName);
   return HasAttr(nsid, name);
 }
 
@@ -2991,6 +3002,15 @@ Element::PostHandleEventForLinks(EventChainPostVisitor& aVisitor)
 
           EventStateManager::SetActiveManager(
             aVisitor.mPresContext->EventStateManager(), this);
+
+          // OK, we're pretty sure we're going to load, so warm up a speculative
+          // connection to be sure we have one ready when we open the channel.
+          nsCOMPtr<nsISpeculativeConnect>
+            speculator(do_QueryInterface(nsContentUtils::GetIOService()));
+          nsCOMPtr<nsIInterfaceRequestor> ir = do_QueryInterface(handler);
+          // We need bug 1304219 for this part, but this will suffice for now.
+          //speculator->SpeculativeConnect2(absURI, NodePrincipal(), ir);
+          speculator->SpeculativeConnect(absURI, ir);
         }
       }
     }

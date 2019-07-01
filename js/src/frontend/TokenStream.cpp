@@ -1495,11 +1495,9 @@ TokenStream::getTokenInternal(TokenKind* ttp, Modifier modifier)
         goto out;
 
       case '*':
-#ifdef JS_HAS_EXPONENTIATION
         if (matchChar('*'))
             tp->type = matchChar('=') ? TOK_POWASSIGN : TOK_POW;
         else
-#endif
             tp->type = matchChar('=') ? TOK_MULASSIGN : TOK_MUL;
         goto out;
 
@@ -1582,6 +1580,8 @@ TokenStream::getTokenInternal(TokenKind* ttp, Modifier modifier)
                     reflags = RegExpFlag(reflags | MultilineFlag);
                 else if (c == 'y' && !(reflags & StickyFlag))
                     reflags = RegExpFlag(reflags | StickyFlag);
+                else if (c == 'u' && !(reflags & UnicodeFlag))
+                    reflags = RegExpFlag(reflags | UnicodeFlag);
                 else
                     break;
                 getChar();

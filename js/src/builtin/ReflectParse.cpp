@@ -1890,7 +1890,7 @@ ASTSerializer::unop(ParseNodeKind kind, JSOp op)
     if (IsDeleteKind(kind))
         return UNOP_DELETE;
 
-    if (kind == PNK_TYPEOFNAME || kind == PNK_TYPEOFEXPR)
+    if (IsTypeofKind(kind))
         return UNOP_TYPEOF;
 
     switch (op) {
@@ -2039,6 +2039,9 @@ ASTSerializer::declaration(ParseNode* pn, MutableHandleValue dst)
     switch (pn->getKind()) {
       case PNK_FUNCTION:
         return function(pn, AST_FUNC_DECL, dst);
+
+      case PNK_ANNEXB_FUNCTION:
+        return function(pn->pn_left, AST_FUNC_DECL, dst);
 
       case PNK_VAR:
         return variableDeclaration(pn, false, dst);
@@ -2410,6 +2413,17 @@ ASTSerializer::statement(ParseNode* pn, MutableHandleValue dst)
       case PNK_FUNCTION:
       case PNK_VAR:
         return declaration(pn, dst);
+
+      case PNK_ANNEXB_FUNCTION:
+        // XXXshu NOP check used only for phasing in block-scope function
+        // XXXshu early errors.
+        // XXXshu
+        // XXXshu Back out when major version >= 50. See [1].
+        // XXXshu
+        // XXXshu [1] https://bugzilla.mozilla.org/show_bug.cgi?id=1235590#c10
+        if (pn->pn_left->isKind(PNK_NOP))
+            return builder.emptyStatement(&pn->pn_pos, dst);
+        return declaration(pn->pn_left, dst);
 
       case PNK_LETBLOCK:
         return letBlock(pn, dst);

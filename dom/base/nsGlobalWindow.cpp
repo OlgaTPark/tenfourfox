@@ -4890,12 +4890,6 @@ nsGlobalWindow::GetOuterSize(ErrorResult& aError)
     return nsIntSize(0, 0);
   }
 
-  nsGlobalWindow* rootWindow =
-    static_cast<nsGlobalWindow *>(GetPrivateRoot());
-  if (rootWindow) {
-    rootWindow->FlushPendingNotifications(Flush_Layout);
-  }
-
   nsIntSize sizeDevPixels;
   aError = treeOwnerAsWin->GetSize(&sizeDevPixels.width, &sizeDevPixels.height);
   if (aError.Failed()) {
@@ -5077,11 +5071,7 @@ nsGlobalWindow::GetInnerScreenRect()
     return nsRect();
   }
 
-  nsGlobalWindow* rootWindow =
-    static_cast<nsGlobalWindow*>(GetPrivateRoot());
-  if (rootWindow) {
-    rootWindow->FlushPendingNotifications(Flush_Layout);
-  }
+  EnsureSizeUpToDate();
 
   if (!mDocShell) {
     return nsRect();
@@ -9421,7 +9411,9 @@ void
 nsGlobalWindow::SetActive(bool aActive)
 {
   nsPIDOMWindow::SetActive(aActive);
-  NotifyDocumentTree(mDoc, nullptr);
+  if (MOZ_LIKELY(mDoc)) {
+    NotifyDocumentTree(mDoc, nullptr);
+  }
 }
 
 void nsGlobalWindow::SetIsBackground(bool aIsBackground)
