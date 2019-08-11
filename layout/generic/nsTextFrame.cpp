@@ -80,6 +80,9 @@
 
 #include "GeckoProfiler.h"
 
+#include "mozilla-config.h"
+#include "plvmx.h"
+
 #ifdef DEBUG
 #undef NOISY_REFLOW
 #undef NOISY_TRIM
@@ -2891,7 +2894,7 @@ static int32_t FindChar(const nsTextFragment* frag,
   } else {
     if (uint16_t(ch) <= 0xFF) {
       const char* str = frag->Get1b() + aOffset;
-      const void* p = memchr(str, ch, aLength);
+      const void* p = VMX_MEMCHR(str, ch, aLength);
       if (p)
         return (static_cast<const char*>(p) - str) + aOffset;
     }
@@ -4677,6 +4680,18 @@ public:
 
   virtual nsRect GetComponentAlphaBounds(nsDisplayListBuilder* aBuilder) override
   {
+#ifdef XP_MACOSX
+    {
+#else
+    if (gfxPlatform::GetPlatform()->RespectsFontStyleSmoothing()) {
+#endif
+      // On OS X, web authors can turn off subpixel text rendering using the
+      // CSS property -moz-osx-font-smoothing. If they do that, we don't need
+      // to use component alpha layers for the affected text.
+      if (mFrame->StyleFont()->mFont.smoothing == NS_FONT_SMOOTHING_GRAYSCALE) {
+        return nsRect();
+      }
+    }
     bool snap;
     return GetBounds(aBuilder, &snap);
   }

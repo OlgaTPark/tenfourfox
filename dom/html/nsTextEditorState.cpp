@@ -2120,6 +2120,11 @@ nsTextEditorState::SetValue(const nsAString& aValue, uint32_t aFlags)
         mTextListener->SetValueChanged(true);
         mTextListener->SettingValue(false);
 
+        if (!notifyValueChanged) {
+          // Listener doesn't update frame, but it is required for placeholder
+          ValueWasChanged(true);
+        }
+
         if (!weakFrame.IsAlive()) {
           // If the frame was destroyed because of a flush somewhere inside
           // InsertText, mBoundFrame here will be false.  But it's also possible
@@ -2163,15 +2168,32 @@ nsTextEditorState::SetValue(const nsAString& aValue, uint32_t aFlags)
     if (mBoundFrame) {
       mBoundFrame->UpdateValueDisplay(true);
     }
-  }
 
-  // If we've reached the point where the root node has been created, we
-  // can assume that it's safe to notify.
-  ValueWasChanged(!!mRootNode);
+    // If we've reached the point where the root node has been created, we
+    // can assume that it's safe to notify.
+    ValueWasChanged(!!mRootNode);
+  }
 
   mTextCtrlElement->OnValueChanged(!!mRootNode);
 
   return true;
+}
+
+bool
+nsTextEditorState::HasNonEmptyValue()
+{
+  if (mEditor && mBoundFrame && mEditorInitialized &&
+      !mIsCommittingComposition) {
+    bool empty;
+    nsresult rv = mEditor->GetDocumentIsEmpty(&empty);
+    if (NS_SUCCEEDED(rv)) {
+      return !empty;
+    }
+  }
+
+  nsAutoString value;
+  GetValue(value, true);
+  return !value.IsEmpty();
 }
 
 void
@@ -2228,8 +2250,15 @@ nsTextEditorState::UpdatePlaceholderVisibility(bool aNotify)
 
   mPlaceholderVisibility = value.IsEmpty();
 
-  if (mPlaceholderVisibility &&
-      !Preferences::GetBool("dom.placeholder.show_on_focus", true)) {
+  static bool sPrefCached = false;
+  static bool sPrefShowOnFocus = true;
+  if (!sPrefCached) {
+    sPrefCached = true;
+    Preferences::AddBoolVarCache(&sPrefShowOnFocus,
+                                 "dom.placeholder.show_on_focus", true);
+  }
+
+  if (mPlaceholderVisibility && !sPrefShowOnFocus) {
     nsCOMPtr<nsIContent> content = do_QueryInterface(mTextCtrlElement);
     mPlaceholderVisibility = !nsContentUtils::IsFocusedContent(content);
   }

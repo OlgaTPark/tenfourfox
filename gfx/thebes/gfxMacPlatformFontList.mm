@@ -527,7 +527,7 @@ MacOSFontEntry::GetFontTable(uint32_t aTag)
 #endif
         OSStatus status = ::ATSFontGetTable(fontRef, aTag, 0, 0, 0,
                 &dataLength);
-        if (status != noErr) return nullptr;
+        if (MOZ_UNLIKELY(status != noErr)) return nullptr;
     }
 
     // Taking advantage of bridging CFMutableDataRef to CFDataRef.
@@ -536,9 +536,9 @@ MacOSFontEntry::GetFontTable(uint32_t aTag)
     if (!dataRef) return nullptr;
 
     ::CFDataIncreaseLength(dataRef, dataLength); // paranoia
-    if(::ATSFontGetTable(fontRef, aTag, 0, dataLength,
+    if(MOZ_UNLIKELY(::ATSFontGetTable(fontRef, aTag, 0, dataLength,
                 ::CFDataGetMutableBytePtr(dataRef),
-                &dataLength) != noErr) {
+                &dataLength) != noErr)) {
         ::CFRelease(dataRef);
         return nullptr;
     }
@@ -569,6 +569,7 @@ static bool FindTagInTableDir(FallibleTArray<uint8_t>& table,
   // 96 bit header (three 32-bit words). One day we could even write
   // an AltiVec version ...
 #ifdef DEBUG_X
+  fprintf(stderr, "Tables: ");
   uint32_t j = 12;
 #endif
   uint32_t i;
@@ -667,10 +668,10 @@ MacOSFontEntry::HasFontTable(uint32_t aTableTag)
 
     ByteCount sizer;
 
-    if(::ATSFontGetTableDirectory(fontRef, 0, NULL, &sizer) == noErr) {
+    if(MOZ_LIKELY(::ATSFontGetTableDirectory(fontRef, 0, NULL, &sizer) == noErr)) {
       // If the header is abnormal, try the old, slower way in case this
       // is a gap in our algorithm.
-      if (sizer <= 12 || ((sizer-12) % 16) || sizer >= 1024) {
+      if (MOZ_UNLIKELY(sizer <= 12 || ((sizer-12) % 16) || sizer >= 1024)) {
         fprintf(stderr, "Warning: TenFourFox found "
                 "abnormal font table dir in %s (%i).\n",
                  NS_ConvertUTF16toUTF8(mName).get(), sizer);
@@ -683,11 +684,11 @@ MacOSFontEntry::HasFontTable(uint32_t aTableTag)
       mFontTableDir.SetLength(mFontTableDirSize, fallible);
       
 #ifdef DEBUG
-      fprintf(stderr, "Size of %s font table directory: %i\nTables: ",
+      fprintf(stderr, "Size of %s font table directory: %i\n",
                 NS_ConvertUTF16toUTF8(mName).get(), mFontTableDir.Length());
 #endif
-      if (::ATSFontGetTableDirectory(fontRef, mFontTableDirSize,
-        reinterpret_cast<void *>(mFontTableDir.Elements()), &sizer) == noErr) {
+      if (MOZ_LIKELY(::ATSFontGetTableDirectory(fontRef, mFontTableDirSize,
+        reinterpret_cast<void *>(mFontTableDir.Elements()), &sizer) == noErr)) {
         
         // Push to platform.
     	if (!mIsDataUserFont || mIsLocalUserFont)
@@ -1242,6 +1243,7 @@ const CGFloat kTextDisplayCrossover = 20.0; // use text family below this size
 void
 gfxMacPlatformFontList::InitSystemFonts()
 {
+#ifdef __LP64__
     // system font under 10.11 are two distinct families for text/display sizes
     if (nsCocoaFeatures::OnElCapitanOrLater()) {
         mUseSizeSensitiveSystemFont = true;
@@ -1276,6 +1278,16 @@ gfxMacPlatformFontList::InitSystemFonts()
                      "system text/display font size switch point is not as expected!");
 #endif
     }
+#else   // LP64
+    // Simplified version for 10.4-10.6
+
+    NSFont* sys = [NSFont systemFontOfSize: 0.0];
+    NSString* textFamilyName = GetRealFamilyName(sys);
+    nsAutoString familyName;
+    nsCocoaUtils::GetStringForNSString(textFamilyName, familyName);
+    mSystemTextFontFamily = FindSystemFontFamily(familyName);
+    NS_ASSERTION(mSystemTextFontFamily, "null system display font family");
+#endif  // LP64
 
 #ifdef DEBUG
     // different system font API's always map to the same family under OSX, so
@@ -1655,7 +1667,7 @@ gfxMacPlatformFontList::MakePlatformFont(const nsAString& aFontName,
                                           &containerRef);
         mATSGeneration = ::ATSGetGeneration();
 
-        if (err != noErr) {
+        if (MOZ_UNLIKELY(err != noErr)) {
 #if DEBUG
             char warnBuf[1024];
             sprintf(warnBuf, "downloaded font error, ATSFontActivateFromMemory err: %d",
@@ -1668,7 +1680,7 @@ gfxMacPlatformFontList::MakePlatformFont(const nsAString& aFontName,
         // ignoring containers with multiple fonts, use the first face only for now
         err = ::ATSFontFindFromContainer(containerRef, kATSOptionFlagsDefault, 1,
                                          &fontRef, NULL);
-        if (err != noErr) {
+        if (MOZ_UNLIKELY(err != noErr)) {
 #if DEBUG
             char warnBuf[1024];
             sprintf(warnBuf, "downloaded font error, ATSFontFindFromContainer err: %d",
@@ -1683,7 +1695,7 @@ gfxMacPlatformFontList::MakePlatformFont(const nsAString& aFontName,
         OSStatus err;
         NSString *psname = NULL;
         err = ::ATSFontGetPostScriptName(fontRef, kATSOptionFlagsDefault, (CFStringRef*) (&psname));
-        if (err == noErr) {
+        if (MOZ_LIKELY(err == noErr)) {
 #if(0)
 			fprintf(stderr, "Trying: %s.\n", [psname UTF8String]);
 #endif
@@ -1751,7 +1763,7 @@ gfxMacPlatformFontList::MakePlatformFont(const nsAString& aFontName,
                              containerRef, true, false);
 
         // if succeeded and font cmap is good, return the new font
-        if (newFontEntry->mIsValid && NS_SUCCEEDED(newFontEntry->ReadCMAP())) {
+        if (MOZ_LIKELY(newFontEntry->mIsValid && NS_SUCCEEDED(newFontEntry->ReadCMAP()))) {
             return newFontEntry;
         }
 
@@ -1825,10 +1837,12 @@ gfxMacPlatformFontList::FindFamily(const nsAString& aFamily, gfxFontStyle* aStyl
 {
     // search for special system font name, -apple-system
     if (aFamily.EqualsLiteral(kSystemFont_system)) {
+#ifdef __LP64__
         if (mUseSizeSensitiveSystemFont &&
             aStyle && (aStyle->size * aDevToCssSize) >= kTextDisplayCrossover) {
             return mSystemDisplayFontFamily;
         }
+#endif
         return mSystemTextFontFamily;
     }
 
@@ -1919,11 +1933,13 @@ public:
     virtual ~MacFontInfo() {}
 
     virtual void Load() {
+#ifdef __LP64__
         nsAutoreleasePool localPool;
         // bug 975460 - async font loader crashes sometimes under 10.6, disable
         if (nsCocoaFeatures::OnLionOrLater()) {
             FontInfoData::Load();
         }
+#endif
     }
 
     // loads font data for all members of a given family

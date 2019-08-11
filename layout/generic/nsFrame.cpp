@@ -396,6 +396,7 @@ nsFrame::nsFrame(nsStyleContext* aContext)
   MOZ_COUNT_CTOR(nsFrame);
 
   mState = NS_FRAME_FIRST_REFLOW | NS_FRAME_IS_DIRTY;
+  mMayHaveRoundedCorners = false;
   mStyleContext = aContext;
   mStyleContext->AddRef();
 #ifdef DEBUG
@@ -876,6 +877,7 @@ nsFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
                   NS_FRAME_SIMPLE_DISPLAYLIST);
   */
   RemoveStateBits(NS_FRAME_SIMPLE_DISPLAYLIST);
+  mMayHaveRoundedCorners = true;
 }
 
 // MSVC fails with link error "one or more multiply defined symbols found",
@@ -1289,6 +1291,11 @@ nsIFrame::OutsetBorderRadii(nscoord aRadii[8], const nsMargin &aOffsets)
 nsIFrame::GetBorderRadii(const nsSize& aFrameSize, const nsSize& aBorderArea,
                          Sides aSkipSides, nscoord aRadii[8]) const
 {
+  if (!mMayHaveRoundedCorners) {
+    memset(aRadii, 0, sizeof(nscoord) * 8);
+    return false;
+  }
+
   if (IsThemed()) {
     // When we're themed, the native theme code draws the border and
     // background, and therefore it doesn't make sense to tell other
@@ -1302,9 +1309,12 @@ nsIFrame::GetBorderRadii(const nsSize& aFrameSize, const nsSize& aBorderArea,
     }
     return false;
   }
-  return ComputeBorderRadii(StyleBorder()->mBorderRadius,
-                            aFrameSize, aBorderArea,
-                            aSkipSides, aRadii);
+
+  const_cast<nsIFrame*>(this)->mMayHaveRoundedCorners =
+    ComputeBorderRadii(StyleBorder()->mBorderRadius,
+                       aFrameSize, aBorderArea,
+                       aSkipSides, aRadii);
+  return mMayHaveRoundedCorners;
 }
 
 bool
@@ -2408,7 +2418,7 @@ nsIFrame::BuildDisplayListForChild(nsDisplayListBuilder*   aBuilder,
   if (doingShortcut) {
     // This is the shortcut for frames been handled along the common
     // path, the most common one of THE COMMON CASE mentioned later.
-    MOZ_ASSERT(child->Type() != LayoutFrameType::Placeholder);
+    //MOZ_ASSERT(child->Type() != LayoutFrameType::Placeholder);
     MOZ_ASSERT(!aBuilder->GetSelectedFramesOnly() &&
                !aBuilder->GetIncludeAllOutOfFlows(),
                "It should be held for painting to window");

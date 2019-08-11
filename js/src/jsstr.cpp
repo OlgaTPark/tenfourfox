@@ -51,6 +51,9 @@
 #include "vm/StringObject-inl.h"
 #include "vm/TypeInference-inl.h"
 
+#include "mozilla-config.h"
+#include "plvmx.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::unicode;
@@ -1155,56 +1158,12 @@ FirstCharMatcherUnrolled(const TextChar* text, uint32_t n, const PatChar pat)
 static const char*
 FirstCharMatcher8bit(const char* text, uint32_t n, const char pat)
 {
-#if  defined(__clang__)
+#ifndef TENFOURFOX_VMX
+#warning using non-VMX memchr
     return FirstCharMatcherUnrolled<char, char>(text, n, pat);
 #else
-    return reinterpret_cast<const char*>(memchr(text, pat, n));
-#endif
-}
-
-static const char16_t*
-FirstCharMatcher16bit(const char16_t* text, uint32_t n, const char16_t pat)
-{
-#if defined(XP_DARWIN) || defined(XP_WIN)
-    /*
-     * Performance of memchr is horrible in OSX. Windows is better,
-     * but it is still better to use UnrolledMatcher.
-     */
-    return FirstCharMatcherUnrolled<char16_t, char16_t>(text, n, pat);
-#else
-    /*
-     * For linux the best performance is obtained by slightly hacking memchr.
-     * memchr works only on 8bit char but char16_t is 16bit. So we treat char16_t
-     * in blocks of 8bit and use memchr.
-     */
-
-    const char* text8 = (const char*) text;
-    const char* pat8 = reinterpret_cast<const char*>(&pat);
-
-    MOZ_ASSERT(n < UINT32_MAX/2);
-    n *= 2;
-
-    uint32_t i = 0;
-    while (i < n) {
-        /* Find the first 8 bits of 16bit character in text. */
-        const char* pos8 = FirstCharMatcher8bit(text8 + i, n - i, pat8[0]);
-        if (pos8 == nullptr)
-            return nullptr;
-        i = static_cast<uint32_t>(pos8 - text8);
-
-        /* Incorrect match if it matches the last 8 bits of 16bit char. */
-        if (i % 2 != 0) {
-            i++;
-            continue;
-        }
-
-        /* Test if last 8 bits match last 8 bits of 16bit char. */
-        if (pat8[1] == text8[i + 1])
-            return (text + (i/2));
-
-        i += 2;
-    }
-    return nullptr;
+#warning using VMX memchr
+    return reinterpret_cast<const char*>(vmx_memchr(text, pat, n));
 #endif
 }
 
@@ -1212,6 +1171,11 @@ template <class InnerMatch, typename TextChar, typename PatChar>
 static int
 Matcher(const TextChar* text, uint32_t textlen, const PatChar* pat, uint32_t patlen)
 {
+    MOZ_ASSERT(patlen > 0);
+
+    if (sizeof(TextChar) == 1 && sizeof(PatChar) > 1 && pat[0] > 0xff)
+        return -1;
+
     const typename InnerMatch::Extent extent = InnerMatch::computeExtent(pat, patlen);
 
     uint32_t i = 0;
@@ -1219,12 +1183,12 @@ Matcher(const TextChar* text, uint32_t textlen, const PatChar* pat, uint32_t pat
     while (i < n) {
         const TextChar* pos;
 
-        if (sizeof(TextChar) == 2 && sizeof(PatChar) == 2)
-            pos = (TextChar*) FirstCharMatcher16bit((char16_t*)text + i, n - i, pat[0]);
-        else if (sizeof(TextChar) == 1 && sizeof(PatChar) == 1)
+        if (sizeof(TextChar) == 1) {
+            MOZ_ASSERT(pat[0] <= 0xff);
             pos = (TextChar*) FirstCharMatcher8bit((char*) text + i, n - i, pat[0]);
-        else
-            pos = (TextChar*) FirstCharMatcherUnrolled<TextChar, PatChar>(text + i, n - i, pat[0]);
+        } else {
+            pos = FirstCharMatcherUnrolled(text + i, n - i, char16_t(pat[0]));
+        }
 
         if (pos == nullptr)
             return -1;
@@ -1289,9 +1253,10 @@ StringMatch(const TextChar* text, uint32_t textLen, const PatChar* pat, uint32_t
      * use memcmp if one of the strings is TwoByte and the other is Latin1.
      *
      * FIXME: Linux memcmp performance is sad and the manual loop is faster.
+     * memcmp() is also pretty bad on PPC OSX, so we just use our fast memchr.
      */
     return
-#if !defined(__linux__)
+#if (0) // !defined(__linux__)
         (patLen > 128 && IsSame<TextChar, PatChar>::value)
             ? Matcher<MemCmp<TextChar, PatChar>, TextChar, PatChar>(text, textLen, pat, patLen)
             :
@@ -3441,11 +3406,124 @@ StrReplaceString(JSContext* cx, ReplaceData& rdata, const FlatMatch& fm)
     return BuildFlatReplacement(cx, rdata.str, rdata.repstr, fm);
 }
 
+template <typename StrChar, typename RepChar>
+static bool
+StrFlatReplaceGlobal(JSContext *cx, JSLinearString *str, JSLinearString *pat, JSLinearString *rep,
+                     StringBuffer &sb)
+{
+    MOZ_ASSERT(str->length() > 0);
+
+    AutoCheckCannotGC nogc;
+    const StrChar *strChars = str->chars<StrChar>(nogc);
+    const RepChar *repChars = rep->chars<RepChar>(nogc);
+
+    // The pattern is empty, so we interleave the replacement string in-between
+    // each character.
+    if (!pat->length()) {
+        CheckedInt<uint32_t> strLength(str->length());
+        CheckedInt<uint32_t> repLength(rep->length());
+        CheckedInt<uint32_t> length = repLength * (strLength - 1) + strLength;
+        if (!length.isValid()) {
+            ReportAllocationOverflow(cx);
+            return false;
+        }
+
+        if (!sb.reserve(length.value()))
+            return false;
+
+        for (unsigned i = 0; i < str->length() - 1; ++i, ++strChars) {
+            sb.infallibleAppend(*strChars);
+            sb.infallibleAppend(repChars, rep->length());
+        }
+        sb.infallibleAppend(*strChars);
+        return true;
+    }
+
+    // If it's true, we are sure that the result's length is, at least, the same
+    // length as |str->length()|.
+    if (rep->length() >= pat->length()) {
+        if (!sb.reserve(str->length()))
+            return false;
+    }
+
+    uint32_t start = 0;
+    for (;;) {
+        int match = StringMatch(str, pat, start);
+        if (match < 0)
+            break;
+        if (!sb.append(strChars + start, match - start))
+            return false;
+        if (!sb.append(repChars, rep->length()))
+            return false;
+        start = match + pat->length();
+    }
+
+    if (!sb.append(strChars + start, str->length() - start))
+        return false;
+
+    return true;
+}
+
+// This is identical to "str.split(pattern).join(replacement)" except that we
+// do some deforestation optimization in Ion.
+JSString *
+js::str_flat_replace_string(JSContext *cx, HandleString string, HandleString pattern,
+                            HandleString replacement)
+{
+    MOZ_ASSERT(string);
+    MOZ_ASSERT(pattern);
+    MOZ_ASSERT(replacement);
+
+    if (!string->length())
+        return string;
+
+    RootedLinearString linearRepl(cx, replacement->ensureLinear(cx));
+    if (!linearRepl)
+        return nullptr;
+
+    RootedLinearString linearPat(cx, pattern->ensureLinear(cx));
+    if (!linearPat)
+        return nullptr;
+
+    RootedLinearString linearStr(cx, string->ensureLinear(cx));
+    if (!linearStr)
+        return nullptr;
+
+    StringBuffer sb(cx);
+    if (linearStr->hasTwoByteChars()) {
+        if (!sb.ensureTwoByteChars())
+            return nullptr;
+        if (linearRepl->hasTwoByteChars()) {
+            if (!StrFlatReplaceGlobal<char16_t, char16_t>(cx, linearStr, linearPat, linearRepl, sb))
+                return nullptr;
+        } else {
+            if (!StrFlatReplaceGlobal<char16_t, Latin1Char>(cx, linearStr, linearPat, linearRepl, sb))
+                return nullptr;
+        }
+    } else {
+        if (linearRepl->hasTwoByteChars()) {
+            if (!sb.ensureTwoByteChars())
+                return nullptr;
+            if (!StrFlatReplaceGlobal<Latin1Char, char16_t>(cx, linearStr, linearPat, linearRepl, sb))
+                return nullptr;
+        } else {
+            if (!StrFlatReplaceGlobal<Latin1Char, Latin1Char>(cx, linearStr, linearPat, linearRepl, sb))
+                return nullptr;
+        }
+    }
+
+    JSString *str = sb.finishString();
+    if (!str)
+        return nullptr;
+
+    return str;
+}
+
 static const uint32_t ReplaceOptArg = 2;
 
 JSString*
 js::str_replace_string_raw(JSContext* cx, HandleString string, HandleString pattern,
-                          HandleString replacement)
+                           HandleString replacement)
 {
     ReplaceData rdata(cx);
 

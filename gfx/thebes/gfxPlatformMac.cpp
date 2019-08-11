@@ -139,7 +139,7 @@ gfxPlatformMac::GetCachedDirForFont(nsString name)
 void
 gfxPlatformMac::SetCachedDirForFont(nsString name, uint8_t* table, ByteCount sizer)
 {
-	if (sizer < 0 || sizer > 1024) return;
+	if (MOZ_UNLIKELY(sizer < 1 || sizer > 1023)) return;
 
 	FontDirWrapper *k = new FontDirWrapper(sizer, table);
 	PlatformFontDirCache.Put(name, k);
@@ -224,6 +224,24 @@ gfxPlatformMac::MakePlatformFont(const nsAString& aFontName,
                                                                      aLength);
 }
 
+// Automates a whole buncha boilerplate.
+// Since HTTPS is becoming more common, check that first.
+#define HTTP_OR_HTTPS_SUBDIR(x) \
+    { \
+       if (!failed) { \
+           NS_NAMED_LITERAL_CSTRING(https_, "https://" x); \
+           spec.Left(loc, https_.Length()); \
+           if (loc.Equals(https_)) { \
+               failed = true; \
+           } else { \
+               NS_NAMED_LITERAL_CSTRING(http_, "http://" x); \
+               spec.Left(loc, http_.Length()); \
+               if (loc.Equals(http_)) \
+                   failed = true; \
+           } \
+       } \
+    }
+
 bool
 gfxPlatformMac::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags)
 {
@@ -233,13 +251,19 @@ gfxPlatformMac::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags)
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
     // TenFourFox issue 261. Prevent loading certain known bad font URIs.
-    nsCString spec;
+    nsAutoCString spec, loc;
     nsresult rv = aFontURI->GetAsciiSpec(spec);
+    bool failed = false;
+
+    if (MOZ_LIKELY(NS_SUCCEEDED(rv))) {
 #if DEBUG
-    if (NS_SUCCEEDED(rv))
 	fprintf(stderr, "Font blacklist checking: %s\n", spec.get());
 #endif
-    if (NS_FAILED(rv) ||
+        HTTP_OR_HTTPS_SUBDIR("www.apple.com/wss/fonts/SF-Pro-Text/v1/");
+        HTTP_OR_HTTPS_SUBDIR("www.apple.com/wss/fonts/SF-Pro-Display/v1/");
+    } else
+        failed = true;
+    if (failed ||
 	spec.Equals("https://cdn-static-1.medium.com/_/fp/fonts/charter-nonlatin.b-nw7PXlIqmGHGmHvkDiTw.woff") ||
 	spec.Equals("http://typeface.nytimes.com/fonts/nyt-cheltenham-200-normal.woff") ||
 	spec.Equals("https://typeface.nyt.com/fonts/nyt-cheltenham-200-normal.woff") ||
@@ -253,46 +277,9 @@ gfxPlatformMac::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags)
     spec.Equals("https://icloud.cdn-apple.com/fonts/SFNSText-Light.woff") || /* UPDATE: CDN */
 	spec.Equals("https://www.icloud.com/fonts/SFNSText-Medium.woff") ||
     spec.Equals("https://icloud.cdn-apple.com/fonts/SFNSText-Medium.woff") || /* UPDATE: CDN */
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_bold.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_bold.ttf") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_medium.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_medium.ttf") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_semibold.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_semibold.ttf") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_regular.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_regular.ttf") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_light.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_light.ttf") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_medium.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_medium.ttf") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_regular.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_regular.ttf") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_light.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_light.ttf") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_semibold.woff") ||
-	spec.Equals("https://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_semibold.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_bold.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_bold.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_medium.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_medium.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_semibold.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_semibold.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_regular.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_regular.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_light.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Text/v1/sf-pro-text_light.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_medium.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_medium.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_regular.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_regular.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_light.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_light.ttf") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_semibold.woff") ||
-	spec.Equals("http://www.apple.com/wss/fonts/SF-Pro-Display/v1/sf-pro-display_semibold.ttf") ||
-	0) {
-	if (NS_SUCCEEDED(rv)) // Don't print if we couldn't get the URL.
-	fprintf(stderr,
-"Warning: TenFourFox blocking ATSUI-incompatible webfont %s.\n", spec.get());
+    0) {
+	if (MOZ_LIKELY(NS_SUCCEEDED(rv))) // Don't print if we couldn't get the URL.
+	    fprintf(stderr, "Warning: TenFourFox blocking ATSUI-incompatible webfont %s.\n", spec.get());
 	return false;
     }
 #endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1060 */
@@ -315,6 +302,8 @@ gfxPlatformMac::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags)
     // no format hint set, need to look at data
     return true;
 }
+
+#undef HTTP_OR_HTTPS_SUBDIR
 
 // these will also move to gfxPlatform once all platforms support the fontlist
 nsresult

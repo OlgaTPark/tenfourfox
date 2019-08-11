@@ -26,13 +26,12 @@ class FontDirWrapper {
 public:
 	uint8_t fontDir[1024];
 	ByteCount sizer;
-    // NOTE: Clang gets crazy when you add this prefix
-	/*FontDirWrapper::*/FontDirWrapper(ByteCount sized, uint8_t *dir) {
-		if (sized < 0 || sized > 1024) return;
+	FontDirWrapper(ByteCount sized, uint8_t *dir) {
+		if (MOZ_UNLIKELY(sized < 1 || sized > 1023)) return;
 		sizer = sized;
 		memcpy(fontDir, dir, sizer);
 	}
-	/*FontDirWrapper::*/~FontDirWrapper() { }
+	~FontDirWrapper() { }
 };
 
 class gfxPlatformMac : public gfxPlatform {
@@ -98,6 +97,11 @@ public:
     }
 
     virtual bool SupportsApzWheelInput() const override {
+      return true;
+    }
+
+    bool RespectsFontStyleSmoothing() const override {
+      // gfxMacFont respects the font smoothing hint.
       return true;
     }
 

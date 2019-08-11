@@ -228,18 +228,18 @@ gfxMacFont::InitMetrics()
 
 {
     ByteCount tableSize;
-    if (::ATSFontGetTable(myATSFont,
+    if (MOZ_UNLIKELY(::ATSFontGetTable(myATSFont,
 		TRUETYPE_TAG('h','e','a','d'),
-		0, 0, NULL, &tableSize) != noErr)
+		0, 0, NULL, &tableSize) != noErr))
 	return;
     CFMutableDataRef data = ::CFDataCreateMutable(kCFAllocatorDefault,
 	tableSize);
-    if (!data) return;
+    if (MOZ_UNLIKELY(!data)) return;
     ::CFDataIncreaseLength(data, tableSize);
-    if (::ATSFontGetTable(myATSFont,
+    if (MOZ_UNLIKELY(::ATSFontGetTable(myATSFont,
 		TRUETYPE_TAG('h','e','a','d'),
 		0, tableSize, ::CFDataGetMutableBytePtr(data),
-		&tableSize) != noErr) {
+		&tableSize) != noErr)) {
 	::CFRelease(data);
 	return;
     }
@@ -258,7 +258,7 @@ gfxMacFont::InitMetrics()
         upem = ::CGFontGetUnitsPerEm(mCGFont);
     }
 
-    if (upem < 16 || upem > 16384) {
+    if (MOZ_UNLIKELY(upem < 16 || upem > 16384)) {
         // See http://www.microsoft.com/typography/otspec/head.htm
 #ifdef DEBUG
         char warnBuf[1024];
@@ -301,7 +301,7 @@ gfxMacFont::InitMetrics()
 
        err = ::ATSFontGetHorizontalMetrics(myATSFont, kATSOptionFlagsDefault,
                                            &atsMetrics);
-       if (err != noErr) {
+       if (MOZ_UNLIKELY(err != noErr)) {
                NS_WARNING("could not get CGFontGetXHeight, no ATS fallback");
                return; // just fail -- Cameron Kludge
        }
@@ -340,7 +340,7 @@ gfxMacFont::InitMetrics()
             err = ::ATSFontGetHorizontalMetrics(myATSFont,
                                                 kATSOptionFlagsDefault,
                                                 &atsMetrics);
-            if (err != noErr) {
+            if (MOZ_UNLIKELY(err != noErr)) {
                     NS_WARNING("could not get CGFontGetXHeight again, no ATS fallback");
                     return; // just fail -- Cameron Kludge
             }
@@ -366,15 +366,15 @@ gfxMacFont::InitMetrics()
     CFDataRef cmap;
 {
     ByteCount tableSize;
-    if (::ATSFontGetTable(myATSFont, TRUETYPE_TAG('c','m','a','p'), 0, 0, NULL,
-               &tableSize) != noErr)  return;
+    if (MOZ_UNLIKELY(::ATSFontGetTable(myATSFont, TRUETYPE_TAG('c','m','a','p'), 0, 0, NULL,
+               &tableSize) != noErr))  return;
     CFMutableDataRef data = ::CFDataCreateMutable(kCFAllocatorDefault,
                                        tableSize);
-    if (!data) return;
+    if (MOZ_UNLIKELY(!data)) return;
     ::CFDataIncreaseLength(data, tableSize);
-    if (::ATSFontGetTable(myATSFont, TRUETYPE_TAG('c','m','a','p'),
+    if (MOZ_UNLIKELY(::ATSFontGetTable(myATSFont, TRUETYPE_TAG('c','m','a','p'),
                        0, tableSize,
-                       ::CFDataGetMutableBytePtr(data), &tableSize) != noErr)
+                       ::CFDataGetMutableBytePtr(data), &tableSize) != noErr))
        { ::CFRelease(data); return; }
     cmap = data;
 }
@@ -533,7 +533,7 @@ static_cast<MacOSFontEntry*>(GetFontEntry())->GetATSFontRef();
 
     err = ::ATSFontGetHorizontalMetrics(aFontRef, kATSOptionFlagsDefault,
                                         &atsMetrics);
-    if (err != noErr) {
+    if (MOZ_UNLIKELY(err != noErr)) {
 #ifdef DEBUG
         char warnBuf[1024];
         sprintf(warnBuf, "Bad font metrics for: %s err: %8.8x",
