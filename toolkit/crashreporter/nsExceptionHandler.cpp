@@ -45,7 +45,9 @@
 #include <fcntl.h>
 #include <mach/mach.h>
 #include <sys/types.h>
-// #include <spawn.h> // we don't have this in 10.4
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  #include <spawn.h> // we don't have this in 10.4
+#endif
 #include <unistd.h>
 #include "mac_utils.h"
 #elif defined(XP_LINUX)
@@ -395,7 +397,9 @@ static cpu_type_t pref_cpu_types[2] = {
 #endif
                                  CPU_TYPE_ANY };
 
-//static posix_spawnattr_t spawnattr;
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    static posix_spawnattr_t spawnattr;
+  #endif /* MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 */
 #endif
 
 #if defined(MOZ_WIDGET_ANDROID)
@@ -902,7 +906,7 @@ bool MinidumpCallback(
     return returnValue;
   }
 
-#if 0 // def XP_MACOSX // 10.4
+#if defined(XP_MACOSX) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 // 10.4
   char* const my_argv[] = {
     crashReporterPath,
     minidumpPath,
@@ -1177,7 +1181,7 @@ nsresult SetExceptionHandler(nsIFile* aXREDirectory,
 #error "Implement this for your platform"
 #endif
 
-#if 0 // def XP_MACOSX // 10.4
+#if defined(XP_MACOSX) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 // 10.4
   // Initialize spawn attributes, since this calls malloc.
   if (posix_spawnattr_init(&spawnattr) != 0) {
     return NS_ERROR_FAILURE;

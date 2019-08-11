@@ -164,7 +164,7 @@ void ThreadPosix::Run() {
     pthread_set_name_np(pthread_self(), name_.c_str());
 #elif defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
 // Not in 10.4
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
     pthread_setname_np(name_.substr(0, 63).c_str());
 #endif
 #endif

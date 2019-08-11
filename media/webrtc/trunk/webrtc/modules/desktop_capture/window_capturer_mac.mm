@@ -25,7 +25,9 @@
 #include "webrtc/system_wrappers/interface/scoped_refptr.h"
 #include "webrtc/system_wrappers/interface/tick_util.h"
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 typedef uint32_t CGWindowID;
+#endif
 
 namespace webrtc {
 
@@ -33,8 +35,9 @@ namespace {
 
 // Returns true if the window exists.
 bool IsWindowValid(CGWindowID id) {
-return false;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  return false;
+#else
   CFArrayRef window_id_array =
       CFArrayCreate(NULL, reinterpret_cast<const void **>(&id), 1, NULL);
   CFArrayRef window_array =
@@ -87,7 +90,7 @@ WindowCapturerMac::~WindowCapturerMac() {
 }
 
 bool WindowCapturerMac::GetWindowList(WindowList* windows) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // Only get on screen, non-desktop windows.
   CFArrayRef window_array = CGWindowListCopyWindowInfo(
       kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
@@ -141,7 +144,7 @@ bool WindowCapturerMac::SelectWindow(WindowId id) {
 }
 
 bool WindowCapturerMac::BringSelectedWindowToFront() {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   if (!window_id_)
     return false;
 
@@ -169,9 +172,17 @@ bool WindowCapturerMac::BringSelectedWindowToFront() {
 
   // TODO(jiayl): this will bring the process main window to the front. We
   // should find a way to bring only the window to the front.
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   bool result =
       [[NSRunningApplication runningApplicationWithProcessIdentifier: pid]
           activateWithOptions: NSApplicationActivateIgnoringOtherApps];
+  #else
+  bool result = false;
+  ProcessSerialNumber psn;
+  if (GetProcessForPID(pid, &psn) == noErr)
+    result = SetFrontProcessWithOptions(&psn, kSetFrontProcessFrontWindowOnly) == noErr;
+  #endif /* MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 */
+  // Hey, I just realized that this function is UNUSED! http://dxr.mozilla.org/mozilla-esr45/search?q=BringSelectedWindowToFront
 
   CFRelease(window_id_array);
   CFRelease(window_array);
@@ -189,7 +200,7 @@ void WindowCapturerMac::Start(Callback* callback) {
 }
 
 void WindowCapturerMac::Capture(const DesktopRegion& region) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   if (!IsWindowValid(window_id_)) {
     callback_->OnCaptureCompleted(NULL);
     return;

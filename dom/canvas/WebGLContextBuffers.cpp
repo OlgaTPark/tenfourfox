@@ -621,8 +621,7 @@ GLenum
 WebGLContext::CheckedBufferData(GLenum target, GLsizeiptr size,
                                 const GLvoid* data, GLenum usage)
 {
-#if(0)
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050 
     // bug 790879
     if (gl->WorkAroundDriverBugs() &&
         int64_t(size) > INT32_MAX) // cast avoids a potential always-true warning on 32bit
@@ -631,7 +630,6 @@ WebGLContext::CheckedBufferData(GLenum target, GLsizeiptr size,
                         " a Mac bug", size);
         return LOCAL_GL_INVALID_VALUE;
     }
-#endif
 #endif
 
     WebGLRefPtr<WebGLBuffer>& bufferSlot = GetBufferSlotByTarget(target);

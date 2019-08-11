@@ -782,7 +782,7 @@ CanvasDrawObserver::DidDrawCall(DrawCallType aType)
 bool
 CanvasDrawObserver::FrameEnd()
 {
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
   mFramesRendered++;
 
   // We log the first mMinFramesBeforeDecision frames of any
@@ -943,14 +943,17 @@ NS_INTERFACE_MAP_END
 
 
 // Initialize our static variables.
-uint32_t CanvasRenderingContext2D::sNumLivingContexts = 0;
+uintptr_t CanvasRenderingContext2D::sNumLivingContexts = 0;
 DrawTarget* CanvasRenderingContext2D::sErrorTarget = nullptr;
 
 
 
 CanvasRenderingContext2D::CanvasRenderingContext2D()
-  //: mRenderingMode(RenderingMode::OpenGLBackendMode)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
+  : mRenderingMode(RenderingMode::OpenGLBackendMode)
+#else
   : mRenderingMode(RenderingMode::SoftwareBackendMode)
+#endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ */
 #ifdef USE_SKIA_GPU
   , mVideoTexture(0)
 #endif
@@ -969,7 +972,7 @@ CanvasRenderingContext2D::CanvasRenderingContext2D()
 {
   sNumLivingContexts++;
 
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
   // The default is to use OpenGL mode
   if (!gfxPlatform::GetPlatform()->UseAcceleratedSkiaCanvas()) {
     mRenderingMode = RenderingMode::SoftwareBackendMode;
@@ -1419,7 +1422,7 @@ CanvasRenderingContext2D::EnsureTarget(RenderingMode aRenderingMode)
     }
 
     if (layerManager) {
-#if(0) // always false
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060 // always false
       if (mode == RenderingMode::OpenGLBackendMode &&
           gfxPlatform::GetPlatform()->UseAcceleratedSkiaCanvas() &&
           CheckSizeForSkiaGL(size)) {
@@ -1442,7 +1445,7 @@ CanvasRenderingContext2D::EnsureTarget(RenderingMode aRenderingMode)
         }
 #endif
       }
-#endif
+#endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ */
 
       if (!mBufferProvider) {
         mBufferProvider = layerManager->CreatePersistentBufferProvider(size, format);
@@ -1651,7 +1654,7 @@ CanvasRenderingContext2D::SetContextOptions(JSContext* aCx,
     return NS_ERROR_UNEXPECTED;
   }
 
-#if(0) // no point
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060 // no point
   if (Preferences::GetBool("gfx.canvas.willReadFrequently.enable", false)) {
     // Use software when there is going to be a lot of readback
     if (attributes.mWillReadFrequently) {
@@ -5563,7 +5566,9 @@ static uint8_t g2DContextLayerUserData;
 uint32_t
 CanvasRenderingContext2D::SkiaGLTex() const
 {
-return 0; // should not happen??
+#ifndef USE_SKIA
+  return 0; // should not happen??
+#endif
   if (!mTarget) {
     return 0;
   }

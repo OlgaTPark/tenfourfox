@@ -169,8 +169,21 @@ toolbarseparator {
 
 #nav-bar {
   -moz-appearance: none;
+  /* Previously:
+    background: url(chrome://browser/skin/Toolbar-background-noise.png),
+                linear-gradient(hsl(0,0%,93%), hsl(0,0%,83%));
+  Now we use a different toolbar color because gfx.color_management.mode is set 
+  to 1 and this does not match bookmarks toolbar's color. */
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   background: url(chrome://browser/skin/Toolbar-background-noise.png),
               linear-gradient(hsl(0,0%,94%), hsl(0,0%,79%));
+%elif MACOSX_DEPLOYMENT_TARGET == 1050
+  background: url(chrome://browser/skin/Toolbar-background-noise.png),
+              linear-gradient(hsl(0,0%,94%), hsl(0,0%,75%));
+%else
+  background: url(chrome://browser/skin/Toolbar-background-noise.png),
+              linear-gradient(hsl(0,0%,94%), hsl(0,0%,83.5%));
+%endif
   background-clip: border-box;
   background-origin: border-box !important;
 
@@ -213,7 +226,9 @@ toolbarseparator {
 /* Always draw a border on Yosemite to ensure the border is well-defined there
  * (the default border is too light). */
 /* Also do this for Tiger. */
-/* @media (-moz-mac-yosemite-theme) { */
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+@media (-moz-mac-yosemite-theme) {
+%endif
   #main-window[tabsintitlebar] #TabsToolbar:not([collapsed="true"]) + #nav-bar:not(:-moz-lwtheme) {
     border-top: 1px solid hsla(0,0%,0%,.2);
     background-clip: padding-box;
@@ -222,7 +237,9 @@ toolbarseparator {
     position: relative;
     z-index: 1;
   }
-/*}*/
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+}
+%endif
 
 #nav-bar-customization-target {
   padding: 4px;

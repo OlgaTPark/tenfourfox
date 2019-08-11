@@ -106,8 +106,10 @@ ASFLAGS += [
     '-I%s/media/libvpx/' % TOPSRCDIR,
     '-I%s/media/libvpx/vpx_ports/' % TOPSRCDIR,
 ]
+
 # moved from Makefile.in for TenFourFox
-ASFLAGS += ['-force_cpusubtype_ALL']
+if not CONFIG['CLANG_CC'] and not CONFIG['CLANG_CXX']:
+    ASFLAGS += ['-force_cpusubtype_ALL']
 
 if CONFIG['OS_TARGET'] == 'Android':
     # For LIBVPX_RAND

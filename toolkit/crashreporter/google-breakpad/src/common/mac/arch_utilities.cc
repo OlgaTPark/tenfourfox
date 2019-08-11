@@ -34,6 +34,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef CPU_TYPE_ARM
+#define CPU_TYPE_ARM		((cpu_type_t) 12)
+#endif
+
+#ifndef CPU_SUBTYPE_ARM_V7
+#define CPU_SUBTYPE_ARM_V7		((cpu_subtype_t) 9)
+#endif
+
 #ifndef CPU_SUBTYPE_ARM_V7S
 #define CPU_SUBTYPE_ARM_V7S (static_cast<cpu_subtype_t>(11))
 #endif  // CPU_SUBTYPE_ARM_V7S

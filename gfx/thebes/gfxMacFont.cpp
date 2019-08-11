@@ -27,7 +27,9 @@ gfxMacFont::gfxMacFont(MacOSFontEntry *aFontEntry, const gfxFontStyle *aFontStyl
                        bool aNeedsBold)
     : gfxFont(aFontEntry, aFontStyle),
       mCGFont(nullptr),
-      //mCTFont(nullptr),
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 /* 1050 */
+      mCTFont(nullptr),
+#endif
       mFontFace(nullptr)
 {
     mApplySyntheticBold = aNeedsBold;
@@ -110,7 +112,7 @@ gfxMacFont::gfxMacFont(MacOSFontEntry *aFontEntry, const gfxFontStyle *aFontStyl
 
 gfxMacFont::~gfxMacFont()
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 /* 1050 */
     if (mCTFont) {
         ::CFRelease(mCTFont);
     }
@@ -137,7 +139,10 @@ gfxMacFont::ShapeText(gfxContext     *aContext,
         return false;
     }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+    // Even if this code is 10.5-compatible, running it on 10.5 (independently 
+    // of using ATS or CG|CTFont) will render fonts fuzzily.
+
     // Currently, we don't support vertical shaping via CoreText,
     // so we ignore RequiresAATLayout if vertical is requested.
     if (static_cast<MacOSFontEntry*>(GetFontEntry())->RequiresAATLayout() &&
@@ -208,7 +213,7 @@ gfxMacFont::InitMetrics()
     // return the true value for OpenType/CFF fonts (it normalizes to 1000,
     // which then leads to metrics errors when we read the 'hmtx' table to
     // get glyph advances for HarfBuzz, see bug 580863)
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     CFDataRef headData =
         ::CGFontCopyTableForTag(mCGFont, TRUETYPE_TAG('h','e','a','d'));
 #else
@@ -288,7 +293,9 @@ gfxMacFont::InitMetrics()
     }
 
     if (mMetrics.xHeight == 0.0) {
-        //mMetrics.xHeight = ::CGFontGetXHeight(mCGFont) * cgConvFactor;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+        mMetrics.xHeight = ::CGFontGetXHeight(mCGFont) * cgConvFactor;
+#else
        ATSFontMetrics atsMetrics;
        OSStatus err;
 
@@ -299,6 +306,7 @@ gfxMacFont::InitMetrics()
                return; // just fail -- Cameron Kludge
        }
        mMetrics.xHeight = atsMetrics.xHeight * mAdjustedSize;
+#endif
     }
 
     if (mStyle.sizeAdjust > 0.0 && mStyle.size > 0.0 &&
@@ -323,7 +331,9 @@ gfxMacFont::InitMetrics()
             return;
         }
         if (mMetrics.xHeight == 0.0) {
-            //mMetrics.xHeight = ::CGFontGetXHeight(mCGFont) * mFUnitsConvFactor;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+            mMetrics.xHeight = ::CGFontGetXHeight(mCGFont) * cgConvFactor;//mFUnitsConvFactor;
+#else
             ATSFontMetrics atsMetrics;
             OSStatus err;
 
@@ -335,6 +345,7 @@ gfxMacFont::InitMetrics()
                     return; // just fail -- Cameron Kludge
             }
             mMetrics.xHeight = atsMetrics.xHeight * mAdjustedSize;
+#endif
         }
     }
 
@@ -347,8 +358,10 @@ gfxMacFont::InitMetrics()
     // Measure/calculate additional metrics, independent of whether we used
     // the tables directly or ATS metrics APIs
 
-    //CFDataRef cmap =
-    //    ::CGFontCopyTableForTag(mCGFont, TRUETYPE_TAG('c','m','a','p'));
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    CFDataRef cmap =
+        ::CGFontCopyTableForTag(mCGFont, TRUETYPE_TAG('c','m','a','p'));
+#else
 // From http://www.opensource.apple.com/source/WebCore/WebCore-7533.16/platform/graphics/mac/SimpleFontDataMac.mm
     CFDataRef cmap;
 {
@@ -366,15 +379,20 @@ gfxMacFont::InitMetrics()
     cmap = data;
 }
 // end diversion
+#endif
 
     uint32_t glyphID;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
     bool hasX = true; // average is valid
+#endif
     if (mMetrics.aveCharWidth <= 0) {
         mMetrics.aveCharWidth = GetCharWidth(cmap, 'x', &glyphID,
                                              cgConvFactor);
         if (glyphID == 0) {
             // we didn't find 'x', so use maxAdvance rather than zero
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
             hasX = false;
+#endif
             mMetrics.aveCharWidth = mMetrics.maxAdvance;
         }
     }
@@ -389,17 +407,18 @@ gfxMacFont::InitMetrics()
         mMetrics.spaceWidth = mMetrics.aveCharWidth;
     }
     mSpaceGlyph = glyphID;
-    
+
     mMetrics.zeroOrAveCharWidth = GetCharWidth(cmap, '0', &glyphID,
                                                cgConvFactor);
     if (glyphID == 0) {
         mMetrics.zeroOrAveCharWidth = mMetrics.aveCharWidth;
-
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
         // Some otherwise valid fonts don't have this glyph. Check for another
         // letter glyph before concluding it's bogus.
         glyphID = gfxFontUtils::MapCharToGlyph(::CFDataGetBytePtr(cmap),
     		::CFDataGetLength(cmap), (char16_t)'a');
     	if (!glyphID) hasX = false; // give up        
+#endif
     }
 
     if (cmap) {
@@ -410,6 +429,7 @@ gfxMacFont::InitMetrics()
 
     SanitizeMetrics(&mMetrics, mFontEntry->mIsBadUnderlineFont);
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
     // If we are dealing with a weird font (Apple is notorious), we could have
     // the situation where we wind up with space == maxAdvance due to a 10.4 bug.
     // In that case, kludge a reasonable upper limit (TenFourFox issue 355).
@@ -420,6 +440,7 @@ gfxMacFont::InitMetrics()
             mSpacingKludge = true;
     }
 //fprintf(stderr, "glyph: %i sB=%s ......%f avg=%f max=%f cgf=%f mAS=%f\n", glyphID, (IsSyntheticBold() ? "Y" : "n"), mMetrics.spaceWidth, mMetrics.aveCharWidth, mMetrics.maxAdvance, cgConvFactor, mAdjustedSize);
+#endif
 
 #if 0
     fprintf (stderr, "Font: %p (%s) size: %f\n", this,
@@ -462,7 +483,7 @@ gfxMacFont::GetCharWidth(CFDataRef aCmap, char16_t aUniChar,
 int32_t
 gfxMacFont::GetGlyphWidth(DrawTarget& aDrawTarget, uint16_t aGID)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 /* 1050 */
     if (!mCTFont) {
         mCTFont = ::CTFontCreateWithGraphicsFont(mCGFont, mAdjustedSize,
                                                  nullptr, nullptr);
@@ -493,7 +514,7 @@ gfxMacFont::GetGlyphWidth(DrawTarget& aDrawTarget, uint16_t aGID)
 void
 gfxMacFont::InitMetricsFromPlatform()
 {
-#if(1)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060 /* 1050 */
     // TenFourFox (and Firefox prior to Snow Leopard) can only cope with
     // ATSUI calls because of poor CoreText support on 10.4 and intermittent
     // crashes on 10.5. At some point after source parity ends, all the

@@ -9,7 +9,7 @@
 #include "base/logging.h"
 
 LockImpl::LockImpl() {
-#if 0 // ndef NDEBUG
+#if !defined(NDEBUG) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
   // In debug, setup attributes for lock error checking.
   pthread_mutexattr_t mta;
   int rv = pthread_mutexattr_init(&mta);

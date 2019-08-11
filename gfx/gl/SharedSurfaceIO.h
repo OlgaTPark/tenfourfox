@@ -1,9 +1,9 @@
-// 10.4 no haz.
-#if(0)
 /* -*- Mode: c++; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 40; -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+// 10.4 no haz.
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
 
 #ifndef SHARED_SURFACEIO_H_
 #define SHARED_SURFACEIO_H_

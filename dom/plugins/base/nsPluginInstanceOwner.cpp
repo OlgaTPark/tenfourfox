@@ -337,7 +337,7 @@ nsPluginInstanceOwner::nsPluginInstanceOwner()
 
   mPluginFrame = nullptr;
   mWidgetCreationComplete = false;
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
   mSentInitialTopLevelWindowEvent = false;
   mLastWindowIsActive = false;
@@ -1089,10 +1089,14 @@ void nsPluginInstanceOwner::GetParameters(nsTArray<MozPluginParameter>& paramete
 }
 
 
-#if(1) // 10.4 no duz. We uze stubz. Zome are commented out later.
+#ifndef MOZ_PLUGINS // 10.4 no duz. We uze stubz. Zome are commented out later.
 
 NPDrawingModel nsPluginInstanceOwner::GetDrawingModel() {
+#ifdef __LP64__
+  return NPDrawingModelCoreGraphics; // Hey, he said that plugins are dead!
+#else
   return NPDrawingModelQuickDraw; // This actually isn't a lie, really.
+#endif
 }
 void nsPluginInstanceOwner::FixUpPluginWindow(int32_t i) { }
 bool nsPluginInstanceOwner::IsRemoteDrawingCoreAnimation() { return false; }
@@ -1100,7 +1104,11 @@ nsresult
 nsPluginInstanceOwner::ContentsScaleFactorChanged(double aContentsScaleFactor)
 { return NS_ERROR_NULL_POINTER; }
 NPEventModel nsPluginInstanceOwner::GetEventModel() {
+#ifdef __LP64__
+  return NPEventModelCocoa;
+#else
   return NPEventModelCarbon;
+#endif
 }
 
 void nsPluginInstanceOwner::HidePluginWindow() { ; }
@@ -1632,7 +1640,7 @@ nsPluginInstanceOwner::HandleEvent(nsIDOMEvent* aEvent)
   nsAutoString eventType;
   aEvent->GetType(eventType);
 
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
   if (eventType.EqualsLiteral("activate") ||
       eventType.EqualsLiteral("deactivate")) {
@@ -1779,7 +1787,7 @@ static NPCocoaEvent
 TranslateToNPCocoaEvent(WidgetGUIEvent* anEvent, nsIFrame* aObjectFrame)
 {
   NPCocoaEvent cocoaEvent;
-#if(0)
+#ifdef MOZ_PLUGINS
   InitializeNPCocoaEvent(&cocoaEvent);
   cocoaEvent.type = CocoaEventTypeForEvent(*anEvent, aObjectFrame);
 
@@ -1902,7 +1910,7 @@ nsEventStatus nsPluginInstanceOwner::ProcessEvent(const WidgetGUIEvent& anEvent)
     return nsEventStatus_eIgnore;
   }
 
-#if(0) // 10.4 no wantz.
+#ifdef MOZ_PLUGINS // 10.4 no wantz.
 #ifdef XP_MACOSX
   NPEventModel eventModel = GetEventModel();
   if (eventModel != NPEventModelCocoa) {
@@ -2476,7 +2484,7 @@ nsPluginInstanceOwner::Destroy()
 {
   SetFrame(nullptr);
 
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
   RemoveFromCARefreshTimer();
 #endif
@@ -2534,7 +2542,7 @@ nsPluginInstanceOwner::Destroy()
 
 // Paints are handled differently, so we just simulate an update event.
 
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
 void nsPluginInstanceOwner::Paint(const gfxRect& aDirtyRect, CGContextRef cgContext)
 {
@@ -2942,8 +2950,9 @@ void nsPluginInstanceOwner::ReleasePluginPort(void * pluginPort)
 
 NS_IMETHODIMP nsPluginInstanceOwner::CreateWidget(void)
 {
+#ifndef MOZ_PLUGINS
 return NS_ERROR_FAILURE; // Don't even try.
-#if(0)
+#else
   NS_ENSURE_TRUE(mPluginWindow, NS_ERROR_NULL_POINTER);
 
   nsresult rv = NS_ERROR_FAILURE;
@@ -3082,7 +3091,7 @@ nsPluginInstanceOwner::ResetWidgetCursorCaching()
 }
 #endif
 
-#if(0)
+#ifdef MOZ_PLUGINS
 // Mac specific code to fix up the port location and clipping region
 #ifdef XP_MACOSX
 

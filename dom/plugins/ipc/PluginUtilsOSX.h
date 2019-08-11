@@ -40,7 +40,7 @@ bool SetProcessName(const char* aProcessName);
  * The buffers can be initialized and cleared individually.
  * Swapping still occurs regardless if the buffers are initialized.
  */
-#if(0) // 10.4 gon kick yr butt.
+#ifdef MOZ_PLUGINS // 10.4 gon kick yr butt.
 class nsDoubleBufferCARenderer {
 public:
   nsDoubleBufferCARenderer() : mCALayer(nullptr), mContentsScaleFactor(1.0) {}

@@ -8,8 +8,10 @@
 #include "crashreporter.h"
 #include "crashreporter_osx.h"
 #include <crt_externs.h>
-// #include <spawn.h> // we don't have this on 10.4. wtf, Mozilla? 
-// are you guys obsessed with spawn? not getting out much? slow office parties?
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  #include <spawn.h> // we don't have this on 10.4. wtf, Mozilla? 
+  // are you guys obsessed with spawn? not getting out much? slow office parties?
+#endif
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -56,7 +58,7 @@ static NSString* Str(const char* aName)
 
 static bool RestartApplication()
 {
-#if(1)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 /* Use the 3.6 code. -- Cameron */
   char** argv = reinterpret_cast<char**>(
     malloc(sizeof(char*) * (gRestartArgs.size() + 1)));

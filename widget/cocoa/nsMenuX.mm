@@ -798,7 +798,7 @@ nsresult nsMenuX::SetupIcon()
   return mIcon->SetupIcon();
 }
 
-#if (1) // MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
+#if defined(__ppc__) || defined(__ppc64__) || (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
 //
 // Carbon event support
 //
@@ -935,7 +935,7 @@ static OSStatus InstallMyMenuEventHandler(MenuRef menuRef, void* userData, Event
   if ((self = [super init])) {
     NS_ASSERTION(geckoMenu, "Cannot initialize native menu delegate with NULL gecko menu! Will crash!");
     mGeckoMenu = geckoMenu;
-#if 1 // (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
+#if defined(__ppc__) || defined(__ppc64__) || (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
     mEventHandler = NULL;
 #endif
   }
@@ -944,7 +944,7 @@ static OSStatus InstallMyMenuEventHandler(MenuRef menuRef, void* userData, Event
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }
 
-#if 1 // (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
+#if defined(__ppc__) || defined(__ppc64__) || (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4)
 
 - (void)dealloc
 {
@@ -979,7 +979,7 @@ static OSStatus InstallMyMenuEventHandler(MenuRef menuRef, void* userData, Event
 
 #endif
 
-#if (0) // defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 && !defined(__ppc__) && !defined(__ppc64__)
 
 - (void)menu:(NSMenu *)menu willHighlightItem:(NSMenuItem *)item
 {

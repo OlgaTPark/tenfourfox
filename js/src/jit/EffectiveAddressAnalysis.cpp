@@ -11,7 +11,7 @@
 using namespace js;
 using namespace jit;
 
-#if(0) // bug 881882
+#if !defined(__ppc__) && !defined(__ppc64__) // bug 881882
 
 static void
 AnalyzeLsh(TempAllocator& alloc, MLsh* lsh)
@@ -184,7 +184,7 @@ EffectiveAddressAnalysis::analyzeAsmHeapAccess(MAsmJSHeapAccessType* ins)
 bool
 EffectiveAddressAnalysis::analyze()
 {
-#if(0) // bug 881882
+#if !defined(__ppc__) && !defined(__ppc64__) // bug 881882
     for (ReversePostorderIterator block(graph_.rpoBegin()); block != graph_.rpoEnd(); block++) {
         for (MInstructionIterator i = block->begin(); i != block->end(); i++) {
             // Note that we don't check for MAsmJSCompareExchangeHeap

@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// Fix glitch in MozPromise.h on .mm files with C++11 lambdas.
+// Fix glitch in xpcom/threads/MozPromise.h on .mm files with C++11 lambdas.
 #define GCC_SUCKS_MOOSE_WANG
 
 #include "nsISupports.h"
@@ -81,8 +81,11 @@ SpeechTaskCallback::OnPause()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  //[mSpeechSynthesizer pauseSpeakingAtBoundary:NSSpeechImmediateBoundary];
-NS_WARNING("mSpeechSynthesizer Pause/Resume not supported in 10.4");
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  [mSpeechSynthesizer pauseSpeakingAtBoundary:NSSpeechImmediateBoundary];
+#else
+  NS_WARNING("mSpeechSynthesizer Pause/Resume not supported in 10.4");
+#endif
 return NS_ERROR_FAILURE;
   if (!mTask) {
     // When calling pause() on child porcess, it may not receive end event
@@ -100,8 +103,11 @@ SpeechTaskCallback::OnResume()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  //[mSpeechSynthesizer continueSpeaking];
-NS_WARNING("mSpeechSynthesizer Pause/Resume not supported in 10.4");
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  [mSpeechSynthesizer continueSpeaking];
+#else
+  NS_WARNING("mSpeechSynthesizer Pause/Resume not supported in 10.4");
+#endif
 return NS_ERROR_FAILURE;
   if (!mTask) {
     // When calling resume() on child porcess, it may not receive end event
@@ -119,7 +125,7 @@ SpeechTaskCallback::OnVolumeChanged(float aVolume)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   [mSpeechSynthesizer setObject:[NSNumber numberWithFloat:aVolume]
                     forProperty:NSSpeechVolumeProperty error:nil];
 #else
@@ -291,7 +297,7 @@ EnumVoicesRunnable::Run()
   NSArray* voices = [NSSpeechSynthesizer availableVoices];
   NSString* defaultVoice = [NSSpeechSynthesizer defaultVoice];
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   for (NSString* voice in voices) {
 #else
   int i;
@@ -308,7 +314,7 @@ EnumVoicesRunnable::Run()
 
     nsCocoaUtils::GetStringForNSString([attr objectForKey:NSVoiceName], item.mName);
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     nsCocoaUtils::GetStringForNSString(
       [attr objectForKey:NSVoiceLocaleIdentifier], item.mLocale);
     item.mLocale.ReplaceChar('_', '-');
@@ -396,7 +402,7 @@ OSXSpeechSynthesizerService::Speak(const nsAString& aText,
   [synth setVoice:identifier];
 
 // 10.4 does not support this.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // default rate is 180-220
   [synth setObject:[NSNumber numberWithInt:aRate * 200]
          forProperty:NSSpeechRateProperty error:nil];

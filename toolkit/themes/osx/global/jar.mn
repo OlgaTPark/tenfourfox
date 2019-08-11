@@ -9,7 +9,7 @@ toolkit.jar:
   skin/classic/global/50pct_transparent_grey.png
   skin/classic/global/arrow.css
   skin/classic/global/autocomplete.css
-  skin/classic/global/button.css
+* skin/classic/global/button.css
   skin/classic/global/checkbox.css
   skin/classic/global/colorpicker.css
   skin/classic/global/commonDialog.css
@@ -24,21 +24,21 @@ toolkit.jar:
   skin/classic/global/groupbox.css
   skin/classic/global/linkTree.css
   skin/classic/global/listbox.css
-  skin/classic/global/menu.css
+* skin/classic/global/menu.css
   skin/classic/global/menulist.css
 * skin/classic/global/notification.css
   skin/classic/global/netError.css
   skin/classic/global/numberbox.css
   skin/classic/global/passwordmgr.css
   skin/classic/global/popup.css
-  skin/classic/global/preferences.css
+* skin/classic/global/preferences.css
   skin/classic/global/progressmeter.css
   skin/classic/global/radio.css
   skin/classic/global/resizer.css
   skin/classic/global/richlistbox.css
   skin/classic/global/scrollbars.css                                 (nativescrollbars.css)
   skin/classic/global/scale.css
-  skin/classic/global/scrollbox.css
+* skin/classic/global/scrollbox.css
   skin/classic/global/spinbuttons.css
   skin/classic/global/splitter.css
   skin/classic/global/tabprompts.css

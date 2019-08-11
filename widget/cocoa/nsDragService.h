@@ -14,6 +14,7 @@ extern NSString* const kWildcardPboardType;
 extern NSString* const kCorePboardType_url;
 extern NSString* const kCorePboardType_urld;
 extern NSString* const kCorePboardType_urln;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 extern NSString* const kCorePboardType_text; // bug 966986 attachment 8540201
 
 // restore from bug 966986
@@ -26,6 +27,7 @@ extern NSString* const kCorePboardType_text; // bug 966986 attachment 8540201
 - (id)propertyListForType:(NSString*)aType;
 - (NSPasteboard*)pasteboard;
 @end
+#endif
 
 class nsDragService : public nsBaseDragService
 {
@@ -53,7 +55,7 @@ private:
                               nsIntRect* aDragRect,
                               nsIScriptableRegion* aRegion);
 // Undo bug 966986, since 10.4 doesn't have NSPasteboardItem.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   bool IsValidType(NSString* availableType, bool allowFileURL);
   NSString* GetStringForType(NSPasteboardItem* item, const NSString* type,
                              bool allowFileURL = false);

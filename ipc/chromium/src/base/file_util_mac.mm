@@ -5,7 +5,7 @@
 #include "base/file_util.h"
 
 #import <Cocoa/Cocoa.h>
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 // 10.4 no haz.
 #include <copyfile.h>
 #endif
@@ -31,7 +31,7 @@ bool GetShmemTempDir(FilePath* path) {
 }
 
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   return (copyfile(from_path.value().c_str(),
                    to_path.value().c_str(), NULL, COPYFILE_ALL) == 0);
 #else

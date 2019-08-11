@@ -93,7 +93,7 @@ stack_callback(uint32_t aFrameNumber, void* aPc, void* aSp, void* aClosure)
   gCriticalAddress.mAddr = aPc;
 }
 
-#if defined(MOZ_WIDGET_COCOA) && defined(DEBUG)
+#if defined(MOZ_WIDGET_COCOA) && (defined(DEBUG) || defined(__i386__) || defined(__x86_64__))
 #define MAC_OS_X_VERSION_10_7_HEX 0x00001070
 
 static int32_t OSXVersion()
@@ -125,9 +125,9 @@ my_malloc_logger(uint32_t aType,
 
   // On Leopard dladdr returns the wrong value for "new_sem_from_pool". The
   // stack shows up as having two pthread_cond_wait$UNIX2003 frames.
-#if(0)
+#if defined(__i386__) || defined(__x86_64__)
 // This symbol only exists on Lion. Given we can't ever run on Lion ...
-  const char* name = "new_sem_from_pool";
+  const char* name = (OSXVersion() >= 0x00001060) ? "new_sem_from_pool" : "pthread_cond_wait$UNIX2003";
 #else
   const char *name = "pthread_cond_wait$UNIX2003"; // 10.4 XXX.
 #endif
@@ -176,7 +176,7 @@ StackWalkInitCriticalAddress()
   // On Lion, malloc is no longer called from pthread_cond_*wait*. This prevents
   // us from finding the address, but that is fine, since with no call to malloc
   // there is no critical address.
-#if(0) // def MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && (defined(__i386__) || defined(__x86_64__))
   MOZ_ASSERT(OnLionOrLater() || gCriticalAddress.mAddr != nullptr);
 #endif
   MOZ_ASSERT(r == ETIMEDOUT);

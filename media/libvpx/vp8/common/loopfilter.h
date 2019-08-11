@@ -20,7 +20,11 @@
 extern "C" {
 #endif
 
+#if defined(__APPLE__) && (defined(__ppc__) || defined(__ppc64__))
 #define MAX_LOOP_FILTER             8
+#else
+#define MAX_LOOP_FILTER             63
+#endif
 /* fraction of total macroblock rows to be used in fast filter level picking */
 /* has to be > 2 */
 #define PARTIAL_FRAME_FRACTION      8

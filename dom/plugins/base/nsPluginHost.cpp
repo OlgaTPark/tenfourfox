@@ -802,8 +802,9 @@ nsPluginHost::InstantiatePluginInstance(const nsACString& aMimeType, nsIURI* aUR
                                         nsPluginInstanceOwner** aOwner)
 {
   NS_ENSURE_ARG_POINTER(aOwner);
+#ifndef MOZ_PLUGINS
   return NS_ERROR_CONTENT_BLOCKED_SHOW_ALT; // plugins dead! plugins bad!
-#if(0)
+#else
 
 #ifdef PLUGIN_LOGGING
   nsAutoCString urlSpec;
@@ -1150,7 +1151,7 @@ nsPluginHost::GetPlugins(nsTArray<nsCOMPtr<nsIInternalPluginTag>>& aPluginArray,
                          bool aIncludeDisabled)
 {
   aPluginArray.Clear();
-#if(0)
+#ifdef MOZ_PLUGINS
 
   LoadPlugins();
 
@@ -1176,9 +1177,10 @@ nsPluginHost::GetPlugins(nsTArray<nsCOMPtr<nsIInternalPluginTag>>& aPluginArray,
 NS_IMETHODIMP
 nsPluginHost::GetPluginTags(uint32_t* aPluginCount, nsIPluginTag*** aResults)
 {
+#ifndef MOZ_PLUGINS
   *aPluginCount = 0;
   return NS_OK;
-#if(0)
+#else
   LoadPlugins();
 
   uint32_t count = 0;
@@ -1281,8 +1283,9 @@ nsPluginTag*
 nsPluginHost::FindNativePluginForType(const nsACString & aMimeType,
                                       bool aCheckEnabled)
 {
+#ifndef MOZ_PLUGINS
 return nullptr;
-#if(0)
+#else
   if (aMimeType.IsEmpty()) {
     return nullptr;
   }
@@ -1309,8 +1312,9 @@ nsPluginHost::FindNativePluginForExtension(const nsACString & aExtension,
                                            /* out */ nsACString & aMimeType,
                                            bool aCheckEnabled)
 {
+#ifndef MOZ_PLUGINS
 return nullptr;
-#if(0)
+#else
   if (aExtension.IsEmpty()) {
     return nullptr;
   }
@@ -1344,8 +1348,9 @@ return nullptr;
 static nsresult CreateNPAPIPlugin(nsPluginTag *aPluginTag,
                                   nsNPAPIPlugin **aOutNPAPIPlugin)
 {
+#ifndef MOZ_PLUGINS
   return NS_ERROR_FAILURE;
-#if(0)
+#else
   // If this is an in-process plugin we'll need to load it here if we haven't already.
   if (!nsNPAPIPlugin::RunPluginOOP(aPluginTag)) {
     if (aPluginTag->mFullPath.IsEmpty())
@@ -2495,7 +2500,9 @@ nsresult nsPluginHost::FindPlugins(bool aCreatePluginList, bool * aPluginsChange
   NS_ENSURE_ARG_POINTER(aPluginsChanged);
 
   *aPluginsChanged = false;
+#ifndef MOZ_PLUGINS
 return NS_OK;
+#endif
 
   if (XRE_IsContentProcess()) {
     return FindPluginsInContent(aCreatePluginList, aPluginsChanged);

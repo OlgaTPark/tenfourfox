@@ -1,5 +1,5 @@
 // |jit-test| error: 666
-throw 666; // this test does not work properly on IonPower due to our stack
+throw 666; // this test does not work properly on IonPower due to our stack (Issue 246)
 
 gczeal(2);
 try {

@@ -157,9 +157,15 @@ toolbarseparator {
 #Console\:clear {
   -moz-box-orient: vertical;
   -moz-box-align: center;
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  -moz-appearance: toolbarbutton;
+%endif
   font: menu;
   text-shadow: @loweredShadow@;
   margin: 4px 0 9px;
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  padding: 0 1px;
+%else
   padding: 0 4px;
   border: 1px solid @toolbarbuttonBorderColor@;
   border-radius: @toolbarbuttonCornerRadius@;
@@ -177,5 +183,6 @@ toolbarseparator {
 #Console\:clear:-moz-window-inactive {
   border-color: @toolbarbuttonInactiveBorderColor@;
   background-image: @toolbarbuttonInactiveBackgroundImage@;
+%endif
 }
 

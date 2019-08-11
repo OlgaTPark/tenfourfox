@@ -4823,7 +4823,7 @@ MTableSwitch::foldsTo(TempAllocator& alloc)
     if (numSuccessors() == 1 || (op->type() != MIRType_Value && !IsNumberType(op->type())))
         return MGoto::New(alloc, getDefault());
 
-    if (op->isConstantValue()) {
+    if (op->isConstantValue()) { /* Bug 1240127 */
         Value v = op->constantValue();
         if (v.isInt32()) {
             int32_t i = v.toInt32() - low_;

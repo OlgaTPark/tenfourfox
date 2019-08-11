@@ -2439,7 +2439,9 @@ ContentParent::ContentParent(mozIApplication* aApp,
     , mIsNuwaProcess(aIsNuwaProcess)
     , mHasGamepadListener(false)
 {
+#ifndef MOZ_PLUGINS
     MOZ_CRASH("*** ContentParent called, we don't support this yet ***");
+#endif
     InitializeMembers();  // Perform common initialization.
 
     // No more than one of !!aApp, aIsForBrowser, aIsForPreallocated should be

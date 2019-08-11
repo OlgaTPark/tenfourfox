@@ -1078,7 +1078,7 @@ uprv_tzname(int n)
 #endif
 #endif
 
-#if(0) // 10.4 doesn't have localtime_r. def U_TZNAME
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050 // 10.4 doesn't have localtime_r. def U_TZNAME
 #if U_PLATFORM_USES_ONLY_WIN32_API
     /* The return value is free'd in timezone.cpp on Windows because
      * the other code path returns a pointer to a heap location. */

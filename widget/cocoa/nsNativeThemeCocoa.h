@@ -20,7 +20,14 @@
 class nsDeviceContext;
 struct SegmentedControlRenderSettings;
 
-typedef float CGFloat; // sigh
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat; // sight too…
+  #else
+    typedef float CGFloat; // sigh
+  #endif /* __LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif /* CGFLOAT_DEFINED */
 
 namespace mozilla {
 class EventStates;

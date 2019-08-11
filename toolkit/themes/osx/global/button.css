@@ -80,6 +80,7 @@ button.plain {
 /* ::::: help button ::::: */
 
 button[dlgtype="help"] {
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   /* revert bug 970079 */
   min-width: 1px;
   padding: 0;
@@ -113,4 +114,8 @@ button[dlgtype="help"]:active > .button-box > .button-icon {
 
 button[dlgtype="help"] > .button-box > .button-text {
   display: none;
+%else
+  -moz-appearance: -moz-mac-help-button;
+  width: 20px;
+%endif
 }

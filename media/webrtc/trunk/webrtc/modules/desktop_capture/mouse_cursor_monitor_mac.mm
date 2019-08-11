@@ -26,8 +26,21 @@
 #include "webrtc/system_wrappers/interface/logging.h"
 #include "webrtc/system_wrappers/interface/scoped_refptr.h"
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 typedef uint32_t CGWindowID;
 #define kCGNullWindowID -1
+#endif
+
+// The following functions are defined in ApplicationServices.framework and are 
+// used in MouseCursorMonitorMac::CaptureImage()
+extern "C" int _CGSDefaultConnection(void);
+extern "C" OSStatus CGSGetGlobalCursorDataSize(int cid, void *outSize);
+extern "C" OSStatus CGSGetGlobalCursorData(int cid, void *outData, 
+                                           int *outRowBytes_unknow, 
+                                           int *outRowBytes, CGRect *outRect, 
+                                           CGPoint *outHotSpot, int *outDepth, 
+                                           int *outComponents, int *outBitsPerComponent);
+
 
 namespace webrtc {
 
@@ -120,7 +133,7 @@ void MouseCursorMonitorMac::Capture() {
       break;
     }
   }
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // If we are capturing cursor for a specific window then we need to figure out
   // if the current mouse position is covered by another window and also adjust
   // |position| to make it relative to the window origin.
@@ -151,8 +164,17 @@ void MouseCursorMonitorMac::Capture() {
 
         // Skip the Dock window. Dock window covers the whole screen, but it is
         // transparent.
+        // NOTE: This code is tricky.  In fact, only in Mac OS X Mountain Lion 
+        //       (and maybe Lion) the kCGWindowName of the Dock is set.  The 
+        //       following correction uses kCGWindowOwnerName instead and does 
+        //       not uses rtc::GetOSVersionName to avoid slowing down the loop.
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
         CFStringRef window_name = reinterpret_cast<CFStringRef>(
             CFDictionaryGetValue(window, kCGWindowName));
+  #else
+        CFStringRef window_name = reinterpret_cast<CFStringRef>(
+            CFDictionaryGetValue(window, kCGWindowOwnerName));
+  #endif /* MAC_OS_X_VERSION_MIN_REQUIRED */
         if (window_name && CFStringCompare(window_name, CFSTR("Dock"), 0) == 0)
           continue;
 
@@ -235,18 +257,93 @@ void MouseCursorMonitorMac::Capture() {
 }
 
 void MouseCursorMonitorMac::CaptureImage() {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NSCursor* nscursor = [NSCursor currentSystemCursor];
 
   NSImage* nsimage = [nscursor image];
   NSSize nssize = [nsimage size];
-  DesktopSize size(nssize.width, nssize.height);
   NSPoint nshotspot = [nscursor hotSpot];
+  #else
+    #ifndef __ppc64__
+  // This comes mostly from analysis of +[NSCursor currentSystemCursor] but was
+  // greatly simplified (and maybe supports less cases) because this function is complex.
+  // A test Xcode project is available on demand.
+  // Tests I made works on i386, x64 and ppc (Rosetta) but not on ppc64 (Rosetta)
+
+  CGImageRef cg_image = NULL;
+  NSSize nssize;
+  NSPoint nshotspot;
+
+  size_t cursorDataSize;
+  int cid = ::_CGSDefaultConnection();
+  if (noErr == ::CGSGetGlobalCursorDataSize(cid, &cursorDataSize)) {
+    void *cursorData = malloc(cursorDataSize);
+    CGRect rect;
+    int rowBytes, depth, spp, bps, rowBytes_unknow = (int)cursorDataSize;
+    if (noErr == ::CGSGetGlobalCursorData(cid, 
+                                          cursorData, 
+                                          &rowBytes_unknow, 
+                                          &rowBytes, &rect, 
+                                          (CGPoint*)&nshotspot, 
+                                          &depth, 
+                                          &spp, 
+                                          &bps)) {
+      NSBitmapImageRep *bitmapImageRep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL 
+                                                                                 pixelsWide:(int)rect.size.width 
+                                                                                 pixelsHigh:(int)rect.size.height 
+                                                                              bitsPerSample:bps 
+                                                                            samplesPerPixel:spp 
+                                                                                   hasAlpha:YES 
+                                                                                   isPlanar:NO 
+                                                                             colorSpaceName:NSCalibratedRGBColorSpace 
+                                                                               bitmapFormat:(NSBitmapFormat)0 
+                                                                                bytesPerRow:rowBytes
+                                                                               bitsPerPixel:depth];
+      nssize = *((NSSize *)&(rect.size));
+      unsigned char *imgData = [bitmapImageRep bitmapData];
+      if (imgData) {
+        memcpy(imgData, cursorData, cursorDataSize);
+        CGImageSourceRef image_source = CGImageSourceCreateWithData((CFDataRef)[bitmapImageRep TIFFRepresentation], NULL);
+        if (image_source) {
+          cg_image = CGImageSourceCreateImageAtIndex(image_source, 0, NULL);
+          CFMakeCollectable(cg_image);
+          CFRelease(image_source);
+        }
+      }
+      free(cursorData);
+
+      [bitmapImageRep release];
+    }
+  }
+
+  if (!cg_image)
+    #endif // __ppc64__
+  {
+    // NSCursor* nscursor = [NSCursor currentCursor];
+    NSCursor* nscursor = [NSCursor arrowCursor];
+
+    NSImage* nsimage = [nscursor image];
+    CGImageSourceRef image_source = CGImageSourceCreateWithData((CFDataRef)[nsimage TIFFRepresentation], NULL);
+    if (image_source) {
+      cg_image = CGImageSourceCreateImageAtIndex(image_source, 0, NULL);
+      CFMakeCollectable(cg_image);
+      CFRelease(image_source);
+    }
+
+    nssize = [nsimage size];
+    nshotspot = [nscursor hotSpot];
+  }
+  #endif // MAC_OS_X_VERSION_MIN_REQUIRED
+
+  DesktopSize size(nssize.width, nssize.height);
   DesktopVector hotspot(
       std::max(0, std::min(size.width(), static_cast<int>(nshotspot.x))),
       std::max(0, std::min(size.height(), static_cast<int>(nshotspot.y))));
+  #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   CGImageRef cg_image =
       [nsimage CGImageForProposedRect:NULL context:nil hints:nil];
+  #endif
   if (!cg_image)
     return;
 
@@ -289,9 +386,8 @@ void MouseCursorMonitorMac::CaptureImage() {
   last_cursor_.reset(MouseCursor::CopyOf(*cursor));
 
   callback_->OnMouseCursor(cursor.release());
-#else
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 */
   return;
-#endif
 }
 
 MouseCursorMonitor* MouseCursorMonitor::CreateForWindow(

@@ -214,7 +214,9 @@ TextureHost::Create(const SurfaceDescriptor& aDesc,
       return CreateTextureHostOGL(aDesc, aDeallocator, aFlags);
 
     case SurfaceDescriptor::TSurfaceDescriptorGralloc:
-    // case SurfaceDescriptor::TSurfaceDescriptorMacIOSurface: // unpossible
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
+	case SurfaceDescriptor::TSurfaceDescriptorMacIOSurface: // unpossible
+#endif
       if (aBackend == LayersBackend::LAYERS_OPENGL) {
         return CreateTextureHostOGL(aDesc, aDeallocator, aFlags);
       } else {

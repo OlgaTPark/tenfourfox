@@ -386,7 +386,7 @@ SourceSurfaceCGBitmapContext::~SourceSurfaceCGBitmapContext()
     CGImageRelease(mImage);
 }
 
-#if(0) // def MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 SourceSurfaceCGIOSurfaceContext::SourceSurfaceCGIOSurfaceContext(DrawTargetCG *aDrawTarget)
 {
   CGContextRef cg = (CGContextRef)aDrawTarget->GetNativeSurface(NativeSurfaceType::CGCONTEXT_ACCELERATED);

@@ -9,10 +9,12 @@
 #include "nsPrintOptionsX.h"
 #include "nsPrintSettingsX.h"
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // 10.4 is missing these. They don't seem to be used, but here they are.
 #define NSPrintSelectionOnly @"NSPrintSelectionOnly"
 #define NSPrintJobSavingURL @"NSJobSavingURL"
 #define NSPrintJobSavingFileNameExtensionHidden @"NSJobSavingFileNameExtensionHidden"
+#endif
 
 using namespace mozilla::embedding;
 
@@ -78,7 +80,7 @@ nsPrintOptionsX::SerializeToPrintData(nsIPrintSettings* aSettings,
     nsCocoaUtils::GetStringForNSString(faxNumber, data->faxNumber());
   }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 // Not on 10.4
   NSURL* printToFileURL = [dict objectForKey: NSPrintJobSavingURL];
   if (printToFileURL) {
@@ -217,7 +219,7 @@ nsPrintOptionsX::DeserializeToPrintSettings(const PrintData& data,
                       forKey: NSPrintSelectionOnly];
   }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NSURL* jobSavingURL =
     [NSURL URLWithString: nsCocoaUtils::ToNSString(data.toFileName())];
   if (jobSavingURL) {

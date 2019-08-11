@@ -78,16 +78,22 @@ static OutStringType STLStringToSTLStringWithEncodingsT(
     return OutStringType();
 
   scoped_cftyperef<CFStringRef> cfstring(
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 	// 10.4 lacks this. Hope this doesn't leak :(
-      //CFStringCreateWithBytesNoCopy(NULL,
+      CFStringCreateWithBytesNoCopy(NULL,
+#else
       CFStringCreateWithBytes(NULL,
+#endif
                                     reinterpret_cast<const UInt8*>(in.data()),
                                     in_length *
                                       sizeof(typename InStringType::value_type),
                                     in_encoding,
-                                    //false,
-                                    //kCFAllocatorNull));
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+                                    false,
+                                    kCFAllocatorNull));
+#else
 				false));
+#endif
   if (!cfstring)
     return OutStringType();
 

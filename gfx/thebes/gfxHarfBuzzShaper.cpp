@@ -342,7 +342,7 @@ gfxHarfBuzzShaper::HBGetGlyphHAdvance(hb_font_t *font, void *font_data,
     const gfxHarfBuzzShaper::FontCallbackData *fcd =
         static_cast<const gfxHarfBuzzShaper::FontCallbackData*>(font_data);
 // This never happens, so there's no point in doing the work.
-#if(0)
+#if !defined(MOZ_WIDGET_COCOA)
     gfxFont *gfxfont = fcd->mShaper->GetFont();
     if (gfxfont->ProvidesGlyphWidths()) {
         return gfxfont->GetGlyphWidth(*fcd->mDrawTarget, glyph);
@@ -1264,7 +1264,9 @@ gfxHarfBuzzShaper::Initialize()
     mInitialized = true;
     mCallbackData.mShaper = this;
 
-    // always false // mUseFontGlyphWidths = mFont->ProvidesGlyphWidths();
+#if !defined(MOZ_WIDGET_COCOA) // always false
+    mUseFontGlyphWidths = mFont->ProvidesGlyphWidths();
+#endif // Yes, I'm kinda exagerating…
 
     if (!sHBFontFuncs) {
         // static function callback pointers, initialized by the first
@@ -1341,13 +1343,16 @@ gfxHarfBuzzShaper::Initialize()
         }
     }
 
-    // always false // if (!mUseFontGlyphWidths) {
+#ifndef MOZ_WIDGET_COCOA // always false 
+    if (!mUseFontGlyphWidths)
+#endif
+	{
         // If font doesn't implement GetGlyphWidth, we will be reading
         // the metrics table directly, so make sure we can load it.
         if (!LoadHmtxTable()) {
             return false;
         }
-    //}
+    }
 
     mHBFont = hb_font_create(mHBFace);
     hb_font_set_funcs(mHBFont, sHBFontFuncs, &mCallbackData, nullptr);

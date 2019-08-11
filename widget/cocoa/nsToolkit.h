@@ -47,7 +47,9 @@ protected:
   CFRunLoopSourceRef mSleepWakeNotificationRLS;
   io_object_t        mPowerNotifier;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 /* Bug 675208 for Leopard's NSTrackingAera */
   EventHandlerRef    mEventMonitorHandler; // 10.4Fx
+#endif
   CFMachPortRef      mEventTapPort;
   CFRunLoopSourceRef mEventTapRLS;
 };
