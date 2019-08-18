@@ -32,6 +32,7 @@ CSRCS =\
 	base64.c \
 	plerror.c \
 	plgetopt.c \
+	plsse.c   \
 	$(NULL)
 
 LIBRARY_NAME	= plc
