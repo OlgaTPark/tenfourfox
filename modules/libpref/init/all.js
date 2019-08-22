@@ -646,6 +646,15 @@ pref("gfx.color_management.enablev4", true);
 
 pref("gfx.downloadable_fonts.enabled", true);
 pref("gfx.downloadable_fonts.fallback_delay", 3000);
+#ifdef XP_MACOSX
+#if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
+pref("pdfjs.display.use_document_fonts", false);
+#else
+pref("pdfjs.display.use_document_fonts", true);
+#endif // MACOSX_DEPLOYMENT_TARGET
+#else
+pref("pdfjs.display.use_document_fonts", true);
+#endif // XP_MACOSX
 
 // disable downloadable font cache so that behavior is consistently
 // the uncached load behavior across pages (useful for testing reflow problems)
