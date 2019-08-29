@@ -1243,7 +1243,7 @@ const CGFloat kTextDisplayCrossover = 20.0; // use text family below this size
 void
 gfxMacPlatformFontList::InitSystemFonts()
 {
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
     // system font under 10.11 are two distinct families for text/display sizes
     if (nsCocoaFeatures::OnElCapitanOrLater()) {
         mUseSizeSensitiveSystemFont = true;
@@ -1278,7 +1278,7 @@ gfxMacPlatformFontList::InitSystemFonts()
                      "system text/display font size switch point is not as expected!");
 #endif
     }
-#else   // LP64
+#else   // MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
     // Simplified version for 10.4-10.6
 
     NSFont* sys = [NSFont systemFontOfSize: 0.0];
@@ -1287,7 +1287,7 @@ gfxMacPlatformFontList::InitSystemFonts()
     nsCocoaUtils::GetStringForNSString(textFamilyName, familyName);
     mSystemTextFontFamily = FindSystemFontFamily(familyName);
     NS_ASSERTION(mSystemTextFontFamily, "null system display font family");
-#endif  // LP64
+#endif  // MAC_OS_X_VERSION_MIN_REQUIRED
 
 #ifdef DEBUG
     // different system font API's always map to the same family under OSX, so
@@ -1837,7 +1837,7 @@ gfxMacPlatformFontList::FindFamily(const nsAString& aFamily, gfxFontStyle* aStyl
 {
     // search for special system font name, -apple-system
     if (aFamily.EqualsLiteral(kSystemFont_system)) {
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
         if (mUseSizeSensitiveSystemFont &&
             aStyle && (aStyle->size * aDevToCssSize) >= kTextDisplayCrossover) {
             return mSystemDisplayFontFamily;
@@ -1933,7 +1933,7 @@ public:
     virtual ~MacFontInfo() {}
 
     virtual void Load() {
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 // For TenSixFox+
         nsAutoreleasePool localPool;
         // bug 975460 - async font loader crashes sometimes under 10.6, disable
         if (nsCocoaFeatures::OnLionOrLater()) {

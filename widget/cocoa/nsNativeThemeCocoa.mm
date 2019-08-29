@@ -148,7 +148,7 @@ FocusIsDrawnByDrawWithFrame(NSCell* aCell)
   // See the NSButtonCell section under
   // https://developer.apple.com/library/mac/releasenotes/AppKit/RN-AppKitOlderNotes/#X10_8Notes
   return false;
-#elif MAC_OS_X_VERSION_MAX_ALLOWED < 1090
+#elif MAC_OS_X_VERSION_MIN_REQUIRED < 1090
   return true;
 #else
   if (!nsCocoaFeatures::OnYosemiteOrLater()) {
@@ -543,7 +543,7 @@ WindowButtonsSize(nsIFrame* aFrame)
   NSWindow* window = NativeWindowForFrame(aFrame);
   if (!window) {
     // Return fallback values.
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
     if (!nsCocoaFeatures::OnLionOrLater())
       return NSMakeSize(57, 16);
     return NSMakeSize(54, 16);
@@ -599,7 +599,7 @@ nsNativeThemeCocoa::nsNativeThemeCocoa()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
   kMaxFocusRingWidth = nsCocoaFeatures::OnYosemiteOrLater() ? 7 : 4;
 #else
   kMaxFocusRingWidth = 4; // Since we can't ever run on Yosemite
@@ -1017,7 +1017,7 @@ RenderWithCoreUILegacy(CGRect aRect, CGContextRef cgContext, NSDictionary* aOpti
 static id
 GetAquaAppearance()
 {
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
   // We only need NSAppearance on 10.10 and up.
   if (nsCocoaFeatures::OnYosemiteOrLater()) {
     Class NSAppearanceClass = NSClassFromString(@"NSAppearance");
@@ -1038,7 +1038,7 @@ GetAquaAppearance()
 static void
 RenderWithCoreUI(CGRect aRect, CGContextRef cgContext, NSDictionary* aOptions)
 {
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
   id appearance = GetAquaAppearance();
 
   if (aRect.size.width * aRect.size.height > BITMAP_MAX_AREA) {
@@ -1224,7 +1224,7 @@ nsNativeThemeCocoa::DrawSearchField(CGContextRef cgContext, const HIRect& inBoxR
 }
 
 static const NSSize kCheckmarkSize = NSMakeSize(11, 11);
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
 static const NSSize kMenuarrowSize = nsCocoaFeatures::OnLionOrLater() ?
                                      NSMakeSize(9, 10) : NSMakeSize(8, 10);
 #else
@@ -2396,7 +2396,7 @@ nsNativeThemeCocoa::GetScrollbarDrawInfo(HIThemeTrackDrawInfo& aTdi, nsIFrame *a
   // creating a TrackDrawInfo to determine the size of the thumb. There's
   // also no reason to do this on Lion or later, whose scrollbars have no
   // arrow buttons.
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
   if (aShouldGetButtonStates && !nsCocoaFeatures::OnLionOrLater()) {
 #else
   if (aShouldGetButtonStates) {
@@ -2793,7 +2793,7 @@ bool
 nsNativeThemeCocoa::IsParentScrollbarRolledOver(nsIFrame* aFrame)
 {
   nsIFrame* scrollbarFrame = GetParentScrollbarFrame(aFrame);
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
   return nsLookAndFeel::UseOverlayScrollbars()
     ? CheckBooleanAttr(scrollbarFrame, nsGkAtoms::hover)
     : GetContentState(scrollbarFrame, NS_THEME_NONE).HasState(NS_EVENT_STATE_HOVER);
@@ -2802,7 +2802,7 @@ nsNativeThemeCocoa::IsParentScrollbarRolledOver(nsIFrame* aFrame)
 #endif
 }
 
-#ifdef __LP64__
+#if USE_BACKING_SCALE_FACTOR
 static bool
 IsHiDPIContext(nsPresContext* aContext)
 {
@@ -2834,7 +2834,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
 
   AutoRestoreTransform autoRestoreTransform(&aDrawTarget);
 
-#ifdef __LP64__
+#if USE_BACKING_SCALE_FACTOR
   bool hidpi = IsHiDPIContext(aFrame->PresContext());
   if (hidpi) {
     // Use high-resolution drawing.
@@ -2855,7 +2855,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
     return NS_OK;
   }
 
-#ifdef __LP64__
+#if USE_BACKING_SCALE_FACTOR
   if (hidpi) {
     // Set the context's "base transform" to in order to get correctly-sized focus rings.
     CGContextSetBaseCTM(cgContext, CGAffineTransformMakeScale(2, 2));
@@ -2895,7 +2895,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
   switch (aWidgetType) {
     case NS_THEME_DIALOG: {
       if (IsWindowSheet(aFrame)) {
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
         if (VibrancyManager::SystemSupportsVibrancy()) {
           ThemeGeometryType type = ThemeGeometryTypeForWidget(aFrame, aWidgetType);
           DrawVibrancyBackground(cgContext, macRect, aFrame, type);
@@ -2916,7 +2916,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       break;
 
     case NS_THEME_MENUPOPUP:
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
       if (VibrancyManager::SystemSupportsVibrancy()) {
         DrawVibrancyBackground(cgContext, macRect, aFrame, eThemeGeometryTypeMenu, 4);
       } else {
@@ -3013,7 +3013,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       break;
 
     case NS_THEME_TOOLTIP:
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
       if (VibrancyManager::SystemSupportsVibrancy()) {
         DrawVibrancyBackground(cgContext, macRect, aFrame, ThemeGeometryTypeForWidget(aFrame, aWidgetType));
       } else {
@@ -3478,7 +3478,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
     }
   }
 
-#ifdef __LP64__
+#if USE_BACKING_SCALE_FACTOR
   if (hidpi) {
     // Reset the base CTM.
     CGContextSetBaseCTM(cgContext, CGAffineTransformIdentity);
@@ -3591,7 +3591,7 @@ nsNativeThemeCocoa::GetWidgetBorder(nsDeviceContext* aContext,
       bool isHorizontal = (aWidgetType == NS_THEME_SCROLLBAR_TRACK_HORIZONTAL);
 
       // On Lion and later, scrollbars have no arrows.
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if (!nsCocoaFeatures::OnLionOrLater()) {
 #endif
         // There's only an endcap to worry about when both arrows are on the bottom
@@ -3611,7 +3611,7 @@ nsNativeThemeCocoa::GetWidgetBorder(nsDeviceContext* aContext,
             aResult->SizeTo(endcapSize, 0, 0, 0);
         }
 // The use of overlay scrollbars is unpossible before 10.7.
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       }
 
       if (nsLookAndFeel::UseOverlayScrollbars()) {
@@ -3631,7 +3631,7 @@ nsNativeThemeCocoa::GetWidgetBorder(nsDeviceContext* aContext,
       break;
   }
 
-#ifdef __LP64__
+#if USE_BACKING_SCALE_FACTOR
   if (IsHiDPIContext(aFrame->PresContext())) {
     *aResult = *aResult + *aResult; // doubled
   }
@@ -3835,7 +3835,7 @@ nsNativeThemeCocoa::GetMinimumWidgetSize(nsPresContext* aPresContext,
     }
 
     case NS_THEME_MOZ_MAC_FULLSCREEN_BUTTON: {
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if ([NativeWindowForFrame(aFrame) respondsToSelector:@selector(toggleFullScreen:)] &&
           !nsCocoaFeatures::OnYosemiteOrLater()) {
         // This value is hardcoded because it's needed before we can measure the
@@ -3951,7 +3951,7 @@ nsNativeThemeCocoa::GetMinimumWidgetSize(nsPresContext* aPresContext,
     {
       *aIsOverridable = false;
 
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if (nsLookAndFeel::UseOverlayScrollbars()) {
         nsIFrame* scrollbarFrame = GetParentScrollbarFrame(aFrame);
         if (scrollbarFrame &&
@@ -4046,7 +4046,7 @@ nsNativeThemeCocoa::GetMinimumWidgetSize(nsPresContext* aPresContext,
     }
   }
 
-#ifdef __LP64__
+#if USE_BACKING_SCALE_FACTOR
   if (IsHiDPIContext(aPresContext)) {
     *aResult = *aResult * 2;
   }
@@ -4261,7 +4261,7 @@ nsNativeThemeCocoa::ThemeSupportsWidget(nsPresContext* aPresContext, nsIFrame* a
       // overriden, and the custom transparent resizer looks better when
       // scrollbars are not present.
       nsIScrollableFrame* scrollFrame = do_QueryFrame(parentFrame);
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       return (!nsLookAndFeel::UseOverlayScrollbars() &&
               scrollFrame && scrollFrame->GetScrollbarVisibility());
 #else
@@ -4274,7 +4274,7 @@ nsNativeThemeCocoa::ThemeSupportsWidget(nsPresContext* aPresContext, nsIFrame* a
 
     case NS_THEME_MAC_VIBRANCY_LIGHT:
     case NS_THEME_MAC_VIBRANCY_DARK:
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
       return VibrancyManager::SystemSupportsVibrancy();
 #else
       return false;
@@ -4485,7 +4485,7 @@ nsNativeThemeCocoa::GetWidgetTransparency(nsIFrame* aFrame, uint8_t aWidgetType)
 
   case NS_THEME_SCROLLBAR_SMALL:
   case NS_THEME_SCROLLBAR:
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
     return nsLookAndFeel::UseOverlayScrollbars() ? eTransparent : eOpaque;
 #else
     return eOpaque;
