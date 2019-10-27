@@ -7,22 +7,33 @@
 #ifndef _nspr_plvmx_h
 #define _nspr_plvmx_h
 
-#if TENFOURFOX_VMX
-
 #if defined (__cplusplus)
 extern "C" {
-#endif
+#endif /* __cplusplus */
+
+#if TENFOURFOX_VMX
 
 int   vmx_haschr(const void *b, int c, size_t len);
 void *vmx_memchr(const void *b, int c, size_t len);
 
-#if defined (__cplusplus)
-}
-#endif
-
 #define VMX_HASCHR vmx_haschr
 #define VMX_MEMCHR vmx_memchr
+
+#elif defined(__SSE2__) && __SSE2__
+/* This should have been placed in another file but this allows us to use the 
+   same file for both SSE and VMX optimized versions of memchr.  I also hacked 
+   the VMX_MEMCHR macro to avoid monkeypatching other files. */
+
+extern void *sse_memchr(const void *b, int c, size_t len);
+
+#define VMX_MEMCHR sse_memchr
+#if defined (__cplusplus)
+#  define VMX_HASCHR(a,b,c) (sse_memchr(a,b,c) != nullptr)
 #else
+#  define VMX_HASCHR(a,b,c) (!!sse_memchr(a,b,c))
+#endif /* __cplusplus */
+
+#else /* !__SSE2__ && !TENFOURFOX_VMX */
 #if defined (__cplusplus)
 #define VMX_HASCHR(a,b,c) (memchr(a,b,c) != nullptr)
 #else
@@ -31,4 +42,8 @@ void *vmx_memchr(const void *b, int c, size_t len);
 #define VMX_MEMCHR memchr
 #endif
 
-#endif
+#if defined (__cplusplus)
+}
+#endif /* __cplusplus */
+
+#endif /* _nspr_plvmx_h */

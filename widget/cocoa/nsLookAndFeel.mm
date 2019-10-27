@@ -350,7 +350,7 @@ nsLookAndFeel::GetIntImpl(IntID aID, int32_t &aResult)
       aResult = 4;
       return res;
     case eIntID_ScrollArrowStyle:
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if (nsCocoaFeatures::OnLionOrLater()) {
         // OS X Lion's scrollbars have no arrows
         aResult = eScrollArrow_None;
