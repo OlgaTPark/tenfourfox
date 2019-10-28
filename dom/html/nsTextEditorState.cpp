@@ -1384,19 +1384,16 @@ nsTextEditorState::PrepareEditor(const nsAString *aValue)
     }
   }
 
-  if (shouldInitializeEditor) {
-    // Initialize the plaintext editor
-    nsCOMPtr<nsIPlaintextEditor> textEditor(do_QueryInterface(newEditor));
-    if (textEditor) {
+  // Initialize the plaintext editor
+  nsCOMPtr<nsIPlaintextEditor> textEditor = do_QueryInterface(newEditor);
+  if (textEditor) {
+    if (shouldInitializeEditor) {
       // Set up wrapping
       textEditor->SetWrapColumn(GetWrapCols());
-
-      // Set max text field length
-      int32_t maxLength;
-      if (GetMaxLength(&maxLength)) { 
-        textEditor->SetMaxTextLength(maxLength);
-      }
     }
+
+    // Set max text field length
+    textEditor->SetMaxTextLength(GetMaxLength());
   }
 
   nsCOMPtr<nsIContent> content = do_QueryInterface(mTextCtrlElement);
@@ -1702,6 +1699,8 @@ nsTextEditorState::UnbindFromFrame(nsTextControlFrame* aFrame)
   }
 
   mBoundFrame = nullptr;
+  // Clear mRootNode so that we don't unexpectedly notify below.
+  nsCOMPtr<Element> rootNode = mRootNode.forget();
 
   // Now that we don't have a frame any more, store the value in the text buffer.
   // The only case where we don't do this is if a value transfer is in progress.
@@ -1711,15 +1710,15 @@ nsTextEditorState::UnbindFromFrame(nsTextControlFrame* aFrame)
     NS_ENSURE_TRUE_VOID(success);
   }
 
-  if (mRootNode && mMutationObserver) {
-    mRootNode->RemoveMutationObserver(mMutationObserver);
+  if (rootNode && mMutationObserver) {
+    rootNode->RemoveMutationObserver(mMutationObserver);
     mMutationObserver = nullptr;
   }
 
   // Unbind the anonymous content from the tree.
   // We actually hold a reference to the content nodes so that
   // they're not actually destroyed.
-  nsContentUtils::DestroyAnonymousContent(&mRootNode);
+  nsContentUtils::DestroyAnonymousContent(&rootNode);
   nsContentUtils::DestroyAnonymousContent(&mPlaceholderDiv);
 }
 
@@ -1840,22 +1839,22 @@ be called if @placeholder is the empty string when trimmed from line breaks");
   return NS_OK;
 }
 
-bool
-nsTextEditorState::GetMaxLength(int32_t* aMaxLength)
+int32_t
+nsTextEditorState::GetMaxLength()
 {
   nsCOMPtr<nsIContent> content = do_QueryInterface(mTextCtrlElement);
   nsGenericHTMLElement* element =
     nsGenericHTMLElement::FromContentOrNull(content);
-  NS_ENSURE_TRUE(element, false);
+  if (MOZ_UNLIKELY(!element)) {
+    return -1;
+  }
 
   const nsAttrValue* attr = element->GetParsedAttr(nsGkAtoms::maxlength);
   if (attr && attr->Type() == nsAttrValue::eInteger) {
-    *aMaxLength = attr->GetIntegerValue();
-
-    return true;
+    return attr->GetIntegerValue();
   }
 
-  return false;
+  return -1;
 }
 
 void

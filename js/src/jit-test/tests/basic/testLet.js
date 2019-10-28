@@ -179,6 +179,7 @@ isParseError('for (let [x, y, x] in o) {}');
 isParseError('for (let [x, [y, [x]]] in o) {}');
 
 // for(let ... in ...) scoping bugs (bug 1069480)
+// XXX: ES6 now requires these to be ReferenceErrors; see the test from ESR52.
 test('for each (let [x, y] in x) {return x + y;}', [['ponies', '']], undefined);
 test('for each (let [{0: x, 1: y}, z] in x) {return x + y + z;}', [[['po','nies'], '']], undefined);
 test('for (let x in eval("x")) {return x;}', {ponies:true}, undefined);

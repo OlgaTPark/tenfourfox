@@ -953,23 +953,13 @@ nsEditor::EndPlaceHolderTransaction()
       selection->SetCanCacheFrameOffset(true);
     }
 
-    {
-      // Hide the caret here to avoid hiding it twice, once in EndUpdateViewBatch
-      // and once in ScrollSelectionIntoView.
-      RefPtr<nsCaret> caret;
-      nsCOMPtr<nsIPresShell> presShell = GetPresShell();
+    // time to turn off the batch
+    EndUpdateViewBatch();
+    // make sure selection is in view
 
-      if (presShell)
-        caret = presShell->GetCaret();
-
-      // time to turn off the batch
-      EndUpdateViewBatch();
-      // make sure selection is in view
-
-      // After ScrollSelectionIntoView(), the pending notifications might be
-      // flushed and PresShell/PresContext/Frames may be dead. See bug 418470.
-      ScrollSelectionIntoView(false);
-    }
+    // After ScrollSelectionIntoView(), the pending notifications might be
+    // flushed and PresShell/PresContext/Frames may be dead. See bug 418470.
+    ScrollSelectionIntoView(false);
 
     // cached for frame offset are Not available now
     if (selection) {
@@ -4781,6 +4771,24 @@ nsEditor::InitializeSelection(nsIDOMEventTarget* aFocusEventTarget)
   return NS_OK;
 }
 
+class RepaintSelectionRunner final : public nsRunnable {
+public:
+  explicit RepaintSelectionRunner(nsISelectionController* aSelectionController)
+    : mSelectionController(aSelectionController)
+  {
+  }
+
+  NS_IMETHOD Run() override
+  {
+    mSelectionController->RepaintSelection(
+                            nsISelectionController::SELECTION_NORMAL);
+    return NS_OK;
+  }
+
+private:
+  nsCOMPtr<nsISelectionController> mSelectionController;
+};
+
 NS_IMETHODIMP
 nsEditor::FinalizeSelection()
 {
@@ -4829,7 +4837,10 @@ nsEditor::FinalizeSelection()
     selCon->SetDisplaySelection(nsISelectionController::SELECTION_DISABLED);
   }
 
-  selCon->RepaintSelection(nsISelectionController::SELECTION_NORMAL);
+  // FinalizeSelection might be called from ContentRemoved even if selection
+  // isn't updated.  So we need to call RepaintSelection after updated it.
+  nsContentUtils::AddScriptRunner(
+                    new RepaintSelectionRunner(selCon));
   return NS_OK;
 }
 

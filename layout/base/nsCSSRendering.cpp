@@ -4897,8 +4897,10 @@ nsImageRenderer::ComputeIntrinsicSize()
               appUnitsPerDevPixel));
         }
       } else {
+        /* This is an obnoxious assertion.
         NS_ASSERTION(mImageElementSurface.GetSourceSurface(),
                      "Surface should be ready.");
+        */
         IntSize surfaceSize = mImageElementSurface.mSize;
         result.SetSize(
           nsSize(nsPresContext::CSSPixelsToAppUnits(surfaceSize.width),

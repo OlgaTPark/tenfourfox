@@ -597,7 +597,7 @@ public:
   NSView<mozView>* GetEditorView();
 #endif
 
-  nsCocoaWindow*    GetXULWindowWidget();
+  nsCocoaWindow*    GetXULWindowWidget() const;
 
   NS_IMETHOD        ReparentNativeWidget(nsIWidget* aNewParent) override;
 

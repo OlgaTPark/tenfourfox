@@ -717,7 +717,6 @@ template <typename ParseHandler>
 Parser<ParseHandler>::~Parser()
 {
     MOZ_ASSERT(checkOptionsCalled);
-
     alloc.release(tempPoolMark);
 
     /*
@@ -1541,6 +1540,15 @@ struct BindData
     bool isAnnexB() {
         MOZ_ASSERT(isInitialized());
         return isAnnexB_;
+    }
+
+    // The BoundNames of LexicalDeclaration and ForDeclaration must not contain
+    // 'let'.  (CatchParameter is the only lexical binding form without this
+    // restriction.)
+    bool mustNotBindLet() {
+        MOZ_ASSERT(isInitialized());
+        return isConst_ ||
+               (kind_ == LexicalBinding && letData_.overflow != JSMSG_TOO_MANY_CATCH_VARS);
     }
 
     const LetData& letData() {
@@ -3595,6 +3603,13 @@ Parser<FullParseHandler>::bindLexical(BindData<FullParseHandler>* data,
         return false;
 
     ExclusiveContext* cx = parser->context;
+
+    // Most lexical declaration patterns can't bind the name 'let'.
+    if (data->mustNotBindLet() && name == cx->names().let) {
+        parser->report(ParseError, false, pn, JSMSG_LEXICAL_DECL_DEFINES_LET);
+        return false;
+    }
+
     Rooted<StaticBlockObject*> blockObj(cx, data->letData().blockObj);
 
     uint32_t index = StaticBlockObject::LOCAL_INDEX_LIMIT;
@@ -3850,6 +3865,70 @@ Parser<ParseHandler>::AutoPushStmtInfoPC::makeInnermostLexicalScope(StaticBlockO
 }
 
 template <typename ParseHandler>
+Parser<ParseHandler>::PossibleError::PossibleError(Parser<ParseHandler>& parser)
+                                                   : parser_(parser)
+{
+    state_ = ErrorState::None;
+}
+
+template <typename ParseHandler>
+void
+Parser<ParseHandler>::PossibleError::setPending(ParseReportKind kind, unsigned errorNumber,
+                                                bool strict)
+{
+    // If we report an error later, we'll do it from the position where we set
+    // the state to pending.
+    offset_      = parser_.pos().begin;
+    reportKind_  = kind;
+    strict_      = strict;
+    errorNumber_ = errorNumber;
+    state_       = ErrorState::Pending;
+}
+
+template <typename ParseHandler>
+void
+Parser<ParseHandler>::PossibleError::setResolved()
+{
+    state_ = ErrorState::None;
+}
+
+template <typename ParseHandler>
+bool
+Parser<ParseHandler>::PossibleError::hasError()
+{
+    return state_ == ErrorState::Pending;
+}
+
+template <typename ParseHandler>
+bool
+Parser<ParseHandler>::PossibleError::checkForExprErrors()
+{
+    bool err = hasError();
+    if (err) {
+        parser_.reportWithOffset(reportKind_, strict_, offset_, errorNumber_);
+    }
+    return !err;
+}
+
+template <typename ParseHandler>
+void
+Parser<ParseHandler>::PossibleError::transferErrorTo(PossibleError* other)
+{
+    if (other) {
+        MOZ_ASSERT(this != other);
+        MOZ_ASSERT(!other->hasError());
+        // We should never allow fields to be copied between instances
+        // that point to different underlying parsers.
+        MOZ_ASSERT(&parser_ == &other->parser_);
+        other->offset_        = offset_;
+        other->reportKind_    = reportKind_;
+        other->errorNumber_   = errorNumber_;
+        other->strict_        = strict_;
+        other->state_         = state_;
+    }
+}
+
+template <typename ParseHandler>
 static inline bool
 OuterLet(ParseContext<ParseHandler>* pc, StmtInfoPC* stmt, HandleAtom atom)
 {
@@ -4101,7 +4180,7 @@ Parser<FullParseHandler>::checkDestructuringName(BindData<FullParseHandler>* dat
     if (data) {
         // Destructuring patterns in declarations must only contain
         // unparenthesized names.
-        if (!handler.maybeUnparenthesizedName(expr)) {
+        if (!handler.isUnparenthesizedName(expr)) {
             report(ParseError, false, expr, JSMSG_NO_VARIABLE_NAME);
             return false;
         }
@@ -4117,7 +4196,7 @@ Parser<FullParseHandler>::checkDestructuringName(BindData<FullParseHandler>* dat
                "function calls shouldn't be considered valid targets in "
                "destructuring patterns");
 
-    if (handler.maybeNameAnyParentheses(expr)) {
+    if (handler.isNameAnyParentheses(expr)) {
         // The arguments/eval identifiers are simple in non-strict mode code.
         // Warn to discourage their use nonetheless.
         if (!reportIfArgumentsEvalTarget(expr))
@@ -4285,7 +4364,8 @@ Parser<ParseHandler>::destructuringExpr(YieldHandling yieldHandling, BindData<Pa
     MOZ_ASSERT(tokenStream.isCurrentTokenType(tt));
 
     pc->inDeclDestructuring = true;
-    Node pn = primaryExpr(yieldHandling, TripledotProhibited, tt);
+    Node pn = primaryExpr(yieldHandling, TripledotProhibited,
+                          nullptr /* possibleError */, tt);
     pc->inDeclDestructuring = false;
     if (!pn)
         return null();
@@ -4432,6 +4512,296 @@ Parser<ParseHandler>::newBindingNode(PropertyName* name, bool functionScope, Var
     return newName(name);
 }
 
+template <typename ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::expressionAfterForInOrOf(ParseNodeKind forHeadKind,
+                                               YieldHandling yieldHandling)
+{
+    MOZ_ASSERT(forHeadKind == PNK_FORIN || forHeadKind == PNK_FOROF);
+    Node pn = forHeadKind == PNK_FOROF
+           ? assignExpr(InAllowed, yieldHandling, TripledotProhibited)
+           : expr(InAllowed, yieldHandling, TripledotProhibited);
+    return pn;
+}
+
+template <typename ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::declarationPattern(Node decl, TokenKind tt, BindData<ParseHandler>* data,
+                                         bool initialDeclaration, YieldHandling yieldHandling,
+                                         ParseNodeKind* forHeadKind,
+                                         Node* forInOrOfExpression)
+{
+    MOZ_ASSERT(tokenStream.isCurrentTokenType(TOK_LB) ||
+               tokenStream.isCurrentTokenType(TOK_LC));
+
+    Node pattern;
+    {
+        pc->inDeclDestructuring = true;
+
+        // No possible error is required because we already know we're
+        // destructuring.
+        pattern = primaryExpr(yieldHandling, TripledotProhibited,
+                              nullptr /* possibleError */ , tt);
+        pc->inDeclDestructuring = false;
+    }
+    if (!pattern)
+        return null();
+
+    if (initialDeclaration && forHeadKind) {
+        bool isForIn, isForOf;
+        if (!matchInOrOf(&isForIn, &isForOf))
+            return null();
+
+        if (isForIn)
+            *forHeadKind = PNK_FORIN;
+        else if (isForOf)
+            *forHeadKind = PNK_FOROF;
+        else
+            *forHeadKind = PNK_FORHEAD;
+
+        if (*forHeadKind != PNK_FORHEAD) {
+            // |for (const ... in ...);| and |for (const ... of ...);| are
+            // syntax errors for now.  We'll fix this in bug 449811.
+            if (handler.declarationIsConst(decl)) {
+                report(ParseError, false, pattern, JSMSG_BAD_CONST_DECL);
+                return null();
+            }
+
+            if (!checkDestructuringPattern(data, pattern))
+                return null();
+
+            *forInOrOfExpression = expressionAfterForInOrOf(*forHeadKind, yieldHandling);
+            if (!*forInOrOfExpression)
+                return null();
+
+            return pattern;
+        }
+    }
+
+    // See comment below for bindBeforeInitializer in the code that
+    // handles the non-destructuring case.
+    bool bindBeforeInitializer = handler.declarationIsVar(decl);
+    if (bindBeforeInitializer) {
+        if (!checkDestructuringPattern(data, pattern))
+            return null();
+    }
+
+    TokenKind token;
+    if (!tokenStream.getToken(&token, TokenStream::None))
+        return null();
+
+    if (token != TOK_ASSIGN) {
+        report(ParseError, false, null(), JSMSG_BAD_DESTRUCT_DECL);
+        return null();
+    }
+
+    Node init = assignExpr(forHeadKind ? InProhibited : InAllowed,
+                           yieldHandling, TripledotProhibited);
+    if (!init)
+        return null();
+
+    if (forHeadKind) {
+        // For for(;;) declarations, consistency with |for (;| parsing requires
+        // that the ';' first be examined as Operand, even though absence of a
+        // binary operator (examined with modifier None) terminated |init|.
+        // For all other declarations, through ASI's infinite majesty, a next
+        // token on a new line would begin an expression.
+        tokenStream.addModifierException(TokenStream::OperandIsNone);
+    }
+
+    if (!bindBeforeInitializer) {
+        if (!checkDestructuringPattern(data, pattern))
+            return null();
+    }
+
+    return handler.newBinary(PNK_ASSIGN, pattern, init);
+}
+
+template <typename ParseHandler>
+bool
+Parser<ParseHandler>::initializerInNameDeclaration(Node decl, Node binding,
+                                                   Handle<PropertyName*> name,
+                                                   BindData<ParseHandler>* data,
+                                                   bool initialDeclaration,
+                                                   YieldHandling yieldHandling,
+                                                   ParseNodeKind* forHeadKind,
+                                                   Node* forInOrOfExpression)
+{
+    MOZ_ASSERT(tokenStream.isCurrentTokenType(TOK_ASSIGN));
+
+    // Lexical bindings can't be accessed until initialized.  A declaration
+    // of the form |let x = x| raises a ReferenceError, as the 'x' on the
+    // RHS accesses the binding before it's initialized.
+    //
+    // If we're not parsing a lexical declaration, bind the name now.
+    // Otherwise we must wait until after parsing the initializing
+    // assignment.
+    bool bindBeforeInitializer = handler.declarationIsVar(decl);
+    if (bindBeforeInitializer) {
+        if (!data->bind(name, this))
+            return false;
+    }
+
+    Node initializer = assignExpr(forHeadKind ? InProhibited : InAllowed,
+                                  yieldHandling, TripledotProhibited);
+    if (!initializer)
+        return false;
+
+    bool performAssignment = true;
+    if (forHeadKind) {
+        if (initialDeclaration) {
+            bool isForIn, isForOf;
+            if (!matchInOrOf(&isForIn, &isForOf))
+                return false;
+
+            // An initialized declaration can't appear in a for-of:
+            //
+            //   for (var/let/const x = ... of ...); // BAD
+            if (isForOf) {
+                report(ParseError, false, binding, JSMSG_BAD_FOR_LEFTSIDE);
+                return false;
+            }
+
+            if (isForIn) {
+                // Lexical declarations in for-in loops can't be initialized:
+                //
+                //   for (let/const x = ... in ...); // BAD
+                if (!handler.declarationIsVar(decl)) {
+                    report(ParseError, false, binding, JSMSG_BAD_FOR_LEFTSIDE);
+                    return false;
+                }
+
+                // This leaves only initialized for-in |var| declarations.  ES6
+                // forbids these, yet they sadly still occur, rarely, on the
+                // web.  *Don't* assign, and warn about this invalid syntax to
+                // incrementally move to ES6 semantics.
+                *forHeadKind = PNK_FORIN;
+                performAssignment = false;
+                if (!report(ParseWarning, pc->sc->strict(), initializer,
+                            JSMSG_INVALID_FOR_IN_DECL_WITH_INIT))
+                {
+                    return false;
+                }
+
+                *forInOrOfExpression = expressionAfterForInOrOf(PNK_FORIN, yieldHandling);
+                if (!*forInOrOfExpression)
+                    return null();
+            } else {
+                *forHeadKind = PNK_FORHEAD;
+            }
+        }
+
+        if (*forHeadKind == PNK_FORHEAD) {
+            // Per Parser::forHeadStart, the semicolon in |for (;| is
+            // ultimately gotten as Operand.  But initializer expressions
+            // terminate with the absence of an operator gotten as None, so we
+            // need an exception.
+            tokenStream.addModifierException(TokenStream::OperandIsNone);
+        }
+    }
+
+    if (performAssignment) {
+        if (!bindBeforeInitializer && !data->bind(name, this))
+            return false;
+
+        if (!handler.finishInitializerAssignment(binding, initializer))
+            return false;
+    }
+
+    return true;
+}
+
+template <typename ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::declarationName(Node decl, TokenKind tt, BindData<ParseHandler>* data,
+                                      bool initialDeclaration, YieldHandling yieldHandling,
+                                      ParseNodeKind* forHeadKind, Node* forInOrOfExpression)
+{
+    if (tt != TOK_NAME) {
+        // Anything other than TOK_YIELD or TOK_NAME is an error.
+        if (tt != TOK_YIELD) {
+            report(ParseError, false, null(), JSMSG_NO_VARIABLE_NAME);
+            return null();
+        }
+
+        // TOK_YIELD is only okay if it's treated as a name.
+        if (!checkYieldNameValidity())
+            return null();
+    }
+
+    RootedPropertyName name(context, tokenStream.currentName());
+    Node binding = newBindingNode(name, handler.declarationIsVar(decl), HoistVars);
+    if (!binding)
+        return null();
+    MOZ_ASSERT(data->isConst() == handler.declarationIsConst(decl));
+    if (data->isConst())
+        handler.setFlag(binding, PND_CONST);
+    data->setNameNode(binding);
+
+    // The '=' context after a variable name in a declaration is an opportunity
+    // for ASI, and thus for the next token to start an ExpressionStatement:
+    //
+    //  var foo   // VariableDeclaration
+    //  /bar/g;   // ExpressionStatement
+    //
+    // Therefore get the token here as Operand.
+    bool matched;
+    if (!tokenStream.matchToken(&matched, TOK_ASSIGN, TokenStream::Operand))
+        return null();
+
+    if (matched) {
+        if (!initializerInNameDeclaration(decl, binding, name, data, initialDeclaration,
+                                          yieldHandling, forHeadKind, forInOrOfExpression))
+        {
+            return null();
+        }
+    } else {
+        tokenStream.addModifierException(TokenStream::NoneIsOperand);
+
+        bool constRequiringInitializer = handler.declarationIsConst(decl);
+        if (initialDeclaration && forHeadKind) {
+            bool isForIn, isForOf;
+            if (!matchInOrOf(&isForIn, &isForOf))
+                return null();
+
+            if (isForIn || isForOf) {
+                // XXX Uncomment this when fixing bug 449811.  Until then,
+                //     |for (const ... in/of ...)| remains an error.
+                //constRequiringInitializer = false;
+
+                *forHeadKind = isForIn ? PNK_FORIN : PNK_FOROF;
+            } else {
+                *forHeadKind = PNK_FORHEAD;
+            }
+        }
+
+        if (constRequiringInitializer) {
+            report(ParseError, false, binding, JSMSG_BAD_CONST_DECL);
+            return null();
+        }
+
+        bool bindBeforeInitializer = handler.declarationIsVar(decl);
+        if (bindBeforeInitializer) {
+            if (!data->bind(name, this))
+                return null();
+        }
+
+        if (forHeadKind && *forHeadKind != PNK_FORHEAD) {
+            *forInOrOfExpression = expressionAfterForInOrOf(*forHeadKind, yieldHandling);
+            if (!*forInOrOfExpression)
+                return null();
+        }
+
+        if (!bindBeforeInitializer) {
+            if (!data->bind(name, this))
+                return null();
+        }
+    }
+
+    handler.setLexicalDeclarationOp(binding, data->op());
+    return binding;
+}
+
 /*
  * The 'blockObj' parameter is non-null when parsing the 'vars' in a let
  * expression, block statement, non-top-level let declaration in statement
@@ -4439,18 +4809,14 @@ Parser<ParseHandler>::newBindingNode(PropertyName* name, bool functionScope, Var
  */
 template <typename ParseHandler>
 typename ParseHandler::Node
-Parser<ParseHandler>::variables(YieldHandling yieldHandling,
-                                ParseNodeKind kind,
-                                ForInitLocation location,
-                                bool* psimple, StaticBlockObject* blockObj, VarContext varContext)
+Parser<ParseHandler>::declarationList(YieldHandling yieldHandling,
+                                      ParseNodeKind kind,
+                                      StaticBlockObject* blockObj /* = nullptr */,
+                                      ParseNodeKind* forHeadKind /* = nullptr */,
+                                      Node* forInOrOfExpression /* = nullptr */)
 {
-    MOZ_ASSERT(kind == PNK_VAR || kind == PNK_CONST || kind == PNK_LET);
-
-    /*
-     * The simple flag is set if the declaration has the form 'var x', with
-     * only one variable declared and no initializer expression.
-     */
-    MOZ_ASSERT_IF(psimple, *psimple);
+    MOZ_ASSERT(kind == PNK_VAR || kind == PNK_LET || kind == PNK_CONST);
+    MOZ_ASSERT_IF(blockObj != nullptr, kind == PNK_LET || kind == PNK_CONST);
 
     JSOp op;
     switch (kind) {
@@ -4460,193 +4826,46 @@ Parser<ParseHandler>::variables(YieldHandling yieldHandling,
       default: MOZ_CRASH("unknown variable kind");
     }
 
-    Node pn = handler.newDeclarationList(kind, op);
-    if (!pn)
+    Node decl = handler.newDeclarationList(kind, op);
+    if (!decl)
         return null();
 
     BindData<ParseHandler> data(context);
     if (kind == PNK_VAR)
         data.initVar(op);
     else
-        data.initLexical(varContext, op, blockObj, JSMSG_TOO_MANY_LOCALS);
+        data.initLexical(HoistVars, op, blockObj, JSMSG_TOO_MANY_LOCALS);
 
-    bool first = true;
-    Node pn2;
-    while (true) {
-        do {
-            if (psimple && !first)
-                *psimple = false;
-            first = false;
+    bool matched;
+    bool initialDeclaration = true;
+    do {
+        MOZ_ASSERT_IF(!initialDeclaration && forHeadKind,
+                      *forHeadKind == PNK_FORHEAD);
 
-            TokenKind tt;
-            if (!tokenStream.getToken(&tt))
-                return null();
-            if (tt == TOK_LB || tt == TOK_LC) {
-                if (psimple)
-                    *psimple = false;
+        TokenKind tt;
+        if (!tokenStream.getToken(&tt))
+            return null();
 
-                pc->inDeclDestructuring = true;
-                pn2 = primaryExpr(yieldHandling, TripledotProhibited, tt);
-                pc->inDeclDestructuring = false;
-                if (!pn2)
-                    return null();
+        Node binding = (tt == TOK_LB || tt == TOK_LC)
+                       ? declarationPattern(decl, tt, &data, initialDeclaration, yieldHandling,
+                                            forHeadKind, forInOrOfExpression)
+                       : declarationName(decl, tt, &data, initialDeclaration, yieldHandling,
+                                         forHeadKind, forInOrOfExpression);
+        if (!binding)
+            return null();
 
-                bool parsingForInOrOfInit = false;
-                if (location == InForInit) {
-                    bool isForIn, isForOf;
-                    if (!matchInOrOf(&isForIn, &isForOf))
-                        return null();
-                    parsingForInOrOfInit = isForIn || isForOf;
-                }
+        handler.addList(decl, binding);
 
-                // See comment below for bindBeforeInitializer in the code that
-                // handles the non-destructuring case.
-                bool bindBeforeInitializer = (kind != PNK_LET && kind != PNK_CONST) ||
-                                             parsingForInOrOfInit;
-                if (bindBeforeInitializer && !checkDestructuringPattern(&data, pn2))
-                    return null();
+        if (forHeadKind && *forHeadKind != PNK_FORHEAD)
+            break;
 
-                if (parsingForInOrOfInit) {
-                    tokenStream.ungetToken();
-                    handler.addList(pn, pn2);
-                    break;
-                }
+        initialDeclaration = false;
 
-                MUST_MATCH_TOKEN(TOK_ASSIGN, JSMSG_BAD_DESTRUCT_DECL);
-
-                Node init = assignExpr(location == InForInit ? InProhibited : InAllowed,
-                                       yieldHandling, TripledotProhibited);
-                if (!init)
-                    return null();
-
-                // Ban the nonsensical |for (var V = E1 in E2);| where V is a
-                // destructuring pattern.  See bug 1164741 for background.
-                if (location == InForInit && kind == PNK_VAR) {
-                    TokenKind afterInit;
-                    if (!tokenStream.peekToken(&afterInit))
-                        return null();
-                    if (afterInit == TOK_IN) {
-                        report(ParseError, false, init, JSMSG_INVALID_FOR_INOF_DECL_WITH_INIT,
-                               "in");
-                        return null();
-                    }
-                }
-
-                if (!bindBeforeInitializer && !checkDestructuringPattern(&data, pn2))
-                    return null();
-
-                pn2 = handler.newBinary(PNK_ASSIGN, pn2, init);
-                if (!pn2)
-                    return null();
-
-                handler.addList(pn, pn2);
-                break;
-            }
-
-            if (tt != TOK_NAME) {
-                if (tt == TOK_YIELD) {
-                    if (!checkYieldNameValidity())
-                        return null();
-                } else {
-                    report(ParseError, false, null(), JSMSG_NO_VARIABLE_NAME);
-                    return null();
-                }
-            }
-
-            RootedPropertyName name(context, tokenStream.currentName());
-            pn2 = newBindingNode(name, kind == PNK_VAR, varContext);
-            if (!pn2)
-                return null();
-            if (data.isConst())
-                handler.setFlag(pn2, PND_CONST);
-            data.setNameNode(pn2);
-
-            handler.addList(pn, pn2);
-
-            bool matched;
-            // The '=' context after a variable name in a declaration is an
-            // opportunity for ASI, and thus for the next token to start an
-            // ExpressionStatement:
-            //
-            //  var foo   // VariableDeclaration
-            //  /bar/g;   // ExpressionStatement
-            //
-            // Therefore we must get the token here as Operand.
-            if (!tokenStream.matchToken(&matched, TOK_ASSIGN, TokenStream::Operand))
-                return null();
-            if (!matched) {
-                tokenStream.addModifierException(TokenStream::NoneIsOperand);
-
-                if (data.isConst() && location == NotInForInit) {
-                    report(ParseError, false, null(), JSMSG_BAD_CONST_DECL);
-                    return null();
-                }
-
-                if (!data.bind(name, this))
-                    return null();
-            } else {
-                if (psimple)
-                    *psimple = false;
-
-                // In ES6, lexical bindings may not be accessed until
-                // initialized. So a declaration of the form |let x = x| results
-                // in a ReferenceError, as the 'x' on the RHS is accessing the let
-                // binding before it is initialized.
-                //
-                // If we are not parsing a let declaration, bind the name
-                // now. Otherwise we must wait until after parsing the initializing
-                // assignment.
-                bool bindBeforeInitializer = kind != PNK_LET && kind != PNK_CONST;
-                if (bindBeforeInitializer && !data.bind(name, this))
-                    return null();
-
-                Node init = assignExpr(location == InForInit ? InProhibited : InAllowed,
-                                       yieldHandling, TripledotProhibited);
-                if (!init)
-                    return null();
-
-                // Ignore an initializer if we have a for-in loop declaring a
-                // |var| with an initializer: |for (var v = ... in ...);|.
-                // Warn that this syntax is invalid so that developers looking
-                // in the console know to fix this.  ES<6 permitted the
-                // initializer while ES6 doesn't; ignoring it seems the best
-                // way to incrementally move to ES6 semantics.
-                bool performAssignment = true;
-                if (location == InForInit && kind == PNK_VAR) {
-                    TokenKind afterInit;
-                    if (!tokenStream.peekToken(&afterInit))
-                        return null();
-                    if (afterInit == TOK_IN) {
-                        performAssignment = false;
-                        if (!report(ParseWarning, pc->sc->strict(), init,
-                                    JSMSG_INVALID_FOR_INOF_DECL_WITH_INIT, "in"))
-                        {
-                            return null();
-                        }
-                    }
-                }
-
-                if (performAssignment) {
-                    if (!bindBeforeInitializer && !data.bind(name, this))
-                        return null();
-
-                    if (!handler.finishInitializerAssignment(pn2, init))
-                        return null();
-                }
-            }
-
-            handler.setLexicalDeclarationOp(pn2, data.op());
-            handler.setEndPosition(pn, pn2);
-        } while (false);
-
-        bool matched;
         if (!tokenStream.matchToken(&matched, TOK_COMMA))
             return null();
-        if (!matched)
-            break;
-    }
+    } while (matched);
 
-    return pn;
+    return decl;
 }
 
 template <>
@@ -4761,6 +4980,21 @@ CurrentLexicalStaticBlock(ParseContext<FullParseHandler>* pc)
 }
 
 template <>
+void
+Parser<SyntaxParseHandler>::assertCurrentLexicalStaticBlockIs(ParseContext<SyntaxParseHandler>* pc,
+                                                              Handle<StaticBlockObject*> blockObj)
+{
+}
+
+template <>
+void
+Parser<FullParseHandler>::assertCurrentLexicalStaticBlockIs(ParseContext<FullParseHandler>* pc,
+                                                            Handle<StaticBlockObject*> blockObj)
+{
+    MOZ_ASSERT(CurrentLexicalStaticBlock(pc) == blockObj);
+}
+
+template <>
 bool
 Parser<FullParseHandler>::prepareAndBindInitializedLexicalWithNode(HandlePropertyName name,
                                                                    PrepareLexicalKind prepareWhat,
@@ -4822,12 +5056,13 @@ Parser<FullParseHandler>::lexicalDeclaration(YieldHandling yieldHandling, bool i
      *
      * See 8.1.1.1.6 and the note in 13.2.1.
      */
-    ParseNodeKind kind = isConst ? PNK_CONST : PNK_LET;
-    ParseNode* pn = variables(yieldHandling, kind, NotInForInit,
-                              nullptr, CurrentLexicalStaticBlock(pc), HoistVars);
-    if (!pn)
+    ParseNode* decl =
+        declarationList(yieldHandling, isConst ? PNK_CONST : PNK_LET,
+                        CurrentLexicalStaticBlock(pc));
+    if (!decl || !MatchOrInsertSemicolonAfterExpression(tokenStream))
         return null();
-    return MatchOrInsertSemicolonAfterExpression(tokenStream) ? pn : nullptr;
+
+    return decl;
 }
 
 template <>
@@ -5282,7 +5517,7 @@ Parser<FullParseHandler>::exportDeclaration()
       }
 
       case TOK_VAR:
-        kid = variables(YieldIsName, PNK_VAR, NotInForInit);
+        kid = declarationList(YieldIsName, PNK_VAR);
         if (!kid)
             return null();
         if (!MatchOrInsertSemicolonAfterExpression(tokenStream))
@@ -5477,6 +5712,7 @@ Parser<ParseHandler>::matchInOrOf(bool* isForInp, bool* isForOfp)
     TokenKind tt;
     if (!tokenStream.getToken(&tt))
         return false;
+
     *isForInp = tt == TOK_IN;
     *isForOfp = tt == TOK_NAME && tokenStream.currentToken().name() == context->names().of;
     if (!*isForInp && !*isForOfp) {
@@ -5485,51 +5721,179 @@ Parser<ParseHandler>::matchInOrOf(bool* isForInp, bool* isForOfp)
         if (tt == TOK_NAME && !checkUnescapedName())
             return false;
     }
+
+    MOZ_ASSERT_IF(*isForInp || *isForOfp, *isForInp != *isForOfp);
     return true;
 }
 
-template <>
+template <class ParseHandler>
 bool
-Parser<FullParseHandler>::isValidForStatementLHS(ParseNode* pn1, JSVersion version,
-                                                 bool isForDecl, bool isForEach,
-                                                 ParseNodeKind headKind)
+Parser<ParseHandler>::validateForInOrOfLHSExpression(Node target)
 {
-    if (isForDecl)
-        return pn1->pn_count < 2 && !pn1->isKind(PNK_CONST);
+    if (handler.isUnparenthesizedDestructuringPattern(target))
+        return checkDestructuringPattern(nullptr, target);
 
-    switch (pn1->getKind()) {
-      case PNK_ARRAY:
-      case PNK_CALL:
-      case PNK_DOT:
-      case PNK_ELEM:
-      case PNK_NAME:
-      case PNK_OBJECT:
+    // All other permitted targets are simple.
+    if (!reportIfNotValidSimpleAssignmentTarget(target, ForInOrOfTarget))
+        return false;
+
+    if (handler.isPropertyAccess(target))
         return true;
 
-      default:
+    if (handler.isNameAnyParentheses(target)) {
+        // The arguments/eval identifiers are simple in non-strict mode code,
+        // but warn to discourage use nonetheless.
+        if (!reportIfArgumentsEvalTarget(target))
+            return false;
+
+        handler.adjustGetToSet(target);
+        handler.markAsAssigned(target);
+        return true;
+    }
+
+    if (handler.isFunctionCall(target))
+        return makeSetCall(target, JSMSG_BAD_FOR_LEFTSIDE);
+
+    report(ParseError, false, target, JSMSG_BAD_FOR_LEFTSIDE);
+    return false;
+}
+
+template <class ParseHandler>
+bool
+Parser<ParseHandler>::forHeadStart(YieldHandling yieldHandling,
+                                   ParseNodeKind* forHeadKind,
+                                   Node* forInitialPart,
+                                   Maybe<AutoPushStmtInfoPC>& letStmt,
+                                   MutableHandle<StaticBlockObject*> blockObj,
+                                   Node* forLetImpliedBlock,
+                                   Node* forInOrOfExpression)
+{
+    MOZ_ASSERT(tokenStream.isCurrentTokenType(TOK_LP));
+
+    TokenKind tt;
+    if (!tokenStream.peekToken(&tt, TokenStream::Operand))
+        return null();
+
+    // Super-duper easy case: |for (;| is a C-style for-loop with no init
+    // component.
+    if (tt == TOK_SEMI) {
+        *forInitialPart = null();
+        *forHeadKind = PNK_FORHEAD;
+        return true;
+    }
+
+    // Parsing after |for (var| is also relatively simple (from this method's
+    // point of view).  No block-related work complicates matters, so delegate
+    // to Parser::declaration.
+    if (tt == TOK_VAR) {
+        tokenStream.consumeKnownToken(tt, TokenStream::Operand);
+
+        // Pass null for block object because |var| declarations don't use one.
+        *forInitialPart = declarationList(yieldHandling, PNK_VAR, nullptr, forHeadKind,
+                                          forInOrOfExpression);
+        return *forInitialPart != null();
+    }
+
+    // Otherwise we have a lexical declaration or an expression.
+
+    // For-in loop backwards compatibility requires that |let| starting a
+    // for-loop that's not a (new to ES6) for-of loop, in non-strict mode code,
+    // parse as an identifier.  (|let| in for-of is always a declaration.)
+    // Thus we must can't just sniff out TOK_CONST/TOK_LET here.  :-(
+    bool parsingLexicalDeclaration = false;
+    bool letIsIdentifier = false;
+    if (tt == TOK_LET || tt == TOK_CONST) {
+        parsingLexicalDeclaration = true;
+        tokenStream.consumeKnownToken(tt, TokenStream::Operand);
+    } else if (tt == TOK_NAME && tokenStream.nextName() == context->names().let) {
+        // Check for the backwards-compatibility corner case in sloppy
+        // mode like |for (let in e)| where the 'let' token should be
+        // parsed as an identifier.
+        if (!peekShouldParseLetDeclaration(&parsingLexicalDeclaration, TokenStream::Operand))
+            return false;
+
+        letIsIdentifier = !parsingLexicalDeclaration;
+    }
+
+    if (parsingLexicalDeclaration) {
+        handler.disableSyntaxParser();
+
+        // Set up the block chain for the lexical declaration.
+        blockObj.set(StaticBlockObject::create(context));
+        if (!blockObj)
+            return false;
+        blockObj->initEnclosingScopeFromParser(pc->innermostStaticScope());
+        letStmt.emplace(*this, StmtType::BLOCK);
+        *forLetImpliedBlock = pushLetScope(blockObj, *letStmt);
+        if (!*forLetImpliedBlock)
+            return false;
+        (*letStmt)->isForLetBlock = true;
+
+        assertCurrentLexicalStaticBlockIs(pc, blockObj);
+        *forInitialPart = declarationList(yieldHandling, tt == TOK_CONST ? PNK_CONST : PNK_LET,
+                                          blockObj, forHeadKind, forInOrOfExpression);
+        return *forInitialPart != null();
+    }
+
+    // Finally, handle for-loops that start with expressions.  Pass
+    // |InProhibited| so that |in| isn't parsed in a RelationalExpression as a
+    // binary operator.  |in| makes it a for-in loop, *not* an |in| expression.
+    *forInitialPart = expr(InProhibited, yieldHandling, TripledotProhibited);
+    if (!*forInitialPart)
+        return false;
+
+    bool isForIn, isForOf;
+    if (!matchInOrOf(&isForIn, &isForOf))
+        return false;
+
+    // If we don't encounter 'in'/'of', we have a for(;;) loop.  We've handled
+    // the init expression; the caller handles the rest.  Allow the Operand
+    // modifier when regetting: Operand must be used to examine the ';' in
+    // |for (;|, and our caller handles this case and that.
+    if (!isForIn && !isForOf) {
+        *forHeadKind = PNK_FORHEAD;
+        tokenStream.addModifierException(TokenStream::OperandIsNone);
+        return true;
+    }
+
+    MOZ_ASSERT(isForIn != isForOf);
+
+    // In a for-of loop, 'let' that starts the loop head is a |let| keyword,
+    // per the [lookahead ≠ let] restriction on the LeftHandSideExpression
+    // variant of such loops.  Expressions that start with |let| can't be used
+    // here.
+    //
+    //   var let = {};
+    //   for (let.prop of [1]) // BAD
+    //     break;
+    //
+    // See ES6 13.7.
+    if (isForOf && letIsIdentifier) {
+        report(ParseError, false, *forInitialPart, JSMSG_LET_STARTING_FOROF_LHS);
         return false;
     }
+
+    *forHeadKind = isForIn ? PNK_FORIN : PNK_FOROF;
+
+    if (!validateForInOrOfLHSExpression(*forInitialPart))
+        return false;
+
+    // Finally, parse the iterated expression, making the for-loop's closing
+    // ')' the next token.
+    *forInOrOfExpression = expressionAfterForInOrOf(*forHeadKind, yieldHandling);
+    return *forInOrOfExpression != null();
 }
 
-template <>
-bool
-Parser<FullParseHandler>::checkForHeadConstInitializers(ParseNode* pn1)
+template <class ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::cloneForInOrOfDeclarationForAssignment(Node decl)
 {
-    if (!pn1->isKind(PNK_CONST))
-        return true;
-
-    for (ParseNode* assign = pn1->pn_head; assign; assign = assign->pn_next) {
-        MOZ_ASSERT(assign->isKind(PNK_ASSIGN) || assign->isKind(PNK_NAME));
-        if (assign->isKind(PNK_NAME) && !assign->isAssigned())
-            return false;
-        // PNK_ASSIGN nodes (destructuring assignment) are always assignments.
-    }
-    return true;
+    return cloneLeftHandSide(handler.singleBindingFromDeclaration(decl));
 }
 
-template <>
-ParseNode*
-Parser<FullParseHandler>::forStatement(YieldHandling yieldHandling)
+template <class ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::forStatement(YieldHandling yieldHandling)
 {
     MOZ_ASSERT(tokenStream.isCurrentTokenType(TOK_FOR));
     uint32_t begin = pos().begin;
@@ -5546,7 +5910,7 @@ Parser<FullParseHandler>::forStatement(YieldHandling yieldHandling)
         if (matched) {
             iflags = JSITER_FOREACH;
             isForEach = true;
-            addTelemetry(JSCompartment::DeprecatedForEach);
+            //addTelemetry(JSCompartment::DeprecatedForEach);
             if (versionNumber() < JSVERSION_LATEST) {
                 if (!report(ParseWarning, pc->sc->strict(), null(), JSMSG_DEPRECATED_FOR_EACH))
                     return null();
@@ -5556,8 +5920,11 @@ Parser<FullParseHandler>::forStatement(YieldHandling yieldHandling)
 
     MUST_MATCH_TOKEN(TOK_LP, JSMSG_PAREN_AFTER_FOR);
 
-    // True if we have 'for (var/let/const ...)'.
-    bool isForDecl = false;
+    // PNK_FORHEAD, PNK_FORIN, or PNK_FOROF depending on the loop type.
+    ParseNodeKind headKind;
+
+    // |x| in either |for (x; ...; ...)| or |for (x in/of ...)|.
+    Node startNode;
 
     // The next three variables are used to implement `for (let/const ...)`.
     //
@@ -5571,6 +5938,9 @@ Parser<FullParseHandler>::forStatement(YieldHandling yieldHandling)
     // blockObj is the static block object for the implicit block scope.
     RootedStaticBlockObject blockObj(context);
 
+    // The PNK_LEXICALSCOPE node containing blockObj's ObjectBox.
+    Node forLetImpliedBlock = null();
+
     // letStmt is the BLOCK StmtInfo for the implicit block.
     //
     // Caution: `letStmt.emplace()` creates some Rooted objects. Rooteds must
@@ -5579,116 +5949,41 @@ Parser<FullParseHandler>::forStatement(YieldHandling yieldHandling)
     // assertions.
     Maybe<AutoPushStmtInfoPC> letStmt;
 
-    // The PNK_LEXICALSCOPE node containing blockObj's ObjectBox.
-    ParseNode* forLetImpliedBlock = nullptr;
+    // The expression being iterated over, for for-in/of loops only.  Unused
+    // for for(;;) loops.
+    Node iteratedExpr;
 
-    // True if a 'let' token at the head is parsed as an identifier instead of
-    // as starting a declaration.
-    bool letIsIdentifier = false;
-
-    // Set to 'x' in 'for (x; ...; ...)' or 'for (x in ...)'.
-    ParseNode* pn1;
-
-    TokenStream::Modifier modifier = TokenStream::Operand;
+    // Parse the entirety of the loop-head for a for-in/of loop (so the next
+    // token is the closing ')'):
+    //
+    //   for (... in/of ...) ...
+    //                     ^next token
+    //
+    // ...OR, parse up to the first ';' in a C-style for-loop:
+    //
+    //   for (...; ...; ...) ...
+    //           ^next token
+    //
+    // In either case the subsequent token can be consistently accessed using
+    // TokenStream::None semantics.
+    if (!forHeadStart(yieldHandling, &headKind, &startNode, letStmt, &blockObj,
+                      &forLetImpliedBlock, &iteratedExpr))
     {
-        TokenKind tt;
-        if (!tokenStream.peekToken(&tt, TokenStream::Operand))
-            return null();
-        if (tt == TOK_SEMI) {
-            pn1 = nullptr;
-        } else {
-            // Set pn1 to a variable list or an initializing expression.
-            //
-            // Pass |InForInit| to Parser::variables when parsing declarations
-            // to trigger |for|-specific parsing for that one position.  In a
-            // normal variable declaration, any initializer may be an |in|
-            // expression.  But for declarations at the start of a for-loop
-            // head, initializers can't contain |in|.  (Such syntax conflicts
-            // with ES5's |for (var i = 0 in foo)| syntax, removed in ES6, that
-            // we "support" by ignoring the |= 0|.)
-            if (tt == TOK_VAR) {
-                isForDecl = true;
-                tokenStream.consumeKnownToken(tt, TokenStream::Operand);
-                pn1 = variables(yieldHandling, PNK_VAR, InForInit);
-            } else if (tt == TOK_LET || tt == TOK_CONST ||
-                       (tt == TOK_NAME && tokenStream.nextName() == context->names().let)) {
-                handler.disableSyntaxParser();
-
-                // Check for the backwards-compatibility corner case in sloppy
-                // mode like |for (let in e)| where the 'let' token should be
-                // parsed as an identifier.
-                bool parseDecl;
-                if (tt == TOK_NAME) {
-                    if (!peekShouldParseLetDeclaration(&parseDecl, TokenStream::Operand))
-                        return null();
-                    letIsIdentifier = !parseDecl;
-                } else {
-                    parseDecl = true;
-                    tokenStream.consumeKnownToken(tt, TokenStream::Operand);
-                }
-
-                if (parseDecl) {
-                    bool constDecl = tt == TOK_CONST;
-                    isForDecl = true;
-
-                    // Initialize the enclosing scope manually for the call to
-                    // |variables| below.
-                    blockObj = StaticBlockObject::create(context);
-                    if (!blockObj)
-                        return null();
-                    blockObj->initEnclosingScopeFromParser(pc->innermostStaticScope());
-                    letStmt.emplace(*this, StmtType::BLOCK);
-                    forLetImpliedBlock = pushLetScope(blockObj, *letStmt);
-                    if (!forLetImpliedBlock)
-                        return null();
-                    (*letStmt)->isForLetBlock = true;
-
-                    MOZ_ASSERT(CurrentLexicalStaticBlock(pc) == blockObj);
-                    pn1 = variables(yieldHandling, constDecl ? PNK_CONST : PNK_LET, InForInit,
-                                    nullptr, blockObj, HoistVars);
-                } else {
-                    pn1 = expr(InProhibited, yieldHandling, TripledotProhibited);
-                }
-            } else {
-                // Pass |InProhibited| when parsing an expression so that |in|
-                // isn't parsed in a RelationalExpression as a binary operator.
-                // In this context, |in| is part of a for-in loop -- *not* part
-                // of a binary expression.
-                pn1 = expr(InProhibited, yieldHandling, TripledotProhibited);
-            }
-            if (!pn1)
-                return null();
-            modifier = TokenStream::None;
-        }
+        return null();
     }
 
-    MOZ_ASSERT_IF(isForDecl, pn1->isArity(PN_LIST));
-    MOZ_ASSERT(letStmt.isSome() == (isForDecl && (pn1->isOp(JSOP_DEFLET) || pn1->isOp(JSOP_DEFCONST))));
+    MOZ_ASSERT(headKind == PNK_FORIN || headKind == PNK_FOROF || headKind == PNK_FORHEAD);
 
-    // If there's an |in| keyword here, it's a for-in loop, by dint of careful
-    // parsing of |pn1|.
-    ParseNode* pn2;      /* forHead->pn_kid2 */
-    ParseNode* pn3;      /* forHead->pn_kid3 */
-    ParseNodeKind headKind = PNK_FORHEAD;
-    if (pn1) {
-        bool isForIn, isForOf;
-        if (!matchInOrOf(&isForIn, &isForOf))
-            return null();
-
-        // In for-in loops, a 'let' token may be used as an identifier for
-        // backwards-compatibility reasons, e.g., |for (let in e)|. In for-of
-        // loops, a 'let' token is never parsed as an identifier. Forbid
-        // trying to parse a for-of loop if we have parsed a 'let' token as an
-        // identifier above.
-        //
-        // See ES6 13.7.5.1.
-        if (isForIn)
-            headKind = PNK_FORIN;
-        else if (isForOf && !letIsIdentifier)
-            headKind = PNK_FOROF;
-    }
-
+    Node pn1;
+    Node pn2;
+    Node pn3;
+    TokenStream::Modifier modifier;
     if (headKind == PNK_FOROF || headKind == PNK_FORIN) {
+        // |target| is the LeftHandSideExpression or declaration to which the
+        // per-iteration value (an arbitrary value exposed by the iteration
+        // protocol, or a string naming a property) is assigned.
+        Node target = startNode;
+
         /*
          * Parse the rest of the for/in or for/of head.
          *
@@ -5700,18 +5995,12 @@ Parser<FullParseHandler>::forStatement(YieldHandling yieldHandling)
         if (headKind == PNK_FOROF) {
             forStmt->type = StmtType::FOR_OF_LOOP;
             if (isForEach) {
-                report(ParseError, false, null(), JSMSG_BAD_FOR_EACH_LOOP);
+                report(ParseError, false, startNode, JSMSG_BAD_FOR_EACH_LOOP);
                 return null();
             }
         } else {
             forStmt->type = StmtType::FOR_IN_LOOP;
             iflags |= JSITER_ENUMERATE;
-        }
-
-        /* Check that the left side of the 'in' or 'of' is valid. */
-        if (!isValidForStatementLHS(pn1, versionNumber(), isForDecl, isForEach, headKind)) {
-            report(ParseError, false, pn1, JSMSG_BAD_FOR_LEFTSIDE);
-            return null();
         }
 
         /*
@@ -5720,256 +6009,104 @@ Parser<FullParseHandler>::forStatement(YieldHandling yieldHandling)
          * any, else nullptr. Note that the "declaration with initializer" case
          * rewrites the loop-head, moving the decl and setting pn1 to nullptr.
          */
-        if (isForDecl) {
-            pn2 = pn1->pn_head;
-            if ((pn2->isKind(PNK_NAME) && pn2->maybeExpr()) || pn2->isKind(PNK_ASSIGN)) {
-                MOZ_ASSERT(!(headKind == PNK_FORIN && pn1->isKind(PNK_VAR)),
-                           "Parser::variables should have ignored the "
-                           "initializer in the ES5-sanctioned, ES6-prohibited "
-                           "|for (var ... = ... in ...)| syntax");
+        if (handler.isDeclarationList(target)) {
+            pn1 = target;
 
-                // Otherwise, this bizarre |for (const/let x = ... in/of ...)|
-                // loop isn't valid ES6 and has never been permitted in
-                // SpiderMonkey.
-                report(ParseError, false, pn2, JSMSG_INVALID_FOR_INOF_DECL_WITH_INIT,
-                       headKind == PNK_FOROF ? "of" : "in");
+            // Make a copy of the declaration that can be passed to
+            // BytecodeEmitter::emitAssignment.
+            pn2 = cloneForInOrOfDeclarationForAssignment(target);
+            if (!pn2)
                 return null();
-            }
         } else {
-            /* Not a declaration. */
             MOZ_ASSERT(!letStmt);
-            pn2 = pn1;
-            pn1 = nullptr;
+            pn1 = null();
+            pn2 = target;
 
             if (!checkAndMarkAsAssignmentLhs(pn2, PlainAssignment))
                 return null();
         }
 
-        pn3 = (headKind == PNK_FOROF)
-              ? assignExpr(InAllowed, yieldHandling, TripledotProhibited)
-              : expr(InAllowed, yieldHandling, TripledotProhibited);
-        if (!pn3)
-            return null();
+        pn3 = iteratedExpr;
+
+        if (handler.isNameAnyParentheses(pn2)) {
+            // Beware 'for (arguments in ...)' with or without a 'var'.
+            handler.markAsAssigned(pn2);
+        }
+
+        // Parser::declaration consumed everything up to the closing ')'.  That
+        // token follows an {Assignment,}Expression, so the next token must be
+        // consumed as if an operator continued the expression, i.e. as None.
         modifier = TokenStream::None;
-
-        if (isForDecl) {
-            /*
-             * pn2 is part of a declaration. Make a copy that can be passed to
-             * BytecodeEmitter::emitAssignment.
-             */
-            pn2 = cloneLeftHandSide(pn2);
-            if (!pn2)
-                return null();
-        }
-
-        ParseNodeKind kind2 = pn2->getKind();
-        MOZ_ASSERT(kind2 != PNK_ASSIGN, "forStatement TOK_ASSIGN");
-
-        if (kind2 == PNK_NAME) {
-            /* Beware 'for (arguments in ...)' with or without a 'var'. */
-            pn2->markAsAssigned();
-        }
     } else {
+        Node init = startNode;
+
         if (isForEach) {
             reportWithOffset(ParseError, false, begin, JSMSG_BAD_FOR_EACH_LOOP);
             return null();
         }
 
-        MOZ_ASSERT(headKind == PNK_FORHEAD);
+        // Look for an operand: |for (;| means we might have already examined
+        // this semicolon with that modifier.
+        MUST_MATCH_TOKEN_MOD(TOK_SEMI, TokenStream::Operand, JSMSG_SEMI_AFTER_FOR_INIT);
 
-        if (letStmt) {
-            // Ensure here that the previously-unchecked assignment mandate for
-            // const declarations holds.
-            if (!checkForHeadConstInitializers(pn1)) {
-                report(ParseError, false, nullptr, JSMSG_BAD_CONST_DECL);
-                return null();
-            }
-        }
-
-        /* Parse the loop condition or null into pn2. */
-        MUST_MATCH_TOKEN_MOD(TOK_SEMI, modifier, JSMSG_SEMI_AFTER_FOR_INIT);
         TokenKind tt;
         if (!tokenStream.peekToken(&tt, TokenStream::Operand))
             return null();
+
+        Node test;
+        TokenStream::Modifier mod;
         if (tt == TOK_SEMI) {
-            pn2 = nullptr;
-            modifier = TokenStream::Operand;
+            test = null();
+            mod = TokenStream::Operand;
         } else {
-            pn2 = expr(InAllowed, yieldHandling, TripledotProhibited);
-            if (!pn2)
+            test = expr(InAllowed, yieldHandling, TripledotProhibited);
+            if (!test)
                 return null();
-            modifier = TokenStream::None;
+            mod = TokenStream::None;
         }
 
-        /* Parse the update expression or null into pn3. */
-        MUST_MATCH_TOKEN_MOD(TOK_SEMI, modifier, JSMSG_SEMI_AFTER_FOR_COND);
+        MUST_MATCH_TOKEN_MOD(TOK_SEMI, mod, JSMSG_SEMI_AFTER_FOR_COND);
+
         if (!tokenStream.peekToken(&tt, TokenStream::Operand))
             return null();
+
+        Node update;
         if (tt == TOK_RP) {
-            pn3 = nullptr;
-            modifier = TokenStream::Operand;
+            update = null();
+            mod = TokenStream::Operand;
         } else {
-            pn3 = expr(InAllowed, yieldHandling, TripledotProhibited);
-            if (!pn3)
+            update = expr(InAllowed, yieldHandling, TripledotProhibited);
+            if (!update)
                 return null();
-            modifier = TokenStream::None;
+            mod = TokenStream::None;
         }
+
+        modifier = mod;
+        pn1 = init;
+        pn2 = test;
+        pn3 = update;
     }
 
     MUST_MATCH_TOKEN_MOD(TOK_RP, modifier, JSMSG_PAREN_AFTER_FOR_CTRL);
 
     TokenPos headPos(begin, pos().end);
-    ParseNode* forHead = handler.newForHead(headKind, pn1, pn2, pn3, headPos);
+    Node forHead = handler.newForHead(headKind, pn1, pn2, pn3, headPos);
     if (!forHead)
         return null();
 
-    /* Parse the loop body. */
-    ParseNode* body = statement(yieldHandling);
+    Node body = statement(yieldHandling);
     if (!body)
         return null();
 
-    ParseNode* forLoop = handler.newForStatement(begin, forHead, body, iflags);
+    Node forLoop = handler.newForStatement(begin, forHead, body, iflags);
     if (!forLoop)
         return null();
 
     if (forLetImpliedBlock) {
-        forLetImpliedBlock->pn_expr = forLoop;
-        forLetImpliedBlock->pn_pos = forLoop->pn_pos;
+        handler.initForLetBlock(forLetImpliedBlock, forLoop);
         return forLetImpliedBlock;
     }
     return forLoop;
-}
-
-template <>
-SyntaxParseHandler::Node
-Parser<SyntaxParseHandler>::forStatement(YieldHandling yieldHandling)
-{
-    /*
-     * 'for' statement parsing is fantastically complicated and requires being
-     * able to inspect the parse tree for previous parts of the 'for'. Syntax
-     * parsing of 'for' statements is thus done separately, and only handles
-     * the types of 'for' statements likely to be seen in web content.
-     */
-    MOZ_ASSERT(tokenStream.isCurrentTokenType(TOK_FOR));
-
-    AutoPushStmtInfoPC forStmt(*this, StmtType::FOR_LOOP);
-
-    /* Don't parse 'for each' loops. */
-    if (allowsForEachIn()) {
-        TokenKind tt;
-        if (!tokenStream.peekToken(&tt))
-            return null();
-        // Not all "yield" tokens are names, but the ones that aren't names are
-        // invalid in this context anyway.
-        if (tt == TOK_NAME || tt == TOK_YIELD) {
-            JS_ALWAYS_FALSE(abortIfSyntaxParser());
-            return null();
-        }
-    }
-
-    MUST_MATCH_TOKEN(TOK_LP, JSMSG_PAREN_AFTER_FOR);
-
-    /* True if we have 'for (var ...)'. */
-    bool isForDecl = false;
-    bool simpleForDecl = true;
-
-    /* Set to 'x' in 'for (x ;... ;...)' or 'for (x in ...)'. */
-    Node lhsNode;
-
-    TokenStream::Modifier modifier = TokenStream::Operand;
-    {
-        TokenKind tt;
-        if (!tokenStream.peekToken(&tt, TokenStream::Operand))
-            return null();
-        if (tt == TOK_SEMI) {
-            lhsNode = null();
-        } else {
-            /* Set lhsNode to a var list or an initializing expression. */
-            if (tt == TOK_VAR) {
-                isForDecl = true;
-                tokenStream.consumeKnownToken(tt, TokenStream::Operand);
-                lhsNode = variables(yieldHandling, PNK_VAR, InForInit, &simpleForDecl);
-            } else if (tt == TOK_CONST || tt == TOK_LET ||
-                       (tt == TOK_NAME && tokenStream.nextName() == context->names().let))
-            {
-                JS_ALWAYS_FALSE(abortIfSyntaxParser());
-                return null();
-            } else {
-                lhsNode = expr(InProhibited, yieldHandling, TripledotProhibited);
-            }
-            if (!lhsNode)
-                return null();
-            modifier = TokenStream::None;
-        }
-    }
-
-    // If there's an |in| keyword here, it's a for-in loop, by dint of careful
-    // parsing of |pn1|.
-    bool isForIn = false, isForOf = false;
-    if (lhsNode) {
-        if (!matchInOrOf(&isForIn, &isForOf))
-            return null();
-    }
-    if (isForIn || isForOf) {
-        /* Parse the rest of the for/in or for/of head. */
-        forStmt->type = isForOf ? StmtType::FOR_OF_LOOP : StmtType::FOR_IN_LOOP;
-
-        /* Check that the left side of the 'in' or 'of' is valid. */
-        if (!isForDecl &&
-            !handler.maybeNameAnyParentheses(lhsNode) &&
-            !handler.isPropertyAccess(lhsNode))
-        {
-            JS_ALWAYS_FALSE(abortIfSyntaxParser());
-            return null();
-        }
-
-        if (!simpleForDecl) {
-            JS_ALWAYS_FALSE(abortIfSyntaxParser());
-            return null();
-        }
-
-        if (!isForDecl && !checkAndMarkAsAssignmentLhs(lhsNode, PlainAssignment))
-            return null();
-
-        if (!(isForIn
-              ? expr(InAllowed, yieldHandling, TripledotProhibited)
-              : assignExpr(InAllowed, yieldHandling, TripledotProhibited)))
-        {
-            return null();
-        }
-        modifier = TokenStream::None;
-    } else {
-        /* Parse the loop condition or null. */
-        MUST_MATCH_TOKEN_MOD(TOK_SEMI, modifier, JSMSG_SEMI_AFTER_FOR_INIT);
-        TokenKind tt;
-        if (!tokenStream.peekToken(&tt, TokenStream::Operand))
-            return null();
-        modifier = TokenStream::Operand;
-        if (tt != TOK_SEMI) {
-            if (!expr(InAllowed, yieldHandling, TripledotProhibited))
-                return null();
-            modifier = TokenStream::None;
-        }
-
-        /* Parse the update expression or null. */
-        MUST_MATCH_TOKEN_MOD(TOK_SEMI, modifier, JSMSG_SEMI_AFTER_FOR_COND);
-        if (!tokenStream.peekToken(&tt, TokenStream::Operand))
-            return null();
-        modifier = TokenStream::Operand;
-        if (tt != TOK_RP) {
-            if (!expr(InAllowed, yieldHandling, TripledotProhibited))
-                return null();
-            modifier = TokenStream::None;
-        }
-    }
-
-    MUST_MATCH_TOKEN_MOD(TOK_RP, modifier, JSMSG_PAREN_AFTER_FOR_CTRL);
-
-    /* Parse the loop body. */
-    if (!statement(yieldHandling))
-        return null();
-
-    return SyntaxParseHandler::NodeGeneric;
 }
 
 template <typename ParseHandler>
@@ -6591,7 +6728,6 @@ Parser<ParseHandler>::tryStatement(YieldHandling yieldHandling)
                 if (!catchName)
                     return null();
                 break;
-
               case TOK_YIELD:
                 if (yieldHandling == YieldIsKeyword) {
                     report(ParseError, false, null(), JSMSG_RESERVED_ID, "yield");
@@ -6955,25 +7091,36 @@ bool
 Parser<ParseHandler>::shouldParseLetDeclaration(bool* parseDeclOut)
 {
     TokenKind tt;
-    *parseDeclOut = false;
-
     if (!tokenStream.peekToken(&tt))
         return false;
 
-    switch (tt) {
-      case TOK_NAME:
-        // |let let| is disallowed per ES6 13.3.1.1.
-        *parseDeclOut = tokenStream.nextName() != context->names().let;
-        break;
-
-      case TOK_LC:
-      case TOK_LB:
-        // |let {| and |let [| are destructuring declarations.
+    if (tt == TOK_NAME) {
+        // |let| followed by a name is a lexical declaration.  This is so even
+        // if the name is on a new line.  ASI applies *only* if an offending
+        // token not allowed by the grammar is encountered, and there's no
+        // [no LineTerminator here] restriction in LexicalDeclaration or
+        // ForDeclaration forbidding a line break.
+        //
+        // It's a tricky point, but this is true *even if* the name is "let", a
+        // name that can't be bound by LexicalDeclaration or ForDeclaration.
+        // Per ES6 5.3, static semantics early errors are validated *after*
+        // determining productions matching the source text.  So in this
+        // example:
+        //
+        //   let   // ASI opportunity...except not
+        //   let;
+        //
+        // the text matches LexicalDeclaration.  *Then* static semantics in
+        // ES6 13.3.1.1 (corresponding to the LexicalDeclaration production
+        // just chosen), per ES6 5.3, are validated to recognize the Script as
+        // invalid.  It can't be evaluated, so a SyntaxError is thrown.
         *parseDeclOut = true;
-        break;
-
-      default:
-        break;
+    } else if (tt == TOK_LB || tt == TOK_LC) {
+        *parseDeclOut = true;
+    } else {
+        // Whatever we have isn't a declaration.  Either it's an expression, or
+        // it's invalid: expression-parsing code will decide.
+        *parseDeclOut = false;
     }
 
     return true;
@@ -7026,7 +7173,7 @@ Parser<ParseHandler>::statement(YieldHandling yieldHandling, bool canHaveDirecti
 
       // VariableStatement[?Yield]
       case TOK_VAR: {
-        Node pn = variables(yieldHandling, PNK_VAR, NotInForInit);
+        Node pn = declarationList(yieldHandling, PNK_VAR);
         if (!pn)
             return null();
         if (!MatchOrInsertSemicolonAfterExpression(tokenStream))
@@ -7072,17 +7219,20 @@ Parser<ParseHandler>::statement(YieldHandling yieldHandling, bool canHaveDirecti
       }
 
       case TOK_NAME: {
-        // 'let' is a contextual keyword in sloppy node. In strict mode, it is
-        // always lexed as TOK_LET except following case:
+        // 'let' is a contextual keyword outside strict mode.  In strict mode
+        // it's always tokenized as TOK_LET except in this one weird case:
         //
-        //   "use strict"
-        //   let a = 1;
+        //   "use strict" // ExpressionStatement, terminated by ASI
+        //   let a = 1;   // LexicalDeclaration
         //
-        // There 'let' is lexed as TOK_NAME before parsing directive.
+        // We can't apply strict mode until we know "use strict" is the entire
+        // statement, but we can't know "use strict" is the entire statement
+        // until we see the next token.  So 'let' is still TOK_NAME here.
         if (tokenStream.currentName() == context->names().let) {
             bool parseDecl;
             if (!shouldParseLetDeclaration(&parseDecl))
                 return null();
+
             if (parseDecl)
                 return lexicalDeclaration(yieldHandling, /* isConst = */ false);
         }
@@ -7204,9 +7354,12 @@ Parser<ParseHandler>::statement(YieldHandling yieldHandling, bool canHaveDirecti
 template <typename ParseHandler>
 typename ParseHandler::Node
 Parser<ParseHandler>::expr(InHandling inHandling, YieldHandling yieldHandling,
-                           TripledotHandling tripledotHandling, InvokedPrediction invoked)
+                           TripledotHandling tripledotHandling,
+                           PossibleError* possibleError,
+                           InvokedPrediction invoked)
 {
-    Node pn = assignExpr(inHandling, yieldHandling, tripledotHandling, invoked);
+    Node pn = assignExpr(inHandling, yieldHandling, tripledotHandling,
+                         possibleError, invoked);
     if (!pn)
         return null();
 
@@ -7220,14 +7373,27 @@ Parser<ParseHandler>::expr(InHandling inHandling, YieldHandling yieldHandling,
     if (!seq)
         return null();
     while (true) {
-        if (handler.isUnparenthesizedYieldExpression(pn)) {
-            report(ParseError, false, pn, JSMSG_BAD_YIELD_SYNTAX);
-            return null();
-        }
 
-        pn = assignExpr(inHandling, yieldHandling, tripledotHandling);
+        // Additional calls to assignExpr should not reuse the possibleError
+        // which had been passed into the function. Otherwise we would lose
+        // information needed to determine whether or not we're dealing with
+        // a non-recoverable situation.
+        PossibleError possibleErrorInner(*this);
+        pn = assignExpr(inHandling, yieldHandling, tripledotHandling,
+                        &possibleErrorInner);
         if (!pn)
             return null();
+
+        // If we find an error here we should report it immedately instead of
+        // passing it back out of the function.
+        if (possibleErrorInner.hasError())  {
+
+            // We begin by checking for an outer pending error since it would
+            // have occurred first.
+            if (possibleError->checkForExprErrors())
+                possibleErrorInner.checkForExprErrors();
+            return null();
+        }
         handler.addList(seq, pn);
 
         if (!tokenStream.matchToken(&matched, TOK_COMMA))
@@ -7236,6 +7402,19 @@ Parser<ParseHandler>::expr(InHandling inHandling, YieldHandling yieldHandling,
             break;
     }
     return seq;
+}
+
+template <typename ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::expr(InHandling inHandling, YieldHandling yieldHandling,
+                           TripledotHandling tripledotHandling,
+                           InvokedPrediction invoked)
+{
+    PossibleError possibleError(*this);
+    Node pn = expr(inHandling, yieldHandling, tripledotHandling, &possibleError, invoked);
+    if (!pn || !possibleError.checkForExprErrors())
+        return null();
+    return pn;
 }
 
 static const JSOp ParseNodeKindToJSOp[] = {
@@ -7325,7 +7504,9 @@ Precedence(ParseNodeKind pnk) {
 template <typename ParseHandler>
 MOZ_ALWAYS_INLINE typename ParseHandler::Node
 Parser<ParseHandler>::orExpr1(InHandling inHandling, YieldHandling yieldHandling,
-                              TripledotHandling tripledotHandling, InvokedPrediction invoked)
+                              TripledotHandling tripledotHandling,
+                              PossibleError* possibleError,
+                              InvokedPrediction invoked)
 {
     // Shift-reduce parser for the binary operator part of the JS expression
     // syntax.
@@ -7338,7 +7519,7 @@ Parser<ParseHandler>::orExpr1(InHandling inHandling, YieldHandling yieldHandling
 
     Node pn;
     for (;;) {
-        pn = unaryExpr(yieldHandling, tripledotHandling, invoked);
+        pn = unaryExpr(yieldHandling, tripledotHandling, possibleError, invoked);
         if (!pn)
             return pn;
 
@@ -7393,19 +7574,22 @@ Parser<ParseHandler>::orExpr1(InHandling inHandling, YieldHandling yieldHandling
 template <typename ParseHandler>
 MOZ_ALWAYS_INLINE typename ParseHandler::Node
 Parser<ParseHandler>::condExpr1(InHandling inHandling, YieldHandling yieldHandling,
-                                TripledotHandling tripledotHandling, InvokedPrediction invoked)
+                                TripledotHandling tripledotHandling,
+                                PossibleError* possibleError,
+                                InvokedPrediction invoked)
 {
-    Node condition = orExpr1(inHandling, yieldHandling, tripledotHandling, invoked);
+    Node condition = orExpr1(inHandling, yieldHandling, tripledotHandling, possibleError, invoked);
     if (!condition || !tokenStream.isCurrentTokenType(TOK_HOOK))
         return condition;
-
-    Node thenExpr = assignExpr(InAllowed, yieldHandling, TripledotProhibited);
+    Node thenExpr = assignExpr(InAllowed, yieldHandling, TripledotProhibited,
+                               possibleError);
     if (!thenExpr)
         return null();
 
     MUST_MATCH_TOKEN(TOK_COLON, JSMSG_COLON_IN_COND);
 
-    Node elseExpr = assignExpr(inHandling, yieldHandling, TripledotProhibited);
+    Node elseExpr = assignExpr(inHandling, yieldHandling, TripledotProhibited,
+                               possibleError);
     if (!elseExpr)
         return null();
 
@@ -7418,7 +7602,8 @@ Parser<ParseHandler>::condExpr1(InHandling inHandling, YieldHandling yieldHandli
 
 template <typename ParseHandler>
 bool
-Parser<ParseHandler>::checkAndMarkAsAssignmentLhs(Node target, AssignmentFlavor flavor)
+Parser<ParseHandler>::checkAndMarkAsAssignmentLhs(Node target, AssignmentFlavor flavor,
+                                                  PossibleError* possibleError)
 {
     MOZ_ASSERT(flavor != KeyedDestructuringAssignment,
                "destructuring must use special checking/marking code, not "
@@ -7430,7 +7615,13 @@ Parser<ParseHandler>::checkAndMarkAsAssignmentLhs(Node target, AssignmentFlavor 
             return false;
         }
 
-        return checkDestructuringPattern(nullptr, target);
+        bool isDestructuring = checkDestructuringPattern(nullptr, target);
+        // Here we've successfully distinguished between destructuring and
+        // an object literal. In the case where "CoverInitializedName"
+        // syntax was used there will be a pending error that needs clearing.
+        if (possibleError && isDestructuring)
+            possibleError->setResolved();
+        return isDestructuring;
     }
 
     // All other permitted targets are simple.
@@ -7440,7 +7631,7 @@ Parser<ParseHandler>::checkAndMarkAsAssignmentLhs(Node target, AssignmentFlavor 
     if (handler.isPropertyAccess(target))
         return true;
 
-    if (handler.maybeNameAnyParentheses(target)) {
+    if (handler.isNameAnyParentheses(target)) {
         // The arguments/eval identifiers are simple in non-strict mode code,
         // but warn to discourage use nonetheless.
         if (!reportIfArgumentsEvalTarget(target))
@@ -7458,9 +7649,12 @@ Parser<ParseHandler>::checkAndMarkAsAssignmentLhs(Node target, AssignmentFlavor 
 template <typename ParseHandler>
 typename ParseHandler::Node
 Parser<ParseHandler>::assignExpr(InHandling inHandling, YieldHandling yieldHandling,
-                                 TripledotHandling tripledotHandling, InvokedPrediction invoked)
+                                 TripledotHandling tripledotHandling,
+                                 PossibleError* possibleError,
+                                 InvokedPrediction invoked)
 {
     JS_CHECK_RECURSION(context, return null());
+    MOZ_ASSERT(!possibleError->hasError());
 
     // It's very common at this point to have a "detectably simple" expression,
     // i.e. a name/number/string token followed by one of the following tokens
@@ -7510,9 +7704,11 @@ Parser<ParseHandler>::assignExpr(InHandling inHandling, YieldHandling yieldHandl
     TokenStream::Position start(keepAtoms);
     tokenStream.tell(&start);
 
-    Node lhs = condExpr1(inHandling, yieldHandling, tripledotHandling, invoked);
-    if (!lhs)
+    PossibleError possibleErrorInner(*this);
+    Node lhs = condExpr1(inHandling, yieldHandling, tripledotHandling, &possibleErrorInner, invoked);
+    if (!lhs) {
         return null();
+    }
 
     ParseNodeKind kind;
     JSOp op;
@@ -7532,6 +7728,7 @@ Parser<ParseHandler>::assignExpr(InHandling inHandling, YieldHandling yieldHandl
       case TOK_POWASSIGN:    kind = PNK_POWASSIGN;    op = JSOP_POW;    break;
 
       case TOK_ARROW: {
+
         // A line terminator between ArrowParameters and the => should trigger a SyntaxError.
         tokenStream.ungetToken();
         TokenKind next = TOK_EOF;
@@ -7594,23 +7791,41 @@ Parser<ParseHandler>::assignExpr(InHandling inHandling, YieldHandling yieldHandl
 
       default:
         MOZ_ASSERT(!tokenStream.isCurrentTokenAssignment());
+        possibleErrorInner.transferErrorTo(possibleError);
         tokenStream.ungetToken();
         return lhs;
     }
 
     AssignmentFlavor flavor = kind == PNK_ASSIGN ? PlainAssignment : CompoundAssignment;
-    if (!checkAndMarkAsAssignmentLhs(lhs, flavor))
+    if (!checkAndMarkAsAssignmentLhs(lhs, flavor, &possibleErrorInner))
+        return null();
+    if (!possibleErrorInner.checkForExprErrors())
         return null();
 
     bool saved = pc->inDeclDestructuring;
     pc->inDeclDestructuring = false;
-    Node rhs = assignExpr(inHandling, yieldHandling, TripledotProhibited);
+    Node rhs = assignExpr(inHandling, yieldHandling, TripledotProhibited,
+                          possibleError);
     pc->inDeclDestructuring = saved;
     if (!rhs)
         return null();
-
     return handler.newAssignment(kind, lhs, rhs, pc, op);
 }
+
+template <typename ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::assignExpr(InHandling inHandling, YieldHandling yieldHandling,
+                                 TripledotHandling tripledotHandling,
+                                 InvokedPrediction invoked)
+{
+    PossibleError possibleError(*this);
+    Node expr = assignExpr(inHandling, yieldHandling, tripledotHandling, &possibleError, invoked);
+    if (!expr || !possibleError.checkForExprErrors())
+        return null();
+
+    return expr;
+}
+
 
 template <typename ParseHandler>
 bool
@@ -7621,11 +7836,11 @@ Parser<ParseHandler>::isValidSimpleAssignmentTarget(Node node,
     // error for the various syntaxes that fail this, and warning for the
     // various syntaxes that "pass" this but should not, occurs elsewhere.
 
-    if (PropertyName* name = handler.maybeNameAnyParentheses(node)) {
+    if (handler.isNameAnyParentheses(node)) {
         if (!pc->sc->strict())
             return true;
 
-        return name != context->names().arguments && name != context->names().eval;
+        return !handler.nameIsArgumentsEvalAnyParentheses(node, context);
     }
 
     if (handler.isPropertyAccess(node))
@@ -7643,21 +7858,16 @@ template <typename ParseHandler>
 bool
 Parser<ParseHandler>::reportIfArgumentsEvalTarget(Node nameNode)
 {
-    PropertyName* name = handler.maybeNameAnyParentheses(nameNode);
-    MOZ_ASSERT(name, "must only call this function on known names");
-
-    const char* chars = (name == context->names().arguments)
-                        ? js_arguments_str
-                        : (name == context->names().eval)
-                        ? js_eval_str
-                        : nullptr;
+    const char* chars = handler.nameIsArgumentsEvalAnyParentheses(nameNode, context);
     if (!chars)
         return true;
 
     if (!report(ParseStrictError, pc->sc->strict(), nameNode, JSMSG_BAD_STRICT_ASSIGN, chars))
         return false;
 
-    MOZ_ASSERT(!pc->sc->strict(), "in strict mode an error should have been reported");
+    MOZ_ASSERT(!pc->sc->strict(),
+               "an error should have been reported if this was strict mode "
+               "code");
     return true;
 }
 
@@ -7671,7 +7881,7 @@ Parser<ParseHandler>::reportIfNotValidSimpleAssignmentTarget(Node target, Assign
     if (isValidSimpleAssignmentTarget(target, behavior))
         return true;
 
-    if (handler.maybeNameAnyParentheses(target)) {
+    if (handler.isNameAnyParentheses(target)) {
         // Use a special error if the target is arguments/eval.  This ensures
         // targeting these names is consistently a SyntaxError (which error numbers
         // below don't guarantee) while giving us a nicer error message.
@@ -7701,6 +7911,10 @@ Parser<ParseHandler>::reportIfNotValidSimpleAssignmentTarget(Node target, Assign
       case CompoundAssignment:
         errnum = JSMSG_BAD_LEFTSIDE_OF_ASS;
         break;
+
+      case ForInOrOfTarget:
+        errnum = JSMSG_BAD_FOR_LEFTSIDE;
+        break;
     }
 
     report(ParseError, pc->sc->strict(), target, errnum, extra);
@@ -7718,7 +7932,7 @@ Parser<ParseHandler>::checkAndMarkAsIncOperand(Node target, AssignmentFlavor fla
         return false;
 
     // Mark.
-    if (handler.maybeNameAnyParentheses(target)) {
+    if (handler.isNameAnyParentheses(target)) {
         // Assignment to arguments/eval is allowed outside strict mode code,
         // but it's dodgy.  Report a strict warning (error, if werror was set).
         if (!reportIfArgumentsEvalTarget(target))
@@ -7737,8 +7951,9 @@ typename ParseHandler::Node
 Parser<ParseHandler>::unaryOpExpr(YieldHandling yieldHandling, ParseNodeKind kind, JSOp op,
                                   uint32_t begin)
 {
-    Node kid = unaryExpr(yieldHandling, TripledotProhibited);
-    if (!kid)
+    PossibleError possibleError(*this);
+    Node kid = unaryExpr(yieldHandling, TripledotProhibited, &possibleError);
+    if (!kid || !possibleError.checkForExprErrors())
         return null();
     return handler.newUnary(kind, op, begin, kid);
 }
@@ -7746,7 +7961,7 @@ Parser<ParseHandler>::unaryOpExpr(YieldHandling yieldHandling, ParseNodeKind kin
 template <typename ParseHandler>
 typename ParseHandler::Node
 Parser<ParseHandler>::unaryExpr(YieldHandling yieldHandling, TripledotHandling tripledotHandling,
-                                InvokedPrediction invoked)
+                                PossibleError* possibleError, InvokedPrediction invoked)
 {
     JS_CHECK_RECURSION(context, return null());
 
@@ -7778,7 +7993,7 @@ Parser<ParseHandler>::unaryExpr(YieldHandling yieldHandling, TripledotHandling t
         //   // Evaluates expression, triggering a runtime ReferenceError for
         //   // the undefined name.
         //   typeof (1, nonExistentName);
-        Node kid = unaryExpr(yieldHandling, TripledotProhibited);
+        Node kid = unaryExpr(yieldHandling, TripledotProhibited, possibleError);
         if (!kid)
             return null();
 
@@ -7791,7 +8006,7 @@ Parser<ParseHandler>::unaryExpr(YieldHandling yieldHandling, TripledotHandling t
         TokenKind tt2;
         if (!tokenStream.getToken(&tt2, TokenStream::Operand))
             return null();
-        Node pn2 = memberExpr(yieldHandling, TripledotProhibited, tt2, true);
+        Node pn2 = memberExpr(yieldHandling, TripledotProhibited, possibleError, tt2, true);
         if (!pn2)
             return null();
         AssignmentFlavor flavor = (tt == TOK_INC) ? IncrementAssignment : DecrementAssignment;
@@ -7803,13 +8018,13 @@ Parser<ParseHandler>::unaryExpr(YieldHandling yieldHandling, TripledotHandling t
       }
 
       case TOK_DELETE: {
-        Node expr = unaryExpr(yieldHandling, TripledotProhibited);
+        Node expr = unaryExpr(yieldHandling, TripledotProhibited, possibleError);
         if (!expr)
             return null();
 
         // Per spec, deleting any unary expression is valid -- it simply
         // returns true -- except for one case that is illegal in strict mode.
-        if (handler.maybeNameAnyParentheses(expr)) {
+        if (handler.isNameAnyParentheses(expr)) {
             if (!report(ParseStrictError, pc->sc->strict(), expr, JSMSG_DEPRECATED_DELETE_OPERAND))
                 return null();
             pc->sc->setBindingsAccessedDynamically();
@@ -7819,7 +8034,7 @@ Parser<ParseHandler>::unaryExpr(YieldHandling yieldHandling, TripledotHandling t
       }
 
       default: {
-        Node pn = memberExpr(yieldHandling, tripledotHandling, tt, /* allowCallSyntax = */ true,
+        Node pn = memberExpr(yieldHandling, tripledotHandling, possibleError, tt, /* allowCallSyntax = */ true,
                              invoked);
         if (!pn)
             return null();
@@ -8177,7 +8392,7 @@ Parser<FullParseHandler>::legacyComprehensionTail(ParseNode* bodyExpr, unsigned 
                 return null();
             if (matched) {
                 pn2->pn_iflags |= JSITER_FOREACH;
-                addTelemetry(JSCompartment::DeprecatedForEach);
+                //addTelemetry(JSCompartment::DeprecatedForEach);
                 if (versionNumber() < JSVERSION_LATEST) {
                     if (!report(ParseWarning, pc->sc->strict(), pn2, JSMSG_DEPRECATED_FOR_EACH))
                         return null();
@@ -8195,7 +8410,11 @@ Parser<FullParseHandler>::legacyComprehensionTail(ParseNode* bodyExpr, unsigned 
           case TOK_LB:
           case TOK_LC:
             pc->inDeclDestructuring = true;
-            pn3 = primaryExpr(YieldIsKeyword, TripledotProhibited, tt);
+            
+            // No possible error is needed here either because we already
+            // know we are destructuring.
+            pn3 = primaryExpr(YieldIsKeyword, TripledotProhibited,
+                              nullptr /* = possibleError */, tt);
             pc->inDeclDestructuring = false;
             if (!pn3)
                 return null();
@@ -8593,7 +8812,7 @@ Parser<ParseHandler>::comprehensionFor(GeneratorKind comprehensionKind)
     blockObj->initEnclosingScopeFromParser(pc->innermostStaticScope());
 
     data.initLexical(DontHoistVars, JSOP_DEFLET, blockObj, JSMSG_TOO_MANY_LOCALS);
-    Node decls = handler.newList(PNK_LET, lhs);
+    Node decls = handler.newComprehensionBinding(lhs);
     if (!decls)
         return null();
     data.setNameNode(lhs);
@@ -8802,15 +9021,6 @@ Parser<ParseHandler>::argumentList(YieldHandling yieldHandling, Node listNode, b
                 return false;
         }
 
-        if (handler.isUnparenthesizedYieldExpression(argNode)) {
-            TokenKind tt;
-            if (!tokenStream.peekToken(&tt))
-                return false;
-            if (tt == TOK_COMMA) {
-                report(ParseError, false, argNode, JSMSG_BAD_YIELD_SYNTAX);
-                return false;
-            }
-        }
 #if JS_HAS_GENERATOR_EXPRS
         if (!spread) {
             if (!tokenStream.matchToken(&matched, TOK_FOR))
@@ -8873,7 +9083,8 @@ Parser<ParseHandler>::checkAndMarkSuperScope()
 template <typename ParseHandler>
 typename ParseHandler::Node
 Parser<ParseHandler>::memberExpr(YieldHandling yieldHandling, TripledotHandling tripledotHandling,
-                                 TokenKind tt, bool allowCallSyntax, InvokedPrediction invoked)
+                                 PossibleError* possibleError, TokenKind tt,
+                                 bool allowCallSyntax, InvokedPrediction invoked)
 {
     MOZ_ASSERT(tokenStream.isCurrentTokenType(tt));
 
@@ -8897,7 +9108,8 @@ Parser<ParseHandler>::memberExpr(YieldHandling yieldHandling, TripledotHandling 
 
             // Gotten by tryNewTarget
             tt = tokenStream.currentToken().type;
-            Node ctorExpr = memberExpr(yieldHandling, TripledotProhibited, tt, false, PredictInvoked);
+            Node ctorExpr = memberExpr(yieldHandling, TripledotProhibited,
+                                       possibleError, tt, false, PredictInvoked);
             if (!ctorExpr)
                 return null();
 
@@ -8922,7 +9134,7 @@ Parser<ParseHandler>::memberExpr(YieldHandling yieldHandling, TripledotHandling 
         if (!lhs)
             return null();
     } else {
-        lhs = primaryExpr(yieldHandling, tripledotHandling, tt, invoked);
+        lhs = primaryExpr(yieldHandling, tripledotHandling, possibleError, tt, invoked);
         if (!lhs)
             return null();
     }
@@ -8953,7 +9165,7 @@ Parser<ParseHandler>::memberExpr(YieldHandling yieldHandling, TripledotHandling 
                 return null();
             }
         } else if (tt == TOK_LB) {
-            Node propExpr = expr(InAllowed, yieldHandling, TripledotProhibited);
+            Node propExpr = expr(InAllowed, yieldHandling, TripledotProhibited, possibleError);
             if (!propExpr)
                 return null();
 
@@ -9011,8 +9223,8 @@ Parser<ParseHandler>::memberExpr(YieldHandling yieldHandling, TripledotHandling 
                 return null();
 
             JSOp op = JSOP_CALL;
-            if (PropertyName* name = handler.maybeNameAnyParentheses(lhs)) {
-                if (tt == TOK_LP && name == context->names().eval) {
+            if (handler.isNameAnyParentheses(lhs)) {
+                if (tt == TOK_LP && handler.nameIsEvalAnyParentheses(lhs, context)) {
                     /* Select JSOP_EVAL and flag pc as needsCallObject. */
                     op = pc->sc->strict() ? JSOP_STRICTEVAL : JSOP_EVAL;
                     pc->sc->setBindingsAccessedDynamically();
@@ -9079,6 +9291,19 @@ Parser<ParseHandler>::memberExpr(YieldHandling yieldHandling, TripledotHandling 
     }
 
     return lhs;
+}
+
+template <typename ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::memberExpr(YieldHandling yieldHandling, TripledotHandling tripledotHandling, TokenKind tt,
+                                 bool allowCallSyntax, InvokedPrediction invoked)
+{
+    PossibleError possibleError(*this);
+    Node pn = memberExpr(yieldHandling, tripledotHandling, &possibleError, tt,
+                         allowCallSyntax, invoked);
+    if (!pn || !possibleError.checkForExprErrors())
+        return null();
+    return pn;
 }
 
 template <typename ParseHandler>
@@ -9453,13 +9678,15 @@ Parser<ParseHandler>::propertyName(YieldHandling yieldHandling, Node propList,
         return propName;
     }
 
-    if (ltok == TOK_NAME && (tt == TOK_COMMA || tt == TOK_RC)) {
+    if (ltok == TOK_NAME && (tt == TOK_COMMA || tt == TOK_RC || tt == TOK_ASSIGN)) {
         if (isGenerator) {
             report(ParseError, false, null(), JSMSG_BAD_PROP_ID);
             return null();
         }
         tokenStream.ungetToken();
-        *propType = PropertyType::Shorthand;
+        *propType = tt == TOK_ASSIGN ?
+                          PropertyType::CoverInitializedName :
+                          PropertyType::Shorthand;
         return propName;
     }
 
@@ -9500,7 +9727,7 @@ Parser<ParseHandler>::computedPropertyName(YieldHandling yieldHandling, Node lit
 
 template <typename ParseHandler>
 typename ParseHandler::Node
-Parser<ParseHandler>::objectLiteral(YieldHandling yieldHandling)
+Parser<ParseHandler>::objectLiteral(YieldHandling yieldHandling, PossibleError* possibleError)
 {
     MOZ_ASSERT(tokenStream.isCurrentTokenType(TOK_LC));
 
@@ -9509,6 +9736,7 @@ Parser<ParseHandler>::objectLiteral(YieldHandling yieldHandling)
         return null();
 
     bool seenPrototypeMutation = false;
+    bool seenCoverInitializedName = false;
     RootedAtom propAtom(context);
     for (;;) {
         TokenKind tt;
@@ -9567,6 +9795,43 @@ Parser<ParseHandler>::objectLiteral(YieldHandling yieldHandling)
 
             if (!handler.addShorthand(literal, propName, nameExpr))
                 return null();
+        } else if (propType == PropertyType::CoverInitializedName) {
+            /*
+             * Support, e.g., |var {x=1, y=2} = o| as destructuring shorthand
+             * with default values, as per ES6 12.14.5 (2016/2/4)
+             */
+            if (!tokenStream.checkForKeyword(propAtom, nullptr))
+                return null();
+
+            Node lhs = identifierName(yieldHandling);
+            if (!lhs)
+                return null();
+
+            tokenStream.consumeKnownToken(TOK_ASSIGN);
+            Node rhs = assignExpr(InAllowed, yieldHandling, TripledotProhibited);
+            if (!rhs)
+                return null();
+
+            Node propExpr = handler.newAssignment(PNK_ASSIGN, lhs, rhs, pc, JSOP_NOP);
+            if (!propExpr)
+                return null();
+
+            if (!handler.addPropertyDefinition(literal, propName, propExpr))
+                return null();
+
+            if (!abortIfSyntaxParser())
+                return null();
+
+            if (!seenCoverInitializedName) {
+                seenCoverInitializedName = true;
+                // "shorthand default" or "CoverInitializedName" syntax is only
+                // valid in the case of destructuring. Here we set a pending error so
+                // that later in the parse, once we've determined whether or not we're
+                // destructuring, the error can be reported or ignored appropriately.
+                if (possibleError)
+                    possibleError->setPending(ParseError, JSMSG_BAD_PROP_ID, false);
+            }
+
         } else {
             // FIXME: Implement ES6 function "name" property semantics
             // (bug 883377).
@@ -9666,7 +9931,8 @@ Parser<ParseHandler>::tryNewTarget(Node &newTarget)
 template <typename ParseHandler>
 typename ParseHandler::Node
 Parser<ParseHandler>::primaryExpr(YieldHandling yieldHandling, TripledotHandling tripledotHandling,
-                                  TokenKind tt, InvokedPrediction invoked)
+                                  PossibleError* possibleError, TokenKind tt,
+                                  InvokedPrediction invoked)
 {
     MOZ_ASSERT(tokenStream.isCurrentTokenType(tt));
     JS_CHECK_RECURSION(context, return null());
@@ -9682,7 +9948,7 @@ Parser<ParseHandler>::primaryExpr(YieldHandling yieldHandling, TripledotHandling
         return arrayInitializer(yieldHandling);
 
       case TOK_LC:
-        return objectLiteral(yieldHandling);
+        return objectLiteral(yieldHandling, possibleError);
 
       case TOK_LP: {
         TokenKind next;
@@ -9714,7 +9980,7 @@ Parser<ParseHandler>::primaryExpr(YieldHandling yieldHandling, TripledotHandling
             return generatorComprehension(begin);
         }
 
-        Node expr = exprInParens(InAllowed, yieldHandling, TripledotAllowed);
+        Node expr = exprInParens(InAllowed, yieldHandling, TripledotAllowed, possibleError);
         if (!expr)
             return null();
         MUST_MATCH_TOKEN(TOK_RP, JSMSG_PAREN_IN_PAREN);
@@ -9835,6 +10101,44 @@ Parser<ParseHandler>::primaryExpr(YieldHandling yieldHandling, TripledotHandling
 //     sum(x*x for (x in y)); // ok
 //     sum(for (x of y) x*x); // SyntaxError: needs more parens
 //
+template <typename ParseHandler>
+typename ParseHandler::Node
+Parser<ParseHandler>::exprInParens(InHandling inHandling, YieldHandling yieldHandling,
+                                   TripledotHandling tripledotHandling,
+                                   PossibleError* possibleError)
+{
+    MOZ_ASSERT(tokenStream.isCurrentTokenType(TOK_LP));
+    uint32_t begin = pos().begin;
+    uint32_t startYieldOffset = pc->lastYieldOffset;
+
+    Node pn = expr(inHandling, yieldHandling, tripledotHandling, possibleError, PredictInvoked);
+    if (!pn)
+        return null();
+
+#if JS_HAS_GENERATOR_EXPRS
+    bool matched;
+    if (!tokenStream.matchToken(&matched, TOK_FOR))
+        return null();
+    if (matched) {
+        if (pc->lastYieldOffset != startYieldOffset) {
+            reportWithOffset(ParseError, false, pc->lastYieldOffset,
+                             JSMSG_BAD_GENEXP_BODY, js_yield_str);
+            return null();
+        }
+        if (handler.isUnparenthesizedCommaExpression(pn)) {
+            report(ParseError, false, null(), JSMSG_BAD_GENERATOR_SYNTAX);
+            return null();
+        }
+        pn = legacyGeneratorExpr(pn);
+        if (!pn)
+            return null();
+        handler.setBeginPosition(pn, begin);
+    }
+#endif /* JS_HAS_GENERATOR_EXPRS */
+
+    return pn;
+}
+
 template <typename ParseHandler>
 typename ParseHandler::Node
 Parser<ParseHandler>::exprInParens(InHandling inHandling, YieldHandling yieldHandling,
