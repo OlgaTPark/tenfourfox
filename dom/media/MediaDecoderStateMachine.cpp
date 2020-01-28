@@ -185,8 +185,14 @@ static uint32_t sVideoQueueSendToCompositorSize = VIDEO_QUEUE_SEND_TO_COMPOSITOR
 // TenFourFox issue 434
 // Seconds to stall the video decoder on initial startup to allow sufficient
 // buildup in memory and other items onscreen to render.
+#if !defined(XP_MACOSX) || __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
+  // We assume that hardware acceleration on 10.6+ makes things faster 
+  // and we disable this trick on non-Mac OS X operating systems.
+static const uint32_t DEFAULT_VIDEO_DECODE_STARTUP_DELAY = 0;
+#else
 // Currently disabled by default.
 static const uint32_t DEFAULT_VIDEO_DECODE_STARTUP_DELAY = 0;
+#endif
 static uint32_t sVideoDecodeStartupDelay = DEFAULT_VIDEO_DECODE_STARTUP_DELAY;
 
 static void InitVideoQueuePrefs() {
@@ -2542,7 +2548,7 @@ MediaDecoderStateMachine::CheckFrameValidity(VideoData* aData)
     // hardware acceleration. We use 10 as the corrupt value because RollingMean<>
     // only supports integer types.
     mCorruptFrames.insert(10);
-#if(0)
+#if !defined(XP_MACOSX) || __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
     if (mReader->VideoIsHardwareAccelerated() &&
         frameStats.GetPresentedFrames() > 60 &&
         mCorruptFrames.mean() >= 2 /* 20% */) {
