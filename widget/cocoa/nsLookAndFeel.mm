@@ -628,11 +628,11 @@ nsLookAndFeel::SetIntCacheImpl(const nsTArray<LookAndFeelInt>& aLookAndFeelIntCa
       case eIntID_UseOverlayScrollbars:
         mUseOverlayScrollbars = entry.value;
         mUseOverlayScrollbarsCached = true;
-        return res;
+        break;
       case eIntID_AllowOverlayScrollbarsOverlap:
         mAllowOverlayScrollbarsOverlap = entry.value;
         mAllowOverlayScrollbarsOverlapCached = true;
-        return res;
+        break;
     }
   }
 #endif

@@ -224,6 +224,8 @@ BackgroundHangManager::BackgroundHangManager()
     PR_PRIORITY_LOW, PR_GLOBAL_THREAD, PR_JOINABLE_THREAD, 0);
 
   MOZ_ASSERT(mHangMonitorThread, "Failed to create monitor thread");
+#else
+  mHangMonitorThread = nullptr;
 #endif
 }
 
