@@ -15,9 +15,11 @@ extern "C" {
 
 int   vmx_haschr(const void *b, int c, size_t len);
 void *vmx_memchr(const void *b, int c, size_t len);
+char *vmx_strchr(const char *p, int ch);
 
 #define VMX_HASCHR vmx_haschr
 #define VMX_MEMCHR vmx_memchr
+#define VMX_STRCHR vmx_strchr
 
 #elif defined(__SSE2__) && __SSE2__
 /* This should have been placed in another file but this allows us to use the 
@@ -40,6 +42,7 @@ extern void *sse_memchr(const void *b, int c, size_t len);
 #define VMX_HASCHR(a,b,c) (!!memchr(a,b,c))
 #endif
 #define VMX_MEMCHR memchr
+#define VMX_STRCHR strchr
 #endif
 
 #if defined (__cplusplus)

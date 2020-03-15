@@ -109,6 +109,7 @@
 #include "nsRuleProcessorData.h"
 #include "nsTextNode.h"
 #include "ActiveLayerTracker.h"
+#include "nsIContentInlines.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -7946,8 +7947,9 @@ nsCSSFrameConstructor::ContentRemoved(nsIContent*  aContainer,
       }
     }
     if (ancestorFrame) {
-      nsTArray<nsIContent*>* generated = ancestorFrame->GetGenConPseudos();
-      if (generated) {
+      nsIFrame* contentInsertion = ancestorFrame->GetContentInsertionFrame();
+      if (ancestorFrame->GetGenConPseudos() ||
+          (contentInsertion && contentInsertion->GetGenConPseudos())) {
         *aDidReconstruct = true;
         LAYOUT_PHASE_TEMP_EXIT();
         // XXXmats Can we recreate frames only for the ::after/::before content?

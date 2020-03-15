@@ -62,7 +62,6 @@
 #include "nsContentUtils.h"
 #include "nsLineBreaker.h"
 #include "nsIWordBreaker.h"
-#include "nsGenericDOMDataNode.h"
 #include "nsIFrameInlines.h"
 
 #include <algorithm>
@@ -637,7 +636,9 @@ int32_t nsTextFrame::GetInFlowContentLength() {
   }
 
   FlowLengthProperty* flowLength =
-    static_cast<FlowLengthProperty*>(mContent->GetProperty(nsGkAtoms::flowlength));
+    mContent->HasFlag(NS_HAS_FLOWLENGTH_PROPERTY)
+    ?  static_cast<FlowLengthProperty*>(mContent->GetProperty(nsGkAtoms::flowlength))
+    : nullptr;
 
   /**
    * This frame must start inside the cached flow. If the flow starts at
@@ -665,6 +666,7 @@ int32_t nsTextFrame::GetInFlowContentLength() {
       delete flowLength;
       flowLength = nullptr;
     }
+    mContent->SetFlags(NS_HAS_FLOWLENGTH_PROPERTY);
   }
   if (flowLength) {
     flowLength->mStartOffset = mContentOffset;
@@ -4073,9 +4075,13 @@ nsTextFrame::Init(nsIContent*       aContent,
 
   // Remove any NewlineOffsetProperty or InFlowContentLengthProperty since they
   // might be invalid if the content was modified while there was no frame
-  aContent->DeleteProperty(nsGkAtoms::newline);
-  if (PresContext()->BidiEnabled()) {
+  if (aContent->HasFlag(NS_HAS_NEWLINE_PROPERTY)) {
+    aContent->DeleteProperty(nsGkAtoms::newline);
+    aContent->UnsetFlags(NS_HAS_NEWLINE_PROPERTY);
+  }
+  if (aContent->HasFlag(NS_HAS_FLOWLENGTH_PROPERTY)) {
     aContent->DeleteProperty(nsGkAtoms::flowlength);
+    aContent->UnsetFlags(NS_HAS_FLOWLENGTH_PROPERTY);
   }
 
   // Since our content has a frame now, this flag is no longer needed.
@@ -4572,11 +4578,15 @@ nsTextFrame::DisconnectTextRuns()
 nsresult
 nsTextFrame::CharacterDataChanged(CharacterDataChangeInfo* aInfo)
 {
-  mContent->DeleteProperty(nsGkAtoms::newline);
-  if (PresContext()->BidiEnabled()) {
-    mContent->DeleteProperty(nsGkAtoms::flowlength);
+  if (mContent->HasFlag(NS_HAS_NEWLINE_PROPERTY)) {
+    mContent->DeleteProperty(nsGkAtoms::newline);
+    mContent->UnsetFlags(NS_HAS_NEWLINE_PROPERTY);
   }
-
+  if (mContent->HasFlag(NS_HAS_FLOWLENGTH_PROPERTY)) {
+    mContent->DeleteProperty(nsGkAtoms::flowlength);
+    mContent->UnsetFlags(NS_HAS_FLOWLENGTH_PROPERTY);
+  }
+ 
   // Find the first frame whose text has changed. Frames that are entirely
   // before the text change are completely unaffected.
   nsTextFrame* next;
@@ -4589,7 +4599,12 @@ nsTextFrame::CharacterDataChanged(CharacterDataChangeInfo* aInfo)
   }
 
   int32_t endOfChangedText = aInfo->mChangeStart + aInfo->mReplaceLength;
-  nsTextFrame* lastDirtiedFrame = nullptr;
+
+  // Parent of the last frame that we passed to FrameNeedsReflow (or noticed
+  // had already received an earlier FrameNeedsReflow call).
+  // (For subsequent frames with this same parent, we can just set their
+  // dirty bit without bothering to call FrameNeedsReflow again.)
+  nsIFrame* lastDirtiedFrameParent = nullptr;
 
   nsIPresShell* shell = PresContext()->GetPresShell();
   do {
@@ -4597,17 +4612,39 @@ nsTextFrame::CharacterDataChanged(CharacterDataChangeInfo* aInfo)
     // if this was a pure insertion).
     textFrame->mState &= ~TEXT_WHITESPACE_FLAGS;
     textFrame->ClearTextRuns();
-    if (!lastDirtiedFrame ||
-        lastDirtiedFrame->GetParent() != textFrame->GetParent()) {
-      // Ask the parent frame to reflow me.
-      shell->FrameNeedsReflow(textFrame, nsIPresShell::eStyleChange,
-                              NS_FRAME_IS_DIRTY);
-      lastDirtiedFrame = textFrame;
+
+    nsIFrame* parentOfTextFrame = textFrame->GetParent();
+    bool areAncestorsAwareOfReflowRequest = false;
+    if (lastDirtiedFrameParent == parentOfTextFrame) {
+      // An earlier iteration of this loop already called
+      // FrameNeedsReflow for a sibling of |textFrame|.
+      areAncestorsAwareOfReflowRequest = true;
     } else {
-      // if the parent is a block, we're cheating here because we should
-      // be marking our line dirty, but we're not. nsTextFrame::SetLength
-      // will do that when it gets called during reflow.
-      textFrame->AddStateBits(NS_FRAME_IS_DIRTY);
+      lastDirtiedFrameParent = parentOfTextFrame;
+    }
+
+    if (textFrame->mReflowRequestedForCharDataChange) {
+      // We already requested a reflow for this frame; nothing to do.
+      MOZ_ASSERT(textFrame->HasAnyStateBits(NS_FRAME_IS_DIRTY),
+                 "mReflowRequestedForCharDataChange should only be set "
+                 "on dirty frames");
+    } else {
+      // Make sure textFrame is queued up for a reflow.  Also set a flag so we
+      // don't waste time doing this again in repeated calls to this method.
+      textFrame->mReflowRequestedForCharDataChange = true;
+      if (!areAncestorsAwareOfReflowRequest) {
+        // Ask the parent frame to reflow me.
+        shell->FrameNeedsReflow(textFrame, nsIPresShell::eStyleChange,
+                                NS_FRAME_IS_DIRTY);
+      } else {
+        // We already called FrameNeedsReflow on behalf of an earlier sibling,
+        // so we can just mark this frame as dirty and don't need to bother
+        // telling its ancestors.
+        // Note: if the parent is a block, we're cheating here because we should
+        // be marking our line dirty, but we're not. nsTextFrame::SetLength will
+        // do that when it gets called during reflow.
+        textFrame->AddStateBits(NS_FRAME_IS_DIRTY);
+      }
     }
     textFrame->InvalidateFrame();
 
@@ -8514,8 +8551,10 @@ nsTextFrame::ReflowText(nsLineLayout& aLineLayout, nscoord aAvailableWidth,
 
   // Clear out the reflow state flags in mState. We also clear the whitespace
   // flags because this can change whether the frame maps whitespace-only text
-  // or not.
+  // or not. We also clear the flag that tracks whether we had a pending
+  // reflow request from CharacterDataChanged (since we're reflowing now).
   RemoveStateBits(TEXT_REFLOW_FLAGS | TEXT_WHITESPACE_FLAGS);
+  mReflowRequestedForCharDataChange = false;
 
   // Temporarily map all possible content while we construct our new textrun.
   // so that when doing reflow our styles prevail over any part of the
@@ -8559,7 +8598,9 @@ nsTextFrame::ReflowText(nsLineLayout& aLineLayout, nscoord aAvailableWidth,
   NewlineProperty* cachedNewlineOffset = nullptr;
   if (textStyle->NewlineIsSignificant(this)) {
     cachedNewlineOffset =
-      static_cast<NewlineProperty*>(mContent->GetProperty(nsGkAtoms::newline));
+      mContent->HasFlag(NS_HAS_NEWLINE_PROPERTY)
+      ? static_cast<NewlineProperty*>(mContent->GetProperty(nsGkAtoms::newline))
+      : nullptr;
     if (cachedNewlineOffset && cachedNewlineOffset->mStartOffset <= offset &&
         (cachedNewlineOffset->mNewlineOffset == -1 ||
          cachedNewlineOffset->mNewlineOffset >= offset)) {
@@ -9010,6 +9051,7 @@ nsTextFrame::ReflowText(nsLineLayout& aLineLayout, nscoord aAvailableWidth,
         delete cachedNewlineOffset;
         cachedNewlineOffset = nullptr;
       }
+      mContent->SetFlags(NS_HAS_NEWLINE_PROPERTY);
     }
     if (cachedNewlineOffset) {
       cachedNewlineOffset->mStartOffset = offset;
@@ -9017,6 +9059,7 @@ nsTextFrame::ReflowText(nsLineLayout& aLineLayout, nscoord aAvailableWidth,
     }
   } else if (cachedNewlineOffset) {
     mContent->DeleteProperty(nsGkAtoms::newline);
+    mContent->UnsetFlags(NS_HAS_NEWLINE_PROPERTY);
   }
 
   // Compute space and letter counts for justification, if required
@@ -9467,7 +9510,10 @@ void
 nsTextFrame::AdjustOffsetsForBidi(int32_t aStart, int32_t aEnd)
 {
   AddStateBits(NS_FRAME_IS_BIDI);
-  mContent->DeleteProperty(nsGkAtoms::flowlength);
+  if (mContent->HasFlag(NS_HAS_FLOWLENGTH_PROPERTY)) {
+    mContent->DeleteProperty(nsGkAtoms::flowlength);
+    mContent->UnsetFlags(NS_HAS_FLOWLENGTH_PROPERTY);
+  }
 
   /*
    * After Bidi resolution we may need to reassign text runs.

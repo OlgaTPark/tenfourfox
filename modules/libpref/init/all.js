@@ -550,14 +550,6 @@ pref("media.encoder.omx.enabled", true);
 // Whether to autostart a media element with an |autoplay| attribute
 pref("media.autoplay.enabled", true);
 
-// The default number of decoded video frames that are enqueued in
-// MediaDecoderReader's mVideoQueue.
-pref("media.video-queue.default-size", 10);
-
-// The maximum number of queued frames to send to the compositor.
-// By default, send all of them.
-pref("media.video-queue.send-to-compositor-size", 9999);
-
 // Whether to disable the video stats to prevent fingerprinting
 pref("media.video_stats.enabled", true);
 
@@ -717,11 +709,7 @@ pref("gfx.font_rendering.wordcache.charlimit", 32);
 // cache shaped word results
 pref("gfx.font_rendering.wordcache.maxentries", 10000);
 
-#ifdef RELEASE_BUILD
-pref("gfx.font_rendering.graphite.enabled", false);
-#else
 pref("gfx.font_rendering.graphite.enabled", true);
-#endif
 
 #ifdef XP_WIN
 pref("gfx.font_rendering.directwrite.force-enabled", false);

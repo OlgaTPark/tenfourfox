@@ -95,18 +95,25 @@ var gLastBrowserCharset = null;
 var gLastValidURLStr = "";
 var gInPrintPreviewMode = false;
 var gContextMenu = null; // nsContextMenu instance
-var gMultiProcessBrowser =
+var gMultiProcessBrowser = false; // always
+/*
   window.QueryInterface(Ci.nsIInterfaceRequestor)
         .getInterface(Ci.nsIWebNavigation)
         .QueryInterface(Ci.nsILoadContext)
         .useRemoteTabs;
+*/
 var gAppInfo = Cc["@mozilla.org/xre/app-info;1"]
                   .getService(Ci.nsIXULAppInfo)
                   .QueryInterface(Ci.nsIXULRuntime);
 
+// See bug 1356587. If you want to revert this change, which essentially
+// makes TenFourFox Mac only, then look for everything with the string
+// "macosx" (include the quotes).
+/*
 if (AppConstants.platform != "macosx") {
   var gEditUIVisible = true;
 }
+*/
 
 [
   ["gBrowser",            "content"],
@@ -267,6 +274,7 @@ var gInitialPages = [
 ];
 
 XPCOMUtils.defineLazyGetter(this, "Win7Features", function () {
+/*
   if (AppConstants.platform != "win")
     return null;
 
@@ -287,6 +295,7 @@ XPCOMUtils.defineLazyGetter(this, "Win7Features", function () {
       }
     };
   }
+*/
   return null;
 });
 
@@ -863,13 +872,14 @@ function _loadURIWithFlags(browser, uri, params) {
 
   let process = browser.isRemoteBrowser ? Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT
                                         : Ci.nsIXULRuntime.PROCESS_TYPE_DEFAULT;
-  let mustChangeProcess = gMultiProcessBrowser &&
-                          !E10SUtils.canLoadURIInProcess(uri, process);
+  let mustChangeProcess = false; /* gMultiProcessBrowser &&
+                          !E10SUtils.canLoadURIInProcess(uri, process); */
   try {
-    if (!mustChangeProcess) {
+    //if (!mustChangeProcess) {
       browser.webNavigation.loadURIWithOptions(uri, flags,
                                                referrer, referrerPolicy,
                                                postData, null, null);
+/*
     } else {
       if (postData) {
         postData = NetUtil.readInputStreamToString(postData, postData.available());
@@ -883,6 +893,7 @@ function _loadURIWithFlags(browser, uri, params) {
         postData: postData,
       });
     }
+*/
   } catch (e) {
     // If anything goes wrong just switch remoteness manually and load the URI.
     // We might lose history that way but at least the browser loaded a page.
@@ -970,12 +981,12 @@ var gBrowserInit = {
     window.QueryInterface(Ci.nsIDOMChromeWindow).browserDOMWindow =
       new nsBrowserAccess();
 
-    if (!gMultiProcessBrowser) {
+    //if (!gMultiProcessBrowser) {
       // There is a Content:Click message manually sent from content.
       Cc["@mozilla.org/eventlistenerservice;1"]
         .getService(Ci.nsIEventListenerService)
         .addSystemEventListener(gBrowser, "click", contentAreaClick, true);
-    }
+    //}
 
     // hook up UI through progress listener
     gBrowser.addProgressListener(window.XULBrowserWindow);
@@ -1154,6 +1165,7 @@ var gBrowserInit = {
         // be able to support remote browsers, and then make our selectedTab
         // remote.
         try {
+/*
           if (tabToOpen.linkedBrowser.isRemoteBrowser) {
             if (!gMultiProcessBrowser) {
               throw new Error("Cannot drag a remote browser into a window " +
@@ -1162,6 +1174,7 @@ var gBrowserInit = {
 
             gBrowser.updateBrowserRemoteness(gBrowser.selectedBrowser, true);
           }
+*/
           gBrowser.swapBrowsersAndCloseOther(gBrowser.selectedTab, tabToOpen);
         } catch(e) {
           Cu.reportError(e);
@@ -1308,12 +1321,15 @@ var gBrowserInit = {
     // unless there are downloads to be displayed.
     DownloadsButton.initializeIndicator();
 
+// See bug 1356587. This is never called on TenFourFox.
+/*
     if (AppConstants.platform != "macosx") {
       updateEditUIVisibility();
       let placesContext = document.getElementById("placesContext");
       placesContext.addEventListener("popupshowing", updateEditUIVisibility, false);
       placesContext.addEventListener("popuphiding", updateEditUIVisibility, false);
     }
+*/
 
     LightWeightThemeWebInstaller.init();
 
@@ -1602,7 +1618,7 @@ var gBrowserInit = {
   },
 };
 
-if (AppConstants.platform == "macosx") {
+//if (AppConstants.platform == "macosx") {
   // nonBrowserWindowStartup(), nonBrowserWindowDelayedStartup(), and
   // nonBrowserWindowShutdown() are used for non-browser windows in
   // macBrowserOverlay
@@ -1676,9 +1692,11 @@ if (AppConstants.platform == "macosx") {
     // initialize the sync UI
     gSyncUI.init();
 
+/*
     if (AppConstants.E10S_TESTING_ONLY) {
       gRemoteTabsUI.init();
     }
+*/
   };
 
   gBrowserInit.nonBrowserWindowShutdown = function() {
@@ -1691,18 +1709,18 @@ if (AppConstants.platform == "macosx") {
 
     BrowserOffline.uninit();
   };
-}
+//}
 
 
 /* Legacy global init functions */
 var BrowserStartup        = gBrowserInit.onLoad.bind(gBrowserInit);
 var BrowserShutdown       = gBrowserInit.onUnload.bind(gBrowserInit);
 
-if (AppConstants.platform == "macosx") {
+//if (AppConstants.platform == "macosx") {
   var nonBrowserWindowStartup        = gBrowserInit.nonBrowserWindowStartup.bind(gBrowserInit);
   var nonBrowserWindowDelayedStartup = gBrowserInit.nonBrowserWindowDelayedStartup.bind(gBrowserInit);
   var nonBrowserWindowShutdown       = gBrowserInit.nonBrowserWindowShutdown.bind(gBrowserInit);
-}
+//}
 
 function HandleAppCommandEvent(evt) {
   switch (evt.command) {
@@ -1845,9 +1863,9 @@ function BrowserStop() {
 }
 
 function BrowserReloadOrDuplicate(aEvent) {
-  let metaKeyPressed = AppConstants.platform == "macosx"
+  let metaKeyPressed = aEvent.metaKey; /* AppConstants.platform == "macosx"
                        ? aEvent.metaKey
-                       : aEvent.ctrlKey;
+                       : aEvent.ctrlKey; */
   var backgroundTabModifier = aEvent.button == 1 || metaKeyPressed;
 
   if (aEvent.shiftKey && !backgroundTabModifier) {
@@ -2327,9 +2345,11 @@ function BrowserViewSourceOfDocument(aArgsOrDocument) {
       // that of the original URL, so disable remoteness if necessary for this
       // URL.
       let contentProcess = Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT
-      let forceNotRemote =
+      let forceNotRemote = false;
+/*
         gMultiProcessBrowser &&
         !E10SUtils.canLoadURIInProcess(args.URL, contentProcess);
+*/
       // `viewSourceInBrowser` will load the source content from the page
       // descriptor for the tab (when possible) or fallback to the network if
       // that fails.  Either way, the view source module will manage the tab's
@@ -2745,6 +2765,7 @@ var BrowserOnClick = {
   },
 
   handleEvent: function (event) {
+/*
     if (!event.isTrusted || // Don't trust synthetic events
         event.button == 2) {
       return;
@@ -2760,6 +2781,7 @@ var BrowserOnClick = {
         ownerDoc.documentURI.toLowerCase() == "about:newtab") {
       this.onE10sAboutNewTab(event, ownerDoc);
     }
+*/
   },
 
   receiveMessage: function (msg) {
@@ -3321,7 +3343,7 @@ var PrintPreviewListener = {
   getPrintPreviewBrowser: function () {
     if (!this._printPreviewTab) {
       let browser = gBrowser.selectedTab.linkedBrowser;
-      let forceNotRemote = gMultiProcessBrowser && !browser.isRemoteBrowser;
+      let forceNotRemote = false; //gMultiProcessBrowser && !browser.isRemoteBrowser;
       this._tabBeforePrintPreview = gBrowser.selectedTab;
       this._printPreviewTab = gBrowser.loadOneTab("about:blank",
                                                   { inBackground: false,
@@ -4125,6 +4147,8 @@ function BrowserCustomizeToolbar() {
  */
 function updateEditUIVisibility()
 {
+// Does not execute on TenFourFox (see bug 1356587 and issue 388).
+/*
   if (AppConstants.platform == "macosx")
     return;
 
@@ -4161,6 +4185,7 @@ function updateEditUIVisibility()
     goSetCommandEnabled("cmd_delete", true);
     goSetCommandEnabled("cmd_switchTextDirection", true);
   }
+*/
 }
 
 /**
@@ -4372,6 +4397,7 @@ var XULBrowserWindow = {
 
   // Check whether this URI should load in the current process
   shouldLoadURI: function(aDocShell, aURI, aReferrer) {
+/*
     if (!gMultiProcessBrowser)
       return true;
 
@@ -4388,6 +4414,7 @@ var XULBrowserWindow = {
       E10SUtils.redirectLoad(aDocShell, aURI, aReferrer);
       return false;
     }
+*/
 
     return true;
   },
@@ -4578,7 +4605,7 @@ var XULBrowserWindow = {
       }
 
       // Disable find commands in documents that ask for them to be disabled.
-      if (!gMultiProcessBrowser && aLocationURI &&
+      if (/* !gMultiProcessBrowser && */ aLocationURI &&
           (aLocationURI.schemeIs("about") || aLocationURI.schemeIs("chrome"))) {
         // Don't need to re-enable/disable find commands for same-document location changes
         // (e.g. the replaceStates in about:addons)
@@ -5387,10 +5414,10 @@ const nodeToShortcutMap = {
   "downloads-button": "key_openDownloads"
 };
 
-if (AppConstants.platform == "macosx") {
+//if (AppConstants.platform == "macosx") {
   nodeToTooltipMap["print-button"] = "printButton.tooltip";
   nodeToShortcutMap["print-button"] = "printKb";
-}
+//}
 
 const gDynamicTooltipCache = new Map();
 function UpdateDynamicShortcutTooltipText(aTooltip) {
@@ -6684,6 +6711,7 @@ function checkEmptyPageOrigin(browser = gBrowser.selectedBrowser,
     return false;
   }
   let contentPrincipal = browser.contentPrincipal;
+/*
   if (gMultiProcessBrowser && browser.isRemoteBrowser &&
       !contentPrincipal && uri.spec == "about:blank") {
     // Need to specialcase this because of how stopping an about:blank
@@ -6691,6 +6719,7 @@ function checkEmptyPageOrigin(browser = gBrowser.selectedBrowser,
     // see bug 1249362.
     return true;
   }
+*/
   // Not all principals have URIs...
   if (contentPrincipal.URI) {
     // A manually entered about:blank URI is slightly magical:
@@ -7544,6 +7573,8 @@ var gPrivateBrowsingUI = {
 
 var gRemoteTabsUI = {
   init: function() {
+// Not supported on TenFourFox (issue 441).
+/*
     if (window.location.href != getBrowserURL() &&
         // Also check hidden window for the Mac no-window case
         window.location.href != "chrome://browser/content/hiddenWindow.xul") {
@@ -7560,6 +7591,7 @@ var gRemoteTabsUI = {
     let newNonRemoteWindow = document.getElementById("menu_newNonRemoteWindow");
     let autostart = Services.appinfo.browserTabsRemoteAutostart;
     newNonRemoteWindow.hidden = !autostart;
+*/
   }
 };
 
@@ -7725,7 +7757,7 @@ var TabContextMenu = {
     if (AppConstants.E10S_TESTING_ONLY) {
       menuItems = aPopupMenu.getElementsByAttribute("tbattr", "tabbrowser-remote");
       for (let menuItem of menuItems)
-        menuItem.hidden = !gMultiProcessBrowser;
+        menuItem.hidden = true; // !gMultiProcessBrowser;
     }
 
     disabled = gBrowser.visibleTabs.length == 1;
@@ -8027,7 +8059,7 @@ var ToolbarIconColor = {
     }
 
     let toolbarSelector = "#navigator-toolbox > toolbar:not([collapsed=true]):not(#addon-bar)";
-    if (AppConstants.platform == "macosx")
+    //if (AppConstants.platform == "macosx")
       toolbarSelector += ":not([type=menubar])";
 
     // The getComputedStyle calls and setting the brighttext are separated in
