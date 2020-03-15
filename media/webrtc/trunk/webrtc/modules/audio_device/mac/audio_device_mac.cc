@@ -3232,7 +3232,7 @@ bool AudioDeviceMac::CaptureWorkerThread()
 inline
 bool AudioDeviceMac::KeyPressed() {
 // This doesn't work properly and hangs up the audio capture thread.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   bool key_down = false;
   // Loop through all Mac virtual key constant values.
   for (unsigned int key_index = 0;

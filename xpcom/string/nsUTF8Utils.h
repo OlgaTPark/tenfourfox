@@ -12,7 +12,7 @@
 
 #include "nscore.h"
 #include "mozilla/Assertions.h"
-#if MOZILLA_MAY_SUPPORT_SSE2
+#ifdef __SSE__
 #include "mozilla/SSE.h"
 #endif
 

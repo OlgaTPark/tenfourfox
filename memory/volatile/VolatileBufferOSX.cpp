@@ -47,7 +47,7 @@ VolatileBuffer::Init(size_t aSize, size_t aAlignment)
   }
 
 heap_alloc:
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
   (void)moz_posix_memalign(&mBuf, aAlignment, aSize);
 #else
   // 10.4 doesn't have memalign, but our malloc()s are always aligned to

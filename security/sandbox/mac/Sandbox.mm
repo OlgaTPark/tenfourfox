@@ -19,7 +19,7 @@
 // some/all of the Macs in Mozilla's build system.  For the time being (until
 // this problem is resolved), we refer directly to what we need from it,
 // rather than including it here.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 && defined(MOZ_PLUGINS)
 extern "C" int sandbox_init(const char *profile, uint64_t flags, char **errorbuf);
 extern "C" void sandbox_free_error(char *errorbuf);
 
@@ -75,9 +75,15 @@ OSXVersion::GetSystemVersion(int32_t& aMajor, int32_t& aMinor, int32_t& aBugFix)
     CFReadStreamCreateWithFile(kCFAllocatorDefault, url);
   CFReadStreamOpen(stream);
   CFDictionaryRef sysVersionPlist = (CFDictionaryRef)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     CFPropertyListCreateWithStream(kCFAllocatorDefault,
                                    stream, 0, kCFPropertyListImmutable,
                                    NULL, NULL);
+#else
+    CFPropertyListCreateFromStream(kCFAllocatorDefault, 
+                                   stream, 0, kCFPropertyListImmutable, 
+                                   NULL, NULL);
+#endif
   CFReadStreamClose(stream);
   CFRelease(stream);
   CFRelease(url);
@@ -127,7 +133,7 @@ OSXVersion::GetVersionNumber()
 namespace mozilla {
 
 // Let's not take space up in the binary with this crap.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 && defined(MOZ_PLUGINS)
 static const char pluginSandboxRules[] =
   "(version 1)\n"
   "(deny default)\n"
@@ -431,12 +437,13 @@ static const char contentSandboxRules[] =
 
 bool StartMacSandbox(MacSandboxInfo aInfo, std::string &aErrorMessage)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050 || !defined(MOZ_PLUGINS)
 char *msg = NULL;
 asprintf(&msg, "Sandbox not supported on PowerPC");
 if (msg) { aErrorMessage.assign(msg); free(msg); }
 return false;
 
-#if(0)
+#else
   char *profile = NULL;
   if (aInfo.type == MacSandboxType_Plugin) {
     if (OSXVersion::OnLionOrLater()) {

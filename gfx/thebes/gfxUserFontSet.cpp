@@ -54,7 +54,7 @@ public:
         free(mPtr);
     }
 
-    // Return the buffer, resized to fit its contents (as it may have been
+    // Bug 1268951: Return the buffer, resized to fit its contents (as it may have been
     // over-allocated during growth), and give up ownership of it so the
     // caller becomes responsible to call free() when finished with it.
     void* forget() {
@@ -250,7 +250,7 @@ gfxUserFontEntry::SanitizeOpenTypeData(const uint8_t* aData,
 
     gfxOTSContext otsContext(this);
     if (!otsContext.Process(&output, aData, aLength)) {
-        // Failed to decode/sanitize the font, so discard it.
+        // Bug 1268951: Failed to decode/sanitize the font, so discard it.
         aSaneLength = 0;
         return nullptr;
     }
@@ -728,7 +728,7 @@ gfxUserFontEntry::LoadPlatformFont(const uint8_t* aFontData, uint32_t& aLength)
                  NS_ConvertUTF16toUTF8(mFamilyName).get(),
                  this, uint32_t(mFontSet->mGeneration), fontCompressionRatio));
         }
-        fe->AddRef(); // BADFIX???
+        fe->AddRef(); // BADFIX??? (Uh, leak ?)
         mPlatformFontEntry = fe;
         SetLoadState(STATUS_LOADED);
         gfxUserFontSet::UserFontCache::CacheFont(fe);

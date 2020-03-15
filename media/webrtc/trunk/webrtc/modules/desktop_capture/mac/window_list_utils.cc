@@ -17,8 +17,9 @@
 namespace webrtc {
 
 bool GetWindowList(WindowCapturer::WindowList* windows) {
-return false;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  return false;
+#else
   // Only get on screen, non-desktop windows.
   CFArrayRef window_array = CGWindowListCopyWindowInfo(
       kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,

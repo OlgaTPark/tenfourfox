@@ -29,5 +29,6 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
 if CONFIG['MOZ_WIDGET_TOOLKIT'] != 'android':
     DIRS += ['contentproc']
 
-# nooooo
-#DIRS += ['app']
+# Build plugin-container only if plugins are enabled
+if CONFIG['MOZ_PLUGINS']:
+    DIRS += ['app']

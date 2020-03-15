@@ -4817,6 +4817,7 @@ nsImageRenderer::PrepareImage()
           mPrepareResult = DrawResult::BAD_IMAGE;
           return false;
         }
+        mPaintServerFrame = paintServerFrame;
       }
 
       mPrepareResult = DrawResult::SUCCESS;

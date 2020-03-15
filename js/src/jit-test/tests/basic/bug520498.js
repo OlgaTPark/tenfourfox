@@ -4,7 +4,7 @@ try {
 } catch (e) {
 }
 
-// Due to our stack armour, exact number irrelevant to IonPower.
+// Due to our stack armour, exact number irrelevant to IonPower (See issue 246).
 // Just don't crash.
 quit();
 

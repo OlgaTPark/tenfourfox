@@ -1320,8 +1320,8 @@ evbuffer_strchr(struct evbuffer_ptr *it, const char chr)
 static inline char *
 find_eol_char(char *s, size_t len)
 {
-#if TENFOURFOX_VMX
-#warning using accelerated VMX libevent
+#if TENFOURFOX_VMX || (defined(__SSE2__) && __SSE2__)
+#warning using accelerated SSE2/VMX libevent
 #define CHUNK_SZ 1024
 #else
 #define CHUNK_SZ 128

@@ -1,0 +1,91 @@
+. $topsrcdir/browser/config/mozconfig
+
+# Tweak for those who use a different python version than the system version
+export PATH=/usr/local/bin/:$PATH
+
+# Change the following to match your compiler/processor (DO NOT SET -m32 -m64 OR -arch YET)
+export CC="clang -mtune=core"
+export CXX="clang++ -mtune=core"
+
+# Allows building an Universal binary
+# Set this variable to the architectures you want to build
+# If you want to only build one architecture, remove those two lines and add -m32 to the CC and CXX variables
+# NOTE: Tiger is limited to i386
+# NOTE: Leopard works in 64-bits but you can't type anything in it so it's quite useless!
+mk_add_options MOZ_BUILD_PROJECTS="x86_64 i386"
+. $topsrcdir/build/macosx/universal/mozconfig.common
+
+# Sets the folder in which compiled files will be written
+# WATCH OUT: it won't work if you name this folder "obj-ff-dbg-Leo" !!!
+# (ld taking "-Leo" as an option (a.k.a. -L<library_search_path>))
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-ff-dbg
+
+# Change to match your build machine (replace -j8 by -j<number of CPU cores>)
+mk_add_options MOZ_MAKE_FLAGS="-s -j8"
+
+# Change to match the install location of autoconf 2.13
+mk_add_options AUTOCONF=/usr/local/Cellar/autoconf213/2.13/bin/autoconf213
+
+# Default TenFourFox options
+ac_add_options --disable-tests
+ac_add_options --disable-static
+ac_add_options --enable-optimize
+ac_add_options --disable-cpp-exceptions
+ac_add_options --disable-debug
+ac_add_options --disable-crashreporter
+ac_add_options --enable-printing
+ac_add_options --enable-prebinding
+ac_add_options --enable-chrome-format=jar
+ac_add_options --enable-strip
+ac_add_options --enable-install-strip
+ac_add_options --with-distribution-id=com.floodgap
+ac_add_options --enable-webrtc
+
+# My custom options
+ac_add_options --enable-ffmpeg
+
+# Please choose either one of the options set below
+# In order to match your target system
+#  Options for Tiger
+#ac_add_options --disable-plugins
+#ac_add_options --disable-skia
+#ac_add_options --enable-macos-target=10.4
+#ac_add_options --with-macos-sdk=/Developer/SDKs/MacOSX10.4u.sdk
+#ac_add_options --target=i686-apple-darwin8.0.0
+#  Options for Leopard
+#ac_add_options --disable-plugins
+#ac_add_options --disable-skia
+#ac_add_options --enable-macos-target=10.5
+#ac_add_options --with-macos-sdk=/Developer/SDKs/MacOSX10.5.sdk
+#ac_add_options --target=i686-apple-darwin9.0.0
+#  Options for Snow Leopard and later
+ac_add_options --enable-plugins
+ac_add_options --enable-skia
+ac_add_options --enable-macos-target=10.6
+ac_add_options --with-macos-sdk=/Developer/SDKs/MacOSX10.7.sdk
+#   Force using libjpeg inclueded in mozilla source code
+export MOZ_SYSTEM_JPEG=1
+# END options sets
+
+# Options for debugging:
+#  From: DEBUG-gprof.mozcfg
+#ac_add_options --enable-debug-symbols=-gdwarf-2
+#export MOZ_DEBUG_SYMBOLS=1
+#ac_add_options --disable-optimize
+#ac_add_options --disable-strip
+#ac_add_options --disable-install-strip
+
+# Enable the following if your linker has a restricted address space:
+#export MOZ_SHARED_ICU=1
+
+# Force 32-bit (useful when building a 32-bit binary on 64-bit Mac OS):
+export CROSS_COMPILE=1
+
+# Others for various build utilities.  Leave them to avoid some weird-not-found-tool-crash!
+AR=ar
+RANLIB=ranlib
+AS=$CC
+LD=ld
+export STRIP="strip -x -S"
+# Mandatory or toolkit/library/dependentlibs.py will crash because otool is not found !!!
+OTOOL=otool

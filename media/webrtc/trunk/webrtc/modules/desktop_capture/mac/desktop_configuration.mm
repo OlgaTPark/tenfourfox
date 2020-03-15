@@ -16,8 +16,22 @@
 
 #include "webrtc/system_wrappers/interface/logging.h"
 
-typedef float CGFloat;
-typedef uint32_t NSUInteger;
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat;
+  #else	/* !defined(__LP64__) || !__LP64__ */
+    typedef float CGFloat;
+  #endif	/* !defined(__LP64__) || !__LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif	/* CGFLOAT_DEFINED */
+#ifndef NSINTEGER_DEFINED
+  #if __LP64__ || NS_BUILD_32_LIKE_64
+    typedef unsigned long NSUInteger;
+  #else
+    typedef unsigned int NSUInteger;
+  #endif
+  #define NSINTEGER_DEFINED
+#endif
 
 #if !defined(MAC_OS_X_VERSION_10_7) || \
     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7

@@ -375,9 +375,10 @@ if(nsCocoaFeatures::OnSnowLeopardOrLater()) {
   // We are using Fast Enumeration, thus the NSURL array is created once then
   // iterated.
 // 10.4 doesn't let us iterate in the newfangled way.
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 1050) || !defined(__OBJC2__)
   for (unsigned int i = 0; i < [[thePanel URLs] count]; i++) {
     NSURL *url = [[thePanel URLs] objectAtIndex:i];
-#if(0)
+#else
   for (NSURL* url in [thePanel URLs]) {
 #endif
     if (!url) {
@@ -436,7 +437,7 @@ nsFilePicker::GetLocalFolder(const nsString& inTitle, nsIFile** outFile)
   int result = [thePanel runModal];
 #else
   nsCocoaUtils::PrepareForNativeAppModalDialog();
-  if (!theDir) theDir = @"/Users/";
+  //if (!theDir) theDir = @"/Users/"; // According to Apple™©® Doc's theDir can be nil…
   int result = [thePanel runModalForDirectory:theDir file:nil types:nil];  
 #endif
   nsCocoaUtils::CleanUpAfterNativeAppModalDialog();
@@ -506,7 +507,7 @@ nsFilePicker::PutLocalFile(const nsString& inTitle, const nsString& inDefaultNam
   [thePanel setNameFieldStringValue:defaultFilename];
   int result = [thePanel runModal];
 #else
-  if (!theDir) theDir = @"/Users/";
+  //if (!theDir) theDir = @"/Users/"; // According to Apple™©® Doc's theDir can be nil…
   nsCocoaUtils::PrepareForNativeAppModalDialog();
   int result = [thePanel runModalForDirectory:theDir file:defaultFilename];
 #endif

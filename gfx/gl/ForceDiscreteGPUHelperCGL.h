@@ -14,7 +14,7 @@
  */
 class ForceDiscreteGPUHelperCGL
 {
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
     CGLPixelFormatObj mPixelFormatObj;
 #endif
 
@@ -22,7 +22,7 @@ public:
     ForceDiscreteGPUHelperCGL()
     {
 // This doesn't work in 10.4.
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
         // the code in this function is taken from Chromium, src/ui/gfx/gl/gl_context_cgl.cc, r122013
         // BSD-style license, (c) The Chromium Authors
         CGLPixelFormatAttribute attribs[1];
@@ -34,7 +34,7 @@ public:
 
     ~ForceDiscreteGPUHelperCGL()
     {
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
         CGLReleasePixelFormat(mPixelFormatObj);
 #endif
     }

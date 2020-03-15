@@ -423,6 +423,7 @@ jit::CheckLogging()
             "  logs       C1 and JSON visualization logging\n"
             "  logs-sync  Same as logs, but flushes between each pass (sync. compiled functions only).\n"
             "  profiling  Profiling-related information\n"
+            "  irregexp   Regular Expression code generation information (secret TenFourFox tweak who's not secret anymore!)\n"
             "  trackopts  Optimization tracking information\n"
             "  all        Everything\n"
             "\n"

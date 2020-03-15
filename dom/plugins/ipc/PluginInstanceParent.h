@@ -432,7 +432,7 @@ private:
     WNDPROC            mPluginWndProc;
     bool               mNestedEventState;
 #endif // defined(XP_WIN)
-#if(0) // 10.4 no haz, beyotch.
+#ifdef MOZ_PLUGINS // 10.4 no haz, beyotch.
 #if defined(MOZ_WIDGET_COCOA)
 private:
     Shmem                  mShSurface; 

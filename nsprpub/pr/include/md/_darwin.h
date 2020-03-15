@@ -48,12 +48,15 @@
 #define _PR_HAVE_SOCKADDR_LEN  
 #define _PR_STAT_HAS_ST_ATIMESPEC
 #define _PR_HAVE_LARGE_OFF_T
-/* #define _PR_HAVE_SYSV_SEMAPHORES */
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
+  #define _PR_HAVE_SYSV_SEMAPHORES
+#else
 // SysV semaphores are buggy on 10.4. See
 // http://lists.apple.com/archives/darwin-dev/2005/Mar/msg00147.html
 // and TenFourFox issue 191. Instead, we use POSIX ones.
 #define _PR_HAVE_POSIX_SEMAPHORES
 #define _PR_HAVE_ATOMIC_CAS
+#endif
 #define PR_HAVE_SYSV_NAMED_SHARED_MEMORY
 
 #define _PR_INET6

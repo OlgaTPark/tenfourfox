@@ -46,7 +46,7 @@ nsScreenCocoa::GetRect(int32_t *outX, int32_t *outY, int32_t *outWidth, int32_t 
   NSRect frame = [mScreen frame];
 
   LayoutDeviceIntRect r =
-    nsCocoaUtils::CocoaRectToGeckoRectDevPix(frame);
+    nsCocoaUtils::CocoaRectToGeckoRectDevPix(frame DO_IF_USE_BACKINGSCALE(, BackingScaleFactor()));
 
   *outX = r.x;
   *outY = r.y;
@@ -62,7 +62,7 @@ nsScreenCocoa::GetAvailRect(int32_t *outX, int32_t *outY, int32_t *outWidth, int
   NSRect frame = [mScreen visibleFrame];
 
   LayoutDeviceIntRect r =
-    nsCocoaUtils::CocoaRectToGeckoRectDevPix(frame);
+    nsCocoaUtils::CocoaRectToGeckoRectDevPix(frame DO_IF_USE_BACKINGSCALE(, BackingScaleFactor()));
 
   *outX = r.x;
   *outY = r.y;
@@ -145,6 +145,9 @@ inline
 CGFloat
 nsScreenCocoa::BackingScaleFactor()
 {
+#if USE_BACKING_SCALE_FACTOR
+  return nsCocoaUtils::GetBackingScaleFactor(mScreen);
+#else
   return 1.0f;
-  //return nsCocoaUtils::GetBackingScaleFactor(mScreen);
+#endif
 }

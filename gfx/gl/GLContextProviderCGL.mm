@@ -125,7 +125,7 @@ GLContextCGL::MakeCurrentImpl(bool aForce)
         // If swapInt is 1, then glSwapBuffers will block and wait for a vblank signal.
         // When we're iterating as fast as possible, however, we want a non-blocking
         // glSwapBuffers, which will happen when swapInt==0.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
         GLint swapInt = gfxPrefs::LayoutFrameRate() == 0 ? 0 : 1;
         [mContext setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
 #endif
@@ -181,55 +181,68 @@ GLContextProviderCGL::CreateWrappingExisting(void*, void*)
 
 // 10.4 doesn't have NSOpenGLPFAAllowOfflineRenderers.
 static const NSOpenGLPixelFormatAttribute kAttribs_singleBuffered[] = {
-    //NSOpenGLPFAAllowOfflineRenderers,
-    0
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    NSOpenGLPFAAllowOfflineRenderers,
+#endif
+    (NSOpenGLPixelFormatAttribute)0
 };
 
 static const NSOpenGLPixelFormatAttribute kAttribs_singleBuffered_accel[] = {
     NSOpenGLPFAAccelerated,
-    //NSOpenGLPFAAllowOfflineRenderers,
-    0
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    NSOpenGLPFAAllowOfflineRenderers,
+#endif
+    (NSOpenGLPixelFormatAttribute)0
 };
 
 static const NSOpenGLPixelFormatAttribute kAttribs_doubleBuffered[] = {
-    //NSOpenGLPFAAllowOfflineRenderers,
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    NSOpenGLPFAAllowOfflineRenderers,
+#endif
     NSOpenGLPFADoubleBuffer,
-    0
+    (NSOpenGLPixelFormatAttribute)0
 };
 
 static const NSOpenGLPixelFormatAttribute kAttribs_doubleBuffered_accel[] = {
     NSOpenGLPFAAccelerated,
-    //NSOpenGLPFAAllowOfflineRenderers,
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    NSOpenGLPFAAllowOfflineRenderers,
+#endif
     NSOpenGLPFADoubleBuffer,
-    0
+    (NSOpenGLPixelFormatAttribute)0
 };
 
 static const NSOpenGLPixelFormatAttribute kAttribs_offscreen[] = {
-    0
+    (NSOpenGLPixelFormatAttribute)0
 };
 
 static const NSOpenGLPixelFormatAttribute kAttribs_offscreen_allow_offline[] = {
-    //NSOpenGLPFAAllowOfflineRenderers,
-    0
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+    NSOpenGLPFAAllowOfflineRenderers,
+#endif
+    (NSOpenGLPixelFormatAttribute)0
 };
 
 static const NSOpenGLPixelFormatAttribute kAttribs_offscreen_accel[] = {
     NSOpenGLPFAAccelerated,
-    0
+    (NSOpenGLPixelFormatAttribute)0
 };
 
 // 10.4 doesn't have these either.
 static const NSOpenGLPixelFormatAttribute kAttribs_offscreen_coreProfile[] = {
     NSOpenGLPFAAccelerated,
-    //NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
-    0
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
+    NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
+#endif
+    (NSOpenGLPixelFormatAttribute)0
 };
 
 static NSOpenGLContext*
 CreateWithFormat(const NSOpenGLPixelFormatAttribute* attribs)
 {
-return nullptr; // this is totally bogus on 10.4
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+    return nullptr; // this is totally bogus on 10.4
+#else
     NSOpenGLPixelFormat* format = [[NSOpenGLPixelFormat alloc]
                                    initWithAttributes:attribs];
     if (!format) {
@@ -271,7 +284,14 @@ GLContextProviderCGL::CreateForWindow(nsIWidget *aWidget, bool aForceAccelerated
     }
 
     // make the context transparent
+#if MAC_OS_X_VERSION_MAX_ALLOWED > 1040
+    //  >= 10.5 SDK:  (void)setValues:(const GLint *)vals forParameter:(NSOpenGLContextParameter)param;
     GLint opaque = 0;
+#else
+    // In 10.4 SDK we have a different prototype:
+    // - (void)setValues:(const long *)vals forParameter:(NSOpenGLContextParameter)param;
+    long opaque = 0;
+#endif /* MAC_OS_X_VERSION_MAX_ALLOWED */
     [context setValues:&opaque forParameter:NSOpenGLCPSurfaceOpacity];
 
     SurfaceCaps caps = SurfaceCaps::ForRGBA();

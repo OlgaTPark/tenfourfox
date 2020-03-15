@@ -1540,9 +1540,13 @@ class LSafepoint : public TempObject
 
 #ifdef DEBUG
     bool hasNunboxPayload(LAllocation payload) const {
+#ifdef JS_CODEGEN_PPC_OSX
 return true; // XXX
         // Dammit, we're big endian!
         if (payload.isMemory() && hasValueSlot(payload.isStackSlot(), payload.memorySlot() + NUNBOX32_PAYLOAD_OFFSET))
+#else
+        if (payload.isMemory() && hasValueSlot(payload.isStackSlot(), payload.memorySlot()))
+#endif
             return true;
         for (size_t i = 0; i < nunboxParts_.length(); i++) {
             if (nunboxParts_[i].payload == payload)

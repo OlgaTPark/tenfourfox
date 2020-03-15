@@ -412,7 +412,6 @@ nsXPLookAndFeel::OnPrefChanged(const char* aPref, void* aClosure)
   unsigned int i;
   
   // reset the set caches just in case we can optimize checks away
-  sAnyFloatPrefsSet = false;
   sAnyIntPrefsSet = false;
   
   for (i = 0; i < ArrayLength(sIntPrefs); ++i) {
@@ -422,6 +421,7 @@ nsXPLookAndFeel::OnPrefChanged(const char* aPref, void* aClosure)
     }
   }
 
+  sAnyFloatPrefsSet = false; // ??? Here because `IntPrefChanged` does not affects this ???
   for (i = 0; i < ArrayLength(sFloatPrefs); ++i) {
     if (prefName.Equals(sFloatPrefs[i].name)) {
       FloatPrefChanged(&sFloatPrefs[i]);
@@ -482,7 +482,7 @@ nsXPLookAndFeel::Init()
                                sUseStandinsForNativeColors);
 
 // Unpossible in TenFourFox and irrelevant before 10.7.
-#ifdef __LP64__
+#if defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
   if (XRE_IsContentProcess()) {
     mozilla::dom::ContentChild* cc =
       mozilla::dom::ContentChild::GetSingleton();

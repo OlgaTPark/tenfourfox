@@ -4106,7 +4106,11 @@ GenerateGetTypedOrUnboxedArrayElement(JSContext* cx, MacroAssembler& masm,
 
     if (IsAnyTypedArray(array)) {
         // Guard on the initialized length.
+#ifdef JS_CODEGEN_PPC_OSX
         Address length(object, TypedArrayObject::lengthOffset() + NUNBOX32_PAYLOAD_OFFSET);
+#else
+        Address length(object, TypedArrayObject::lengthOffset());
+#endif
         masm.branch32(Assembler::BelowOrEqual, length, indexReg, &failures);
 
         // Save the object register on the stack in case of failure.
@@ -5028,9 +5032,11 @@ NameIC::update(JSContext* cx, HandleScript outerScript, size_t cacheIndex, Handl
             {
                 return false;
             }
+#ifdef JS_CODEGEN_PPC_OSX // I don't know what the hell it does but I assume is PPC-specific…
         } else if (IsCacheableNameNoProperty(scopeChain, obj, holder, shape, pc, cache)) {
             if (!cache.attachTypeOfNoProperty(cx, outerScript, ion, scopeChain))
                 return false;
+#endif
         }
     }
 

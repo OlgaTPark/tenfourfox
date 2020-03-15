@@ -1,4 +1,3 @@
-#if(0)
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:set ts=2 sts=2 sw=2 et cin:
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -8,6 +7,7 @@
 #ifndef MacIOSurface_h__
 #define MacIOSurface_h__
 #ifdef XP_DARWIN
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060 || defined(MOZ_PLUGINS)
 #include <QuartzCore/QuartzCore.h>
 #include <CoreVideo/CoreVideo.h>
 #include <dlfcn.h>

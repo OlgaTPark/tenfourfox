@@ -29,7 +29,8 @@ VideoRenderFrames::VideoRenderFrames()
 int32_t VideoRenderFrames::AddFrame(const I420VideoFrame& new_frame) {
   const int64_t time_now = TickTime::MillisecondTimestamp();
 
-#if(0)
+  // Disabled for performance reasons (can't measure on Intel)
+#if !defined(WEBRTC_MAC) || MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   // Drop old frames only when there are other frames in the queue, otherwise, a
   // really slow system never renders any frames.
   if (!incoming_frames_.empty() &&

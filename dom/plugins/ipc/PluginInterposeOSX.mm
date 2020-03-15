@@ -1,4 +1,3 @@
-#if(0)
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:set ts=2 sts=2 sw=2 et cin:
 // Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
@@ -28,6 +27,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#ifdef MOZ_PLUGINS
 
 #include "base/basictypes.h"
 #include "nsCocoaUtils.h"
@@ -585,7 +585,7 @@ void OnPluginShowWindow(uint32_t window_id,
        plugin_fullscreen_windows_set_.end())) {
     plugin_fullscreen_windows_set_.insert(window_id);
 
-    nsCocoaUtils::HideOSChromeOnScreen(true);
+    nsCocoaUtils::HideOSChromeOnScreen(true, nil);
   }
 }
 
@@ -608,7 +608,7 @@ static void ReleasePluginFullScreen(pid_t plugin_pid) {
   // focus, but give it back to the plugin process if requested.
   ActivateProcess(base::GetCurrentProcId());
 
-  nsCocoaUtils::HideOSChromeOnScreen(false);
+  nsCocoaUtils::HideOSChromeOnScreen(false, nil);
 
   if (plugin_pid != -1) {
     ActivateProcess(plugin_pid);

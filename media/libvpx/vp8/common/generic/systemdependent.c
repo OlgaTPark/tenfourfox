@@ -35,7 +35,7 @@ typedef void (WINAPI *PGNSI)(LPSYSTEM_INFO);
 #if CONFIG_MULTITHREAD
 static int get_cpu_count()
 {
-#if(0)
+#if !defined(__APPLE__) || !(defined(__ppc__) || defined(__ppc64__))
     int core_count = 16;
 
 #if HAVE_UNISTD_H && !defined(__OS2__)

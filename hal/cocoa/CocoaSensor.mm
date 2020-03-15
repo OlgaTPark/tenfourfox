@@ -58,7 +58,7 @@ UpdateHandler(nsITimer *aTimer, void *aClosure)
       uint32_t outputs = 2;
       uint64_t lightLMU[outputs];
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
       kr = IOConnectCallMethod(sDataPort, 0, nil, 0, nil, 0, lightLMU, &outputs, nil, 0);
 #else
 /* 10.4 doesn't have IOConnectCallMethod. However, it does have the related

@@ -151,7 +151,7 @@ PluginModuleChild::PluginModuleChild(bool aIsChrome)
         gChromeInstance = this;
     }
 
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef XP_MACOSX
     if (aIsChrome) {
       mac_plugin_interposing::child::SetUpCocoaInterposing();
@@ -285,7 +285,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
         AddQuirk(QUIRK_FLASH_EXPOSE_COORD_TRANSLATION);
     }
 #else // defined(XP_MACOSX)
-#if(0)
+#ifdef MOZ_PLUGINS
     const char* namePrefix = "Plugin Content";
     char nameBuffer[80];
     snprintf(nameBuffer, sizeof(nameBuffer), "%s (%s)", namePrefix, info.fName);
@@ -1801,7 +1801,7 @@ _popupcontextmenu(NPP instance, NPMenu* menu)
     PLUGIN_LOG_DEBUG_FUNCTION;
     AssertPluginThread();
 
-#if(0)
+#ifdef MOZ_PLUGINS
 #ifdef MOZ_WIDGET_COCOA
     double pluginX, pluginY; 
     double screenX, screenY;

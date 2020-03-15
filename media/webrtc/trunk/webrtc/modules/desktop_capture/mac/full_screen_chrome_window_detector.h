@@ -17,9 +17,11 @@
 #include "webrtc/system_wrappers/interface/atomic32.h"
 #include "webrtc/system_wrappers/interface/tick_util.h"
 
-// Not in 10.4.
-typedef uint32_t CGWindowID;
-#define kCGNullWindowID ((CGWindowID)0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  // Not in 10.4.
+  typedef uint32_t CGWindowID;
+  #define kCGNullWindowID ((CGWindowID)0)
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1050 */
 
 namespace webrtc {
 

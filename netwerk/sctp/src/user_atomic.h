@@ -54,7 +54,11 @@
 #define atomic_add_int(addr, val) OSAtomicAdd32Barrier(val, (int32_t *)addr)
 #define atomic_fetchadd_int(addr, val) OSAtomicAdd32Barrier(val, (int32_t *)addr)
 #define atomic_subtract_int(addr, val) OSAtomicAdd32Barrier(-val, (int32_t *)addr)
-#define atomic_cmpset_int(dst, exp, src) OSAtomicCompareAndSwap32Barrier(exp, src, (int *)dst)
+  #if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
+    #define atomic_cmpset_int(dst, exp, src) OSAtomicCompareAndSwapIntBarrier(exp, src, (int *)dst)
+  #else
+    #define atomic_cmpset_int(dst, exp, src) OSAtomicCompareAndSwap32Barrier(exp, src, (int *)dst)
+  #endif
 #define SCTP_DECREMENT_AND_CHECK_REFCOUNT(addr) (atomic_fetchadd_int(addr, -1) == 0)
 #endif
 

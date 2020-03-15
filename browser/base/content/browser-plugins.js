@@ -210,7 +210,9 @@ var gPluginHandler = {
 
   showClickToPlayNotification: function (browser, plugins, showNow,
                                          principal, location) {
+#ifndef MOZ_PLUGINS
 return; // never ever
+#endif
     // It is possible that we've received a message from the frame script to show
     // a click to play notification for a principal that no longer matches the one
     // that the browser's content now has assigned (ie, the browser has browsed away

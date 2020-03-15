@@ -83,7 +83,7 @@ typedef struct _nsCocoaWindowList {
   float mDPI;
 
 // 10.4 doesn't have NSTrackingArea.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 /* Bug 675208 for Leopard's NSTrackingArea */
   NSTrackingArea* mTrackingArea;
 #endif
 
@@ -326,7 +326,7 @@ public:
     NS_IMETHOD              SetCursor(nsCursor aCursor) override;
     NS_IMETHOD              SetCursor(imgIContainer* aCursor, uint32_t aHotspotX, uint32_t aHotspotY) override;
 
-#if(0)
+#if USE_BACKING_SCALE_FACTOR
     CGFloat                 BackingScaleFactor();
     void                    BackingScaleFactorChanged();
     virtual double          GetDefaultScaleInternal() override;
@@ -419,7 +419,7 @@ protected:
     return widget.forget();
   }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
   virtual nsresult NotifyIMEInternal(
                      const IMENotification& aIMENotification) override;
 #endif

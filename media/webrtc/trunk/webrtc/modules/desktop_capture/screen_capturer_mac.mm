@@ -21,6 +21,7 @@
 #include <OpenGL/OpenGL.h>
 
 #include "webrtc/base/macutils.h"
+#include "webrtc/base/criticalsection.h"
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/desktop_capture/desktop_capture_options.h"
 #include "webrtc/modules/desktop_capture/desktop_frame.h"
@@ -91,8 +92,9 @@ void CopyRect(const uint8_t* src_plane,
 // |window_to_exclude|, or NULL if the window is not found or it fails. The
 // caller should release the returned CFArrayRef.
 CFArrayRef CreateWindowListWithExclusion(CGWindowID window_to_exclude) {
-return NULL;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  return NULL;
+#else
   if (!window_to_exclude)
     return NULL;
 
@@ -134,7 +136,7 @@ return NULL;
 // on four edges to take account of the border/shadow effects.
 DesktopRect GetExcludedWindowPixelBounds(CGWindowID window,
                                          float dip_to_pixel_scale) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // The amount of pixels to add to the actual window bounds to take into
   // account of the border/shadow effects.
   static const int kBorderEffectSize = 20;
@@ -164,13 +166,14 @@ DesktopRect GetExcludedWindowPixelBounds(CGWindowID window,
   rect.size.height += kBorderEffectSize * 2;
   // |rect| is in DIP, so convert to physical pixels.
   return ScaleAndRoundCGRect(rect, dip_to_pixel_scale);
-#endif
+#else
   CGRect rect;
   rect.origin.x = 0;
   rect.origin.y = 0;
   rect.size.width = 0;
   rect.size.height = 0;
   return ScaleAndRoundCGRect(rect, dip_to_pixel_scale);
+#endif
 }
 
 // Create an image of the given region using the given |window_list|.
@@ -180,8 +183,9 @@ CGImageRef CreateExcludedWindowRegionImage(const DesktopRect& pixel_bounds,
                                            float dip_to_pixel_scale,
                                            CFArrayRef window_list,
                                            CFDataRef* data_ref) {
-return NULL;
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+  return NULL;
+#else
   CGRect window_bounds;
   // The origin is in DIP while the size is in physical pixels. That's what
   // CGWindowListCreateImageFromArray expects.
@@ -245,6 +249,15 @@ class ScreenCapturerMac : public ScreenCapturer {
                                        void *user_parameter);
   void ReleaseBuffers();
 
+  struct ScreenCallbackData {
+    explicit ScreenCallbackData(ScreenCapturerMac* capturer)
+              : capturer(capturer) {}
+    rtc::CriticalSection crit_sect_;
+    ScreenCapturerMac* /*GUARDED_BY(crit_sect_)*/ capturer;
+  };
+
+  ScreenCallbackData* screen_callback_data_;
+
   DesktopFrame* CreateFrame();
 
   Callback* callback_;
@@ -278,11 +291,13 @@ class ScreenCapturerMac : public ScreenCapturer {
   // Monitoring display reconfiguration.
   scoped_refptr<DesktopConfigurationMonitor> desktop_config_monitor_;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   // Power management assertion to prevent the screen from sleeping.
-  //IOPMAssertionID power_assertion_id_display_;
+  IOPMAssertionID power_assertion_id_display_;
 
   // Power management assertion to indicate that the user is active.
-  //IOPMAssertionID power_assertion_id_user_;
+  IOPMAssertionID power_assertion_id_user_;
+#endif
 
   // Dynamically link to deprecated APIs for Mac OS X 10.6 support.
   void* app_services_library_;
@@ -322,13 +337,16 @@ class InvertedDesktopFrame : public DesktopFrame {
 
 ScreenCapturerMac::ScreenCapturerMac(
     scoped_refptr<DesktopConfigurationMonitor> desktop_config_monitor)
-    : callback_(NULL),
+    : screen_callback_data_(new ScreenCallbackData(this)),
+      callback_(NULL),
       cgl_context_(NULL),
       current_display_(0),
       dip_to_pixel_scale_(1.0f),
       desktop_config_monitor_(desktop_config_monitor),
-      //power_assertion_id_display_(kIOPMNullAssertionID),
-      //power_assertion_id_user_(kIOPMNullAssertionID),
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+      power_assertion_id_display_(kIOPMNullAssertionID),
+      power_assertion_id_user_(kIOPMNullAssertionID),
+#endif
       app_services_library_(NULL),
       cg_display_base_address_(NULL),
       cg_display_bytes_per_row_(NULL),
@@ -339,7 +357,7 @@ ScreenCapturerMac::ScreenCapturerMac(
 }
 
 ScreenCapturerMac::~ScreenCapturerMac() {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   if (power_assertion_id_display_ != kIOPMNullAssertionID) {
     IOPMAssertionRelease(power_assertion_id_display_);
     power_assertion_id_display_ = kIOPMNullAssertionID;
@@ -351,7 +369,10 @@ ScreenCapturerMac::~ScreenCapturerMac() {
 #endif
 
   ReleaseBuffers();
-  UnregisterRefreshAndMoveHandlers();
+  {
+    rtc::CritScope lock(&screen_callback_data_->crit_sect_);
+    screen_callback_data_->capturer = nullptr;
+  }
   dlclose(app_services_library_);
   dlclose(opengl_library_);
 }
@@ -385,7 +406,7 @@ void ScreenCapturerMac::Start(Callback* callback) {
 
   callback_ = callback;
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   // Create power management assertions to wake the display and prevent it from
   // going to sleep on user idle.
   // TODO(jamiewalch): Use IOPMAssertionDeclareUserActivity on 10.7.3 and above
@@ -400,6 +421,13 @@ void ScreenCapturerMac::Start(Callback* callback) {
                               kIOPMAssertionLevelOn,
                               CFSTR("Chrome Remote Desktop connection active"),
                               &power_assertion_id_user_);
+#elif MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+  IOPMAssertionCreate(kIOPMAssertionTypeNoDisplaySleep,
+                      kIOPMAssertionLevelOn,
+                      &power_assertion_id_display_);
+  IOPMAssertionCreate(CFSTR("UserIsActive"),
+                      kIOPMAssertionLevelOn,
+                      &power_assertion_id_user_);
 #endif
 }
 
@@ -657,7 +685,7 @@ void ScreenCapturerMac::CgBlitPreLion(const DesktopFrame& frame,
 
 bool ScreenCapturerMac::CgBlitPostLion(const DesktopFrame& frame,
                                        const DesktopRegion& region) {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   // Copy the entire contents of the previous capture buffer, to capture over.
   // TODO(wez): Get rid of this as per crbug.com/145064, or implement
   // crbug.com/92354.
@@ -904,14 +932,14 @@ void ScreenCapturerMac::ScreenConfigurationChanged() {
 
 bool ScreenCapturerMac::RegisterRefreshAndMoveHandlers() {
   CGError err = CGRegisterScreenRefreshCallback(
-      ScreenCapturerMac::ScreenRefreshCallback, this);
+      ScreenCapturerMac::ScreenRefreshCallback, screen_callback_data_);
   if (err != kCGErrorSuccess) {
     LOG(LS_ERROR) << "CGRegisterScreenRefreshCallback " << err;
     return false;
   }
 
   err = CGScreenRegisterMoveCallback(
-      ScreenCapturerMac::ScreenUpdateMoveCallback, this);
+      ScreenCapturerMac::ScreenUpdateMoveCallback, screen_callback_data_);
   if (err != kCGErrorSuccess) {
     LOG(LS_ERROR) << "CGScreenRegisterMoveCallback " << err;
     return false;
@@ -922,9 +950,9 @@ bool ScreenCapturerMac::RegisterRefreshAndMoveHandlers() {
 
 void ScreenCapturerMac::UnregisterRefreshAndMoveHandlers() {
   CGUnregisterScreenRefreshCallback(
-      ScreenCapturerMac::ScreenRefreshCallback, this);
+      ScreenCapturerMac::ScreenRefreshCallback, screen_callback_data_);
   CGScreenUnregisterMoveCallback(
-      ScreenCapturerMac::ScreenUpdateMoveCallback, this);
+      ScreenCapturerMac::ScreenUpdateMoveCallback, screen_callback_data_);
 }
 
 void ScreenCapturerMac::ScreenRefresh(CGRectCount count,
@@ -962,11 +990,24 @@ void ScreenCapturerMac::ScreenUpdateMove(CGScreenUpdateMoveDelta delta,
 void ScreenCapturerMac::ScreenRefreshCallback(CGRectCount count,
                                               const CGRect* rect_array,
                                               void* user_parameter) {
-  ScreenCapturerMac* capturer =
-      reinterpret_cast<ScreenCapturerMac*>(user_parameter);
-  if (capturer->screen_pixel_bounds_.is_empty())
-    capturer->ScreenConfigurationChanged();
-  capturer->ScreenRefresh(count, rect_array);
+  ScreenCallbackData* screen_callback_data =
+      reinterpret_cast<ScreenCallbackData*>(user_parameter);
+
+  screen_callback_data->crit_sect_.Enter();
+  if (!screen_callback_data->capturer) {
+    CGUnregisterScreenRefreshCallback(
+        ScreenCapturerMac::ScreenRefreshCallback, screen_callback_data);
+    CGScreenUnregisterMoveCallback(
+        ScreenCapturerMac::ScreenUpdateMoveCallback, screen_callback_data);
+    screen_callback_data->crit_sect_.Leave();
+    delete screen_callback_data;
+    return;
+  }
+
+  if (screen_callback_data->capturer->screen_pixel_bounds_.is_empty())
+    screen_callback_data->capturer->ScreenConfigurationChanged();
+  screen_callback_data->capturer->ScreenRefresh(count, rect_array);
+  screen_callback_data->crit_sect_.Leave();
 }
 
 void ScreenCapturerMac::ScreenUpdateMoveCallback(
@@ -974,9 +1015,22 @@ void ScreenCapturerMac::ScreenUpdateMoveCallback(
     size_t count,
     const CGRect* rect_array,
     void* user_parameter) {
-  ScreenCapturerMac* capturer =
-      reinterpret_cast<ScreenCapturerMac*>(user_parameter);
-  capturer->ScreenUpdateMove(delta, count, rect_array);
+  ScreenCallbackData* screen_callback_data =
+      reinterpret_cast<ScreenCallbackData*>(user_parameter);
+
+  screen_callback_data->crit_sect_.Enter();
+  if (!screen_callback_data->capturer) {
+    CGUnregisterScreenRefreshCallback(
+        ScreenCapturerMac::ScreenRefreshCallback, screen_callback_data);
+    CGScreenUnregisterMoveCallback(
+        ScreenCapturerMac::ScreenUpdateMoveCallback, screen_callback_data);
+    screen_callback_data->crit_sect_.Leave();
+    delete screen_callback_data;
+    return;
+  }
+
+  screen_callback_data->capturer->ScreenUpdateMove(delta, count, rect_array);
+  screen_callback_data->crit_sect_.Leave();
 }
 
 DesktopFrame* ScreenCapturerMac::CreateFrame() {

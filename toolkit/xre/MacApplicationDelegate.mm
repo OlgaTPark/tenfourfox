@@ -13,7 +13,13 @@
 #import <Cocoa/Cocoa.h>
 #import <Carbon/Carbon.h>
 
-typedef int NSInteger; // followon for bug 633941 10.4Fx
+#ifndef NSINTEGER_DEFINED
+  #if __LP64__ || NS_BUILD_32_LIKE_64
+    typedef long NSInteger;
+  #else
+    typedef int NSInteger; // followon for bug 633941 10.4Fx
+  #endif
+#endif
 
 #include "nsCOMPtr.h"
 #include "nsINativeAppSupport.h"

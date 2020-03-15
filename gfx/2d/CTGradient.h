@@ -10,7 +10,15 @@
 //  Version: 1.8
 
 #import <Cocoa/Cocoa.h>
-typedef float CGFloat; // wtf.
+
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat;
+  #else	/* !defined(__LP64__) || !__LP64__ */
+    typedef float CGFloat; // wtf.
+  #endif	/* !defined(__LP64__) || !__LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif	/* CGFLOAT_DEFINED */
 
 typedef struct _CTGradientElement 
 	{

@@ -272,7 +272,8 @@ GetMemoryPortsForPid(pid_t pid)
                     false);
     MOZ_ASSERT(gMemoryCommPorts.find(pid) != gMemoryCommPorts.end());
   }
-  return &gMemoryCommPorts.at(pid);
+  //return &gMemoryCommPorts.at(pid);
+  return &gMemoryCommPorts[pid]; // Same behaviour as ::at() (C++11) but does not throws an exception
 }
 
 // We just received a port representing a region of shared memory, reply to

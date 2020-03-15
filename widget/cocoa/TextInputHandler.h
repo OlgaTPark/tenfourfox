@@ -24,7 +24,7 @@ class nsChildView;
 namespace mozilla {
 namespace widget {
 
-#ifdef NS_LEOPARD_AND_LATER
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
 
 // Key code constants
 enum

@@ -3424,10 +3424,13 @@ js::GetCPUCount()
         GetSystemInfo(&sysinfo);
         ncpus = unsigned(sysinfo.dwNumberOfProcessors);
 # else
-/*
+  #if(0)
+        // Checked in https://opensource.apple.com/source/Libc/Libc-391/gen/FreeBSD/sysconf.c.auto.html (10.4)
+        // And https://opensource.apple.com/source/Libc/Libc-498.1.7/gen/sysconf-fbsd.c.auto.html (10.5…10.8)
+        // To reveal that sysconf(_SC_NPROCESSORS_ONLN) is a fallback to the below alternative ;-)
         long n = sysconf(_SC_NPROCESSORS_ONLN);
         ncpus = (n > 0) ? unsigned(n) : 1;
-*/
+  #else /* Issue 231 and 292 */
         int mib[2];
         unsigned int maxproc = 1;
         size_t len = sizeof(maxproc);
@@ -3437,6 +3440,7 @@ js::GetCPUCount()
         if (sysctl(mib, 2, &maxproc, &len, nullptr, 0) == -1)
                 maxproc = 1;
         ncpus = unsigned(maxproc);
+  #endif
 # endif
     }
     return ncpus;

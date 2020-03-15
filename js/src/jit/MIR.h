@@ -9565,6 +9565,7 @@ class MLoadUnboxedScalar
     bool requiresBarrier_;
     int32_t offsetAdjustment_;
     bool canonicalizeDoubles_;
+#ifdef JS_CODEGEN_PPC_OSX /* My other modifications made this useless on non-power platforms */
   public:
     enum TargetKind {
         ScalarTarget = 0,
@@ -9572,6 +9573,7 @@ class MLoadUnboxedScalar
     };
   private:
     TargetKind target_;
+#endif
 
     MLoadUnboxedScalar(MDefinition* elements, MDefinition* index,
                        Scalar::Type storageType, MemoryBarrierRequirement requiresBarrier,
@@ -9589,7 +9591,9 @@ class MLoadUnboxedScalar
             setGuard();         // Not removable or movable
         else
             setMovable();
+#ifdef JS_CODEGEN_PPC_OSX
         target_ = ScalarTarget;
+#endif
         MOZ_ASSERT(IsValidElementsType(elements, offsetAdjustment));
         MOZ_ASSERT(index->type() == MIRType_Int32);
         MOZ_ASSERT(storageType >= 0 && storageType < Scalar::MaxTypedArrayViewType);
@@ -9610,12 +9614,14 @@ class MLoadUnboxedScalar
                                              canonicalizeDoubles);
     }
 
+#ifdef JS_CODEGEN_PPC_OSX
     TargetKind target() {
         return target_;
     }
     void setTarget(TargetKind t) {
         target_ = t;
     }
+#endif
     void setSimdRead(Scalar::Type type, unsigned numElems) {
         readType_ = type;
         numElems_ = numElems;
@@ -9866,10 +9872,12 @@ class MStoreUnboxedScalar
         DontTruncateInput,
         TruncateInput
     };
+#ifdef JS_CODEGEN_PPC_OSX
     enum TargetKind {
         ScalarTarget = 0,
         TypedArrayTarget
     };
+#endif
 
   private:
     Scalar::Type storageType_;
@@ -9881,7 +9889,9 @@ class MStoreUnboxedScalar
     int32_t offsetAdjustment_;
     unsigned numElems_; // used only for SIMD
     
+#ifdef JS_CODEGEN_PPC_OSX
     TargetKind target_;
+#endif
 
     MStoreUnboxedScalar(MDefinition* elements, MDefinition* index, MDefinition* value,
                         Scalar::Type storageType, TruncateInputKind truncateInput,
@@ -9898,7 +9908,9 @@ class MStoreUnboxedScalar
             setGuard();         // Not removable or movable
         else
             setMovable();
+#ifdef JS_CODEGEN_PPC_OSX
         target_ = ScalarTarget;
+#endif
         MOZ_ASSERT(IsValidElementsType(elements, offsetAdjustment));
         MOZ_ASSERT(index->type() == MIRType_Int32);
         MOZ_ASSERT(storageType >= 0 && storageType < Scalar::MaxTypedArrayViewType);
@@ -9951,12 +9963,14 @@ class MStoreUnboxedScalar
     int32_t offsetAdjustment() const {
         return offsetAdjustment_;
     }
+#ifdef JS_CODEGEN_PPC_OSX
     TargetKind target() {
         return target_;
     }
     void setTarget(TargetKind t) {
         target_ = t;
     }
+#endif
     TruncateKind operandTruncateKind(size_t index) const override;
 
     bool canConsumeFloat32(MUse* use) const override {

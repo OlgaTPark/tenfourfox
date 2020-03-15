@@ -15,7 +15,14 @@
 #include <OpenGLES/ES2/glext.h>
 #endif
 
-typedef float CGFloat; // 10.4
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat;
+  #else	/* !defined(__LP64__) || !__LP64__ */
+    typedef float CGFloat; // 10.4
+  #endif	/* !defined(__LP64__) || !__LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif	/* CGFLOAT_DEFINED */
 
 #include "2D.h"
 #include "Rect.h"
@@ -209,11 +216,13 @@ private:
   CGContextRef mCg;
   CGAffineTransform mOriginalTransform;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
   // Class member to remember which function has CGFontGlyphGetBBoxes.
   bool (*CGFontGetGlyphBBoxesPtr)
 	(CGFontRef, const CGGlyph[], size_t, CGRect[]);
   // Ditto for CGContextGetTypePtr.
   unsigned int (*CGContextGetTypePtr) (CGContextRef);
+#endif
 
   /**
    * The image buffer, if the buffer is owned by this class.

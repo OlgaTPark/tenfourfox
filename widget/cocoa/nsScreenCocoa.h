@@ -10,7 +10,14 @@
 
 #include "nsBaseScreen.h"
 
-typedef float CGFloat;
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat;
+  #else
+    typedef float CGFloat;
+  #endif /* __LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif /* CGFLOAT_DEFINED */
 
 class nsScreenCocoa : public nsBaseScreen
 {

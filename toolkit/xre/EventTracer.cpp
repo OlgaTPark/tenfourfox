@@ -218,7 +218,8 @@ namespace mozilla {
 
 bool InitEventTracing(bool aLog)
 {
-#if defined(DEBUG)
+  // Seems to work on Intel
+#if defined(DEBUG) || defined(__i386__) || defined(__x86_64__)
   if (sTracerThread)
     return true;
 

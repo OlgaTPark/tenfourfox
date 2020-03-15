@@ -58,7 +58,7 @@ int32_t nsCocoaFeatures::ExtractBugFixVersion(int32_t aVersion)
 
 static int intAtStringIndex(NSArray *array, int index)
 {
-    return [(NSString *)[array objectAtIndex:index] integerValue];
+    return [(NSString *)[array objectAtIndex:index] intValue];
 }
 
 void nsCocoaFeatures::GetSystemVersion(int &major, int &minor, int &bugfix)
@@ -238,7 +238,9 @@ nsCocoaFeatures::OnElCapitanOrLater()
 /* static */ bool
 nsCocoaFeatures::AccelerateByDefault()
 {
-return false;
+    #if defined(__ppc__) || defined(__ppc64__) || MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+        return false;
+    #endif
     return IsAtLeastVersion(10, 6, 3);
 }
 

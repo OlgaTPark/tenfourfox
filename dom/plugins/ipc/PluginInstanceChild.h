@@ -464,12 +464,12 @@ private:
      */
     nsAutoPtr< nsTHashtable<DeletingObjectEntry> > mDeletingHash;
 
-#if(0) // 10.4 no iz.
 #if defined(MOZ_WIDGET_COCOA)
 private:
 #if defined(__i386__)
     NPEventModel                  mEventModel;
 #endif
+  #ifdef MOZ_PLUGINS // 10.4 no iz.
     CGColorSpaceRef               mShColorSpace;
     CGContextRef                  mShContext;
     RefPtr<nsCARenderer> mCARenderer;
@@ -485,13 +485,13 @@ public:
   
     bool CGDraw(CGContextRef ref, nsIntRect aUpdateRect);
 
+  #endif /* MOZ_PLUGINS */
 #if defined(__i386__)
     NPEventModel EventModel() { return mEventModel; }
 #endif
 
 private:
     const NPCocoaEvent   *mCurrentEvent;
-#endif
 #endif
 
     bool CanPaintOnBackground();
@@ -586,7 +586,7 @@ private:
     // surface which is on ParentProcess side
     RefPtr<gfxASurface> mBackSurface;
 
-#if(0) // 10.4 used to date your mother.
+#ifdef MOZ_PLUGINS // 10.4 used to date your mother.
 #ifdef XP_MACOSX
     // Current IOSurface available for rendering
     // We can't use thebes gfxASurface like other platforms.
