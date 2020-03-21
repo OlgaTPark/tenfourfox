@@ -27,6 +27,7 @@ char *vmx_strchr(const char *p, int ch);
    the VMX_MEMCHR macro to avoid monkeypatching other files. */
 
 extern void *sse_memchr(const void *b, int c, size_t len);
+extern char *sse_strchr(const char *p, int ch);
 
 #define VMX_MEMCHR sse_memchr
 #if defined (__cplusplus)
@@ -34,6 +35,7 @@ extern void *sse_memchr(const void *b, int c, size_t len);
 #else
 #  define VMX_HASCHR(a,b,c) (!!sse_memchr(a,b,c))
 #endif /* __cplusplus */
+#define VMX_STRCHR sse_strchr
 
 #else /* !__SSE2__ && !TENFOURFOX_VMX */
 #if defined (__cplusplus)
