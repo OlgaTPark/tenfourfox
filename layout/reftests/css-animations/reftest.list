@@ -3,3 +3,6 @@
 fails == print-no-animations.html print-no-animations-ref.html # reftest harness doesn't actually make pres context non-dynamic for reftest-print tests
 fails != print-no-animations.html print-no-animations-notref.html # reftest harness doesn't actually make pres context non-dynamic for reftest-print tests
 == animate-opacity.html animate-opacity-ref.html
+
+== continuation-opacity.html continuation-opacity-ref.html
+== ib-split-sibling-opacity.html about:blank

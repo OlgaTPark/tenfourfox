@@ -1118,7 +1118,8 @@ nsIFrame::HasOpacityInternal(float aThreshold) const
          (mContent &&
            EffectCompositor::HasAnimationsForCompositor(
              this, eCSSProperty_opacity) &&
-           IsPrimaryFrame());
+		  (IsPrimaryFrame() || 
+           nsLayoutUtils::FirstContinuationOrIBSplitSibling(const_cast<nsIFrame *>(this))->IsPrimaryFrame()));
 }
 
 bool

@@ -178,9 +178,20 @@ static int64_t DurationToUsecs(TimeDuration aDuration) {
   return static_cast<int64_t>(aDuration.ToSeconds() * USECS_PER_S);
 }
 
+#if defined(__ppc__) || defined(__ppc64__)
+// Do "what you want" on PPC, but on Intel, video playback is smooth 
+// enough, even without hardware acceleration.  This change causes a HUGE spike
+// of RAM usage when you play high-definition videos.  Swapping can be prevented
+// by activating mach factor monitoring, but playback rate is still worsened.
 static const uint32_t MIN_VIDEO_QUEUE_SIZE = 500;
 static const uint32_t MAX_VIDEO_QUEUE_SIZE = 500;
 static const uint32_t VIDEO_QUEUE_SEND_TO_COMPOSITOR_SIZE = 45;
+#else
+static const uint32_t MIN_VIDEO_QUEUE_SIZE = 30;
+static const uint32_t MAX_VIDEO_QUEUE_SIZE = 30;
+/* To compensate the lowering of the two previous parameters */
+static const uint32_t VIDEO_QUEUE_SEND_TO_COMPOSITOR_SIZE = 99;
+#endif
 
 static uint32_t sVideoQueueDefaultSize = MAX_VIDEO_QUEUE_SIZE;
 static uint32_t sVideoQueueHWAccelSize = MIN_VIDEO_QUEUE_SIZE;
@@ -1243,7 +1254,7 @@ MediaDecoderStateMachine::MaybeStartBuffering()
         mSystemLoadRetries &&
         IsPlaying()) {     
       if (sMachLoadInfo.mach_factor < sLoadAverageMax) {
-fprintf(stderr, "TenFourFox: Video throttled due to low Mach factor: %d (cap: %d / retries: %d)\n", sMachLoadInfo.mach_factor, sLoadAverageMax, mSystemLoadRetries);
+fprintf(stderr, "TenFourFox: Video throttled due to low Mach factor: %d (cap: %d / retries: %u)\n", sMachLoadInfo.mach_factor, sLoadAverageMax, mSystemLoadRetries);
                 
         // Halt playback; too much is going on to play video well. 
         mDelayedScheduler.Reset(); // Must happen on state machine task queue.
@@ -2401,7 +2412,7 @@ nsresult MediaDecoderStateMachine::RunStateMachine()
   
   // TenFourFox issue 434
   if (mSystemLoadRetries) {
-    size_t count = PROCESSOR_SET_LOAD_INFO_COUNT;
+    mach_msg_type_number_t count = PROCESSOR_SET_LOAD_INFO_COUNT;
     sMachLastKernelReturn = processor_set_statistics(sMachDefaultPset,
             PROCESSOR_SET_LOAD_INFO,
             (processor_set_info_t)&sMachLoadInfo, &count);
