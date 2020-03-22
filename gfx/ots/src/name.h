@@ -13,6 +13,19 @@
 
 #include "ots.h"
 
+#if defined(GNU_LIBSTDCXX_TR1_UNORDERED_SET_) || defined(_TR1_UNORDERED_SET)
+namespace std {
+  using namespace ::std::tr1;
+}
+#endif
+
+// See explanation in feat.h
+#if defined(__GLIBCXX__) && __GLIBCXX__ < 20110725
+#  undef GLIBCXX_HAS_EMPLACE_BACK
+#elif (__cplusplus >= 201100)
+#  define GLIBCXX_HAS_EMPLACE_BACK	1
+#endif
+
 namespace ots {
 
 struct NameRecord {

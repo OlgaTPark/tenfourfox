@@ -66,9 +66,13 @@ bool OpenTypeSILF::Parse(const uint8_t* data, size_t length,
   }
 
   unsigned long last_offset = 0;
-  //this->offset.resize(this->numSub);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->offset.resize(this->numSub);
+#endif
   for (unsigned i = 0; i < this->numSub; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->offset.emplace_back();
+#endif
     if (!table.ReadU32(&this->offset[i]) || this->offset[i] < last_offset) {
       return DropGraphite("Failed to read offset[%u]", i);
     }
@@ -178,9 +182,13 @@ bool OpenTypeSILF::SILSub::ParsePart(Buffer& table) {
     if (!table.ReadU8(&this->numJLevels)) {
       return parent->Error("SILSub: Failed to read numJLevels");
     }
-    //this->jLevels.resize(this->numJLevels, parent);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->jLevels.resize(this->numJLevels, JustificationLevel(parent));
+#endif
     for (unsigned i = 0; i < this->numJLevels; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->jLevels.emplace_back(parent);
+#endif
       if (!this->jLevels[i].ParsePart(table)) {
         return parent->Error("SILSub: Failed to read jLevels[%u]", i);
       }
@@ -228,9 +236,13 @@ bool OpenTypeSILF::SILSub::ParsePart(Buffer& table) {
     if (!table.ReadU8(&this->numCritFeatures)) {
       return parent->Error("SILSub: Failed to read numCritFeatures");
     }
-    //this->critFeatures.resize(this->numCritFeatures);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->critFeatures.resize(this->numCritFeatures);
+#endif
     for (unsigned i = 0; i < this->numCritFeatures; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->critFeatures.emplace_back();
+#endif
       if (!table.ReadU16(&this->critFeatures[i])) {
         return parent->Error("SILSub: Failed to read critFeatures[%u]", i);
       }
@@ -247,9 +259,13 @@ bool OpenTypeSILF::SILSub::ParsePart(Buffer& table) {
   if (!table.ReadU8(&this->numScriptTag)) {
     return parent->Error("SILSub: Failed to read numScriptTag");
   }
-  //this->scriptTag.resize(this->numScriptTag);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->scriptTag.resize(this->numScriptTag);
+#endif
   for (unsigned i = 0; i < this->numScriptTag; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->scriptTag.emplace_back();
+#endif
     if (!table.ReadU32(&this->scriptTag[i])) {
       return parent->Error("SILSub: Failed to read scriptTag[%u]", i);
     }
@@ -269,9 +285,13 @@ bool OpenTypeSILF::SILSub::ParsePart(Buffer& table) {
     return parent->Error("SILSub: passOffset check failed");
   }
   unsigned long last_oPass = 0;
-  //this->oPasses.resize(static_cast<unsigned>(this->numPasses) + 1);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->oPasses.resize(static_cast<unsigned>(this->numPasses) + 1);
+#endif
   for (unsigned i = 0; i <= this->numPasses; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->oPasses.emplace_back();
+#endif
     if (!table.ReadU32(&this->oPasses[i]) || this->oPasses[i] < last_oPass) {
       return false;
     }
@@ -298,19 +318,23 @@ bool OpenTypeSILF::SILSub::ParsePart(Buffer& table) {
       this->searchPseudo = this->pseudoSelector = this->pseudoShift = 0;
     }
   } else {
-    unsigned floorLog2 = std::floor(std::log2(this->numPseudo));
-    if (this->searchPseudo != 6 * (unsigned)std::pow(2, floorLog2) ||
+    unsigned floorLog2 = std::floor(log2(this->numPseudo));
+    if (this->searchPseudo != 6 * (unsigned)pow(2, floorLog2) ||
         this->pseudoSelector != floorLog2 ||
         this->pseudoShift != 6 * this->numPseudo - this->searchPseudo) {
-      this->searchPseudo = 6 * (unsigned)std::pow(2, floorLog2);
+      this->searchPseudo = 6 * (unsigned)pow(2, floorLog2);
       this->pseudoSelector = floorLog2;
       this->pseudoShift = 6 * this->numPseudo - this->searchPseudo;
     }
   }
 
-  //this->pMaps.resize(this->numPseudo, parent);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->pMaps.resize(numPseudo, PseudoMap(parent));
+#endif
   for (unsigned i = 0; i < numPseudo; i++) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->pMaps.emplace_back(parent);
+#endif
     if (!this->pMaps[i].ParsePart(table)) {
       return parent->Error("SILSub: Failed to read pMaps[%u]", i);
     }
@@ -320,9 +344,13 @@ bool OpenTypeSILF::SILSub::ParsePart(Buffer& table) {
     return parent->Error("SILSub: Failed to read classes");
   }
 
-  //this->passes.resize(this->numPasses, parent);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->passes.resize(this->numPasses, SILPass(parent));
+#endif
   for (unsigned i = 0; i < this->numPasses; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->passes.emplace_back(parent);
+#endif
     if (table.offset() != init_offset + this->oPasses[i]) {
       return parent->Error("SILSub: Offset check failed for passes[%u]", i);
     }
@@ -477,11 +505,15 @@ ClassMap::ParsePart(Buffer& table) {
     return parent->Error("ClassMap: Failed to read valid numLinear");
   }
 
-  //this->oClass.resize(static_cast<unsigned long>(this->numClass) + 1);
   if (parent->version >> 16 >= 4) {
     unsigned long last_oClass = 0;
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->oClass.resize(static_cast<unsigned long>(this->numClass) + 1);
+#endif
     for (unsigned long i = 0; i <= this->numClass; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->oClass.emplace_back();
+#endif
       if (!table.ReadU32(&this->oClass[i]) || this->oClass[i] < last_oClass) {
         return parent->Error("ClassMap: Failed to read oClass[%lu]", i);
       }
@@ -505,9 +537,13 @@ ClassMap::ParsePart(Buffer& table) {
   }
   unsigned long glyphs_len = (this->oClass[this->numLinear] -
                              (table.offset() - init_offset))/2;
-  //this->glyphs.resize(glyphs_len);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->glyphs.resize(glyphs_len);
+#endif
   for (unsigned long i = 0; i < glyphs_len; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->glyphs.emplace_back();
+#endif
     if (!table.ReadU16(&this->glyphs[i])) {
       return parent->Error("ClassMap: Failed to read glyphs[%lu]", i);
     }
@@ -515,9 +551,13 @@ ClassMap::ParsePart(Buffer& table) {
 
   unsigned lookups_len = this->numClass - this->numLinear;
     // this->numLinear <= this->numClass
-  //this->lookups.resize(lookups_len, parent);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->lookups.resize(lookups_len, LookupClass(parent));
+#endif
   for (unsigned i = 0; i < lookups_len; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->lookups.emplace_back(parent);
+#endif
     if (table.offset() != init_offset + oClass[this->numLinear + i]) {
       return parent->Error("ClassMap: Offset check failed for lookups[%u]", i);
     }
@@ -565,20 +605,24 @@ LookupClass::ParsePart(Buffer& table) {
       this->searchRange = this->entrySelector = this->rangeShift = 0;
     }
   } else {
-    unsigned floorLog2 = std::floor(std::log2(this->numIDs));
-    if (this->searchRange != (unsigned)std::pow(2, floorLog2) ||
+    unsigned floorLog2 = std::floor(log2(this->numIDs));
+    if (this->searchRange != (unsigned)pow(2, floorLog2) ||
         this->entrySelector != floorLog2 ||
         this->rangeShift != this->numIDs - this->searchRange) {
       parent->Warning("LookupClass: Correcting binary-search header for LookupPair list");
-      this->searchRange = (unsigned)std::pow(2, floorLog2);
+      this->searchRange = (unsigned)pow(2, floorLog2);
       this->entrySelector = floorLog2;
       this->rangeShift = this->numIDs - this->searchRange;
     }
   }
 
-  //this->lookups.resize(this->numIDs, parent);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->lookups.resize(this->numIDs, LookupPair(parent));
+#endif
   for (unsigned i = 0; i < numIDs; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->lookups.emplace_back(parent);
+#endif
     if (!this->lookups[i].ParsePart(table)) {
       return parent->Error("LookupClass: Failed to read lookups[%u]", i);
     }
@@ -694,27 +738,35 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
       this->searchRange = this->entrySelector = this->rangeShift = 0;
     }
   } else {
-    unsigned floorLog2 = std::floor(std::log2(this->numRange));
-    if (this->searchRange != 6 * (unsigned)std::pow(2, floorLog2) ||
+    unsigned floorLog2 = std::floor(log2(this->numRange));
+    if (this->searchRange != 6 * (unsigned)pow(2, floorLog2) ||
         this->entrySelector != floorLog2 ||
         this->rangeShift != 6 * this->numRange - this->searchRange) {
-      this->searchRange = 6 * (unsigned)std::pow(2, floorLog2);
+      this->searchRange = 6 * (unsigned)pow(2, floorLog2);
       this->entrySelector = floorLog2;
       this->rangeShift = 6 * this->numRange - this->searchRange;
     }
   }
 
-  //this->ranges.resize(this->numRange, parent);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->ranges.resize(this->numRange, PassRange(parent));
+#endif
   for (unsigned i = 0 ; i < this->numRange; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->ranges.emplace_back(parent);
+#endif
     if (!this->ranges[i].ParsePart(table)) {
       return parent->Error("SILPass: Failed to read ranges[%u]", i);
     }
   }
   unsigned ruleMap_len = 0;  // maximum value in oRuleMap
-  //this->oRuleMap.resize(static_cast<unsigned long>(this->numSuccess) + 1);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->oRuleMap.resize(static_cast<unsigned long>(this->numSuccess) + 1);
+#endif
   for (unsigned long i = 0; i <= this->numSuccess; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->oRuleMap.emplace_back();
+#endif
     if (!table.ReadU16(&this->oRuleMap[i])) {
       return parent->Error("SILPass: Failed to read oRuleMap[%u]", i);
     }
@@ -723,9 +775,13 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
     }
   }
 
-  //this->ruleMap.resize(ruleMap_len);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->ruleMap.resize(ruleMap_len);
+#endif
   for (unsigned i = 0; i < ruleMap_len; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->ruleMap.emplace_back();
+#endif
     if (!table.ReadU16(&this->ruleMap[i])) {
       return parent->Error("SILPass: Failed to read ruleMap[%u]", i);
     }
@@ -742,25 +798,37 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
   unsigned startStates_len = this->maxRulePreContext - this->minRulePreContext
                              + 1;
     // this->minRulePreContext <= this->maxRulePreContext
-  //this->startStates.resize(startStates_len);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->startStates.resize(startStates_len);
+#endif
   for (unsigned i = 0; i < startStates_len; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->startStates.emplace_back();
+#endif
     if (!table.ReadS16(&this->startStates[i])) {
       return parent->Error("SILPass: Failed to read startStates[%u]", i);
     }
   }
 
-  //this->ruleSortKeys.resize(this->numRules);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->ruleSortKeys.resize(this->numRules);
+#endif
   for (unsigned i = 0; i < this->numRules; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->ruleSortKeys.emplace_back();
+#endif
     if (!table.ReadU16(&this->ruleSortKeys[i])) {
       return parent->Error("SILPass: Failed to read ruleSortKeys[%u]", i);
     }
   }
 
-  //this->rulePreContext.resize(this->numRules);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->rulePreContext.resize(this->numRules);
+#endif
   for (unsigned i = 0; i < this->numRules; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->rulePreContext.emplace_back();
+#endif
     if (!table.ReadU8(&this->rulePreContext[i])) {
       return parent->Error("SILPass: Failed to read rulePreContext[%u]", i);
     }
@@ -781,9 +849,13 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
 
   unsigned long ruleConstraints_len = this->aCode - this->rcCode;
     // this->rcCode <= this->aCode
-  //this->oConstraints.resize(static_cast<unsigned long>(this->numRules) + 1);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->oConstraints.resize(static_cast<unsigned long>(this->numRules) + 1);
+#endif
   for (unsigned long i = 0; i <= this->numRules; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->oConstraints.emplace_back();
+#endif
     if (!table.ReadU16(&this->oConstraints[i]) ||
         this->oConstraints[i] > ruleConstraints_len) {
       return parent->Error("SILPass: Failed to read valid oConstraints[%lu]",
@@ -797,21 +869,32 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
   unsigned long actions_len = this->oDebug ? this->oDebug - this->aCode :
                                              next_pass_offset - this->aCode;
     // if this->oDebug, then this->aCode <= this->oDebug
-  //this->oActions.resize(static_cast<unsigned long>(this->numRules) + 1);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->oActions.resize(static_cast<unsigned long>(this->numRules) + 1);
+#endif
   for (unsigned long i = 0; i <= this->numRules; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->oActions.emplace_back();
+#endif
     if (!table.ReadU16(&this->oActions[i]) ||
         (this->oActions[i] > actions_len)) {
       return parent->Error("SILPass: Failed to read valid oActions[%lu]", i);
     }
   }
 
-  //this->stateTrans.resize(this->numTransitional);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->stateTrans.resize(this->numTransitional);
+#endif
   for (unsigned i = 0; i < this->numTransitional; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->stateTrans.emplace_back();
-    //this->stateTrans[i].resize(this->numColumns);
+#else
+    this->stateTrans[i].resize(this->numColumns);
+#endif
     for (unsigned j = 0; j < this->numColumns; ++j) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->stateTrans[i].emplace_back();
+#endif
       if (!table.ReadU16(&stateTrans[i][j])) {
         return parent->Error("SILPass: Failed to read stateTrans[%u][%u]",
                              i, j);
@@ -830,9 +913,13 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
     if (table.offset() != SILSub_init_offset + this->pcCode) {
       return parent->Error("SILPass: pcCode check failed");
     }
-    //this->passConstraints.resize(this->pConstraint);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->passConstraints.resize(this->pConstraint);
+#endif
     for (unsigned i = 0; i < this->pConstraint; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->passConstraints.emplace_back();
+#endif
       if (!table.ReadU8(&this->passConstraints[i])) {
         return parent->Error("SILPass: Failed to read passConstraints[%u]", i);
       }
@@ -842,9 +929,13 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
   if (table.offset() != SILSub_init_offset + this->rcCode) {
     return parent->Error("SILPass: rcCode check failed");
   }
-  //this->ruleConstraints.resize(ruleConstraints_len);  // calculated above
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->ruleConstraints.resize(ruleConstraints_len);  // calculated above
+#endif
   for (unsigned long i = 0; i < ruleConstraints_len; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->ruleConstraints.emplace_back();
+#endif
     if (!table.ReadU8(&this->ruleConstraints[i])) {
       return parent->Error("SILPass: Failed to read ruleConstraints[%u]", i);
     }
@@ -853,9 +944,13 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
   if (table.offset() != SILSub_init_offset + this->aCode) {
     return parent->Error("SILPass: aCode check failed");
   }
-  //this->actions.resize(actions_len);  // calculated above
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->actions.resize(actions_len);  // calculated above
+#endif
   for (unsigned long i = 0; i < actions_len; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->actions.emplace_back();
+#endif
     if (!table.ReadU8(&this->actions[i])) {
       return parent->Error("SILPass: Failed to read actions[%u]", i);
     }
@@ -871,9 +966,13 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
     if (table.offset() != SILSub_init_offset + this->oDebug) {
       return parent->Error("SILPass: oDebug check failed");
     }
-    //this->dActions.resize(this->numRules);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->dActions.resize(this->numRules);
+#endif
     for (unsigned i = 0; i < this->numRules; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->dActions.emplace_back();
+#endif
       if (!table.ReadU16(&this->dActions[i]) ||
           !name->IsValidNameId(this->dActions[i])) {
         return parent->Error("SILPass: Failed to read valid dActions[%u]", i);
@@ -882,18 +981,26 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
 
     unsigned dStates_len = this->numRows - this->numRules;
       // this->numRules <= this->numRows
-    //this->dStates.resize(dStates_len);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->dStates.resize(dStates_len);
+#endif
     for (unsigned i = 0; i < dStates_len; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->dStates.emplace_back();
+#endif
       if (!table.ReadU16(&this->dStates[i]) ||
           !name->IsValidNameId(this->dStates[i])) {
         return parent->Error("SILPass: Failed to read valid dStates[%u]", i);
       }
     }
 
-    //this->dCols.resize(this->numRules);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->dCols.resize(this->numRules);
+#endif
     for (unsigned i = 0; i < this->numRules; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->dCols.emplace_back();
+#endif
       if (!table.ReadU16(&this->dCols[i]) ||
           !name->IsValidNameId(this->dCols[i])) {
         return parent->Error("SILPass: Failed to read valid dCols[%u]");

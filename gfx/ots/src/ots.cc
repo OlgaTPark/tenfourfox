@@ -666,7 +666,7 @@ bool ProcessGeneric(ots::FontFile *header,
 
     uint32_t tag = supported_tables[i].tag;
     const auto &it = table_map.find(tag);
-    if (it == table_map.cend()) {
+    if (it == table_map.end()) {
       if (supported_tables[i].required) {
         return OTS_FAILURE_MSG_TAG("missing required table", tag);
       }
