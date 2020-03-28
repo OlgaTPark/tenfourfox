@@ -58,6 +58,9 @@ UNIFIED_SOURCES += [
 # headers, uncomment the lines below in order to use TR1 headers instead.
 CXXFLAGS += [
 #    '-nostdinc++',
+## If you're building with Mac OS X 10.4 SDK, you need to define the following 
+## macro in order to prevent libstdc++ from including unavailable <Availability.h>
+#    '-D_DTRACE_CXA_RUNTIME_H',
 ## For SDK-installed C++ STL:
 #    '-I', CONFIG['MACOS_SDK_DIR']+"/usr/include/c++/4.2.1",
 #    '-idirafter', CONFIG['MACOS_SDK_DIR']+"/usr/include/c++/4.2.1/tr1", 
