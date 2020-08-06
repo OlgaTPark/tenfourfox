@@ -30,9 +30,13 @@ bool OpenTypeSILE::Parse(const uint8_t* data, size_t length) {
   if (!table.ReadU16(&this->fontNameLength)) {
     return DropGraphite("Failed to read fontNameLength");
   }
-  //this->fontName.resize(this->fontNameLength);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->fontName.resize(this->fontNameLength);
+#endif
   for (unsigned i = 0; i < this->fontNameLength; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->fontName.emplace_back();
+#endif
     if (!table.ReadU16(&this->fontName[i])) {
       return DropGraphite("Failed to read fontName[%u]", i);
     }
@@ -41,9 +45,13 @@ bool OpenTypeSILE::Parse(const uint8_t* data, size_t length) {
   if (!table.ReadU16(&this->fontFileLength)) {
     return DropGraphite("Failed to read fontFileLength");
   }
-  //this->baseFile.resize(this->fontFileLength);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->baseFile.resize(this->fontFileLength);
+#endif
   for (unsigned i = 0; i < this->fontFileLength; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->baseFile.emplace_back();
+#endif
     if (!table.ReadU16(&this->baseFile[i])) {
       return DropGraphite("Failed to read baseFile[%u]", i);
     }

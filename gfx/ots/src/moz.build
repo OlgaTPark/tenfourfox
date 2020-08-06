@@ -52,6 +52,23 @@ UNIFIED_SOURCES += [
     'vorg.cc',
 ]
 
+# OpenType Sanitizer requires C++11 STL.  You can either provide it with the 
+# toolchain or use TR1 haders as a fallback.  Notice that GCC 4.0 TR1 headers
+# don't work due to disabled RTTI.  If your toolchain doesn't provide C++11
+# headers, uncomment the lines below in order to use TR1 headers instead.
+CXXFLAGS += [
+#    '-nostdinc++',
+## If you're building with Mac OS X 10.4 SDK, you need to define the following 
+## macro in order to prevent libstdc++ from including unavailable <Availability.h>
+#    '-D_DTRACE_CXA_RUNTIME_H',
+## For SDK-installed C++ STL:
+#    '-I', CONFIG['MACOS_SDK_DIR']+"/usr/include/c++/4.2.1",
+#    '-idirafter', CONFIG['MACOS_SDK_DIR']+"/usr/include/c++/4.2.1/tr1", 
+## For locally-installed C++ STL:
+#    '-I', '/usr/include/c++/4.2.1',
+#    '-idirafter', '/usr/include/c++/4.2.1/tr1', 
+]
+
 # We allow warnings for third-party code that can be updated from upstream.
 ALLOW_COMPILER_WARNINGS = True
 

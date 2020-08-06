@@ -39,11 +39,15 @@ bool OpenTypeGLOC::Parse(const uint8_t* data, size_t length) {
   size_t locations_len = (table.remaining() -
     (this->flags & ATTRIB_IDS ? this->numAttribs * sizeof(uint16_t) : 0)) /
     (this->flags & LONG_FORMAT ? sizeof(uint32_t) : sizeof(uint16_t));
-  //this->locations.resize(locations_len);
   if (this->flags & LONG_FORMAT) {
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->locations.resize(locations_len);
+#endif
     unsigned long last_location = 0;
     for (size_t i = 0; i < locations_len; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->locations.emplace_back();
+#endif
       uint32_t& location = this->locations[i];
       if (!table.ReadU32(&location) || location < last_location) {
         return DropGraphite("Failed to read valid locations[%lu]", i);
@@ -66,9 +70,13 @@ bool OpenTypeGLOC::Parse(const uint8_t* data, size_t length) {
   }
 
   if (this->flags & ATTRIB_IDS) {  // attribIds array present
-    //this->attribIds.resize(numAttribs);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+    this->attribIds.resize(this->numAttribs);
+#endif
     for (unsigned i = 0; i < this->numAttribs; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
       this->attribIds.emplace_back();
+#endif
       if (!table.ReadU16(&this->attribIds[i]) ||
           !name->IsValidNameId(this->attribIds[i])) {
         return DropGraphite("Failed to read valid attribIds[%u]", i);

@@ -106,7 +106,7 @@ enum {
 - (void)userNotificationCenter:(id<FakeNSUserNotificationCenter>)center
        didActivateNotification:(id<FakeNSUserNotification>)notification
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   unsigned long long additionalActionIndex = ULLONG_MAX;
   if ([notification respondsToSelector:@selector(_alternateActionIndex)]) {
     NSNumber *alternateActionIndex = [(NSObject*)notification valueForKey:@"_alternateActionIndex"];
@@ -129,7 +129,7 @@ enum {
 - (void)userNotificationCenter:(id<FakeNSUserNotificationCenter>)center
   didRemoveDeliveredNotifications:(NSArray *)notifications
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   for (id<FakeNSUserNotification> notification in notifications) {
     NSString *name = [[notification userInfo] valueForKey:@"name"];
     mOSXNC->CloseAlertCocoaString(name);
@@ -141,7 +141,7 @@ enum {
 - (void)userNotificationCenter:(id<FakeNSUserNotificationCenter>)center
   didDismissAlert:(id<FakeNSUserNotification>)notification
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   NSString *name = [[notification userInfo] valueForKey:@"name"];
   mOSXNC->CloseAlertCocoaString(name);
 #endif
@@ -305,7 +305,7 @@ OSXNotificationCenter::ShowAlertNotification(const nsAString & aImageUrl, const 
         notification.hasActionButton = YES;
         notification.actionButtonTitle = nsCocoaUtils::ToNSString(actionButtonTitle);
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
         [(NSObject*)notification setValue:@(YES) forKey:@"_showsButtons"];
         [(NSObject*)notification setValue:@(YES) forKey:@"_alwaysShowAlternateActionMenu"];
         [(NSObject*)notification setValue:@[
@@ -397,7 +397,7 @@ OSXNotificationCenter::CloseAlertCocoaString(NSString *aAlertName)
   }
 
   NSArray *notifications = [GetNotificationCenter() deliveredNotifications];
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   for (id<FakeNSUserNotification> notification in notifications) {
     NSString *name = [[notification userInfo] valueForKey:@"name"];
     if ([name isEqualToString:aAlertName]) {
@@ -524,7 +524,7 @@ OSXNotificationCenter::Notify(imgIRequest *aRequest, int32_t aType, const nsIntR
       nsCOMPtr<imgIContainer> image;
       rv = aRequest->GetImage(getter_AddRefs(image));
       if (NS_SUCCEEDED(rv)) {
-        nsCocoaUtils::CreateNSImageFromImageContainer(image, imgIContainer::FRAME_FIRST, &cocoaImage);
+        nsCocoaUtils::CreateNSImageFromImageContainer(image, imgIContainer::FRAME_FIRST, &cocoaImage DO_IF_USE_BACKINGSCALE(, 1.0f));
       }
     }
     (osxni->mPendingNotifiction).contentImage = cocoaImage;

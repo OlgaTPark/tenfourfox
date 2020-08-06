@@ -35,20 +35,24 @@ bool OpenTypeSILL::Parse(const uint8_t* data, size_t length) {
       this->searchRange = this->entrySelector = this->rangeShift = 0;
     }
   } else {
-    unsigned floorLog2 = std::floor(std::log2(this->numLangs));
-    if (this->searchRange != (unsigned)std::pow(2, floorLog2) ||
+    unsigned floorLog2 = std::floor(log2(this->numLangs));
+    if (this->searchRange != (unsigned)pow(2, floorLog2) ||
         this->entrySelector != floorLog2 ||
         this->rangeShift != this->numLangs - this->searchRange) {
-      this->searchRange = (unsigned)std::pow(2, floorLog2);
+      this->searchRange = (unsigned)pow(2, floorLog2);
       this->entrySelector = floorLog2;
       this->rangeShift = this->numLangs - this->searchRange;
     }
   }
 
   std::unordered_set<size_t> unverified;
-  //this->entries.resize(static_cast<unsigned long>(this->numLangs) + 1, this);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->entries.resize(static_cast<unsigned long>(this->numLangs) + 1, LanguageEntry(this));
+#endif
   for (unsigned long i = 0; i <= this->numLangs; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->entries.emplace_back(this);
+#endif
     LanguageEntry& entry = this->entries[i];
     if (!entry.ParsePart(table)) {
       return Drop("Failed to read entries[%u]", i);

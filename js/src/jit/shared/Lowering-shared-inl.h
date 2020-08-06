@@ -180,9 +180,10 @@ template <size_t Ops, size_t Temps> void
 LIRGeneratorShared::defineSinCos(LInstructionHelper<2, Ops, Temps> *lir, MDefinition *mir,
                                  LDefinition::Policy policy)
 {
-#if(1)
+#ifdef JS_CODEGEN_PPC_OSX
     MOZ_CRASH("shouldn't ever get here");
     // I'm not sure wtf this is doing, and 10.4 doesn't have __sincos anyway.
+    // …And apparently sincos or __sincos doesn't seems to exists in any version of Mac OS.
 #else
     MOZ_ASSERT(lir->isCall());
 

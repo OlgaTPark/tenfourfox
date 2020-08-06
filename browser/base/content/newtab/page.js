@@ -81,7 +81,11 @@ var gPage = {
    * based on the given reason.
    */
   update(reason = "") {
-  return;
+#ifdef XP_MACOSX
+#if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
+    return;
+#endif /* MACOSX_DEPLOYMENT_TARGET */
+#endif /* XP_MACOSX */
     // Update immediately if we're visible.
     if (!document.hidden) {
       // Ignore updates where reason=links-changed as those signal that the

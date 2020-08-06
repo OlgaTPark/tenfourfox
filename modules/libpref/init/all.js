@@ -358,8 +358,13 @@ pref("media.gstreamer.enable-blacklist", true);
 #ifdef MOZ_WIDGET_UIKIT
 pref("media.mp3.enabled", true);
 #endif
+#if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
 pref("media.apple.mp3.enabled", false);
 pref("media.apple.mp4.enabled", false);
+#else
+pref("media.apple.mp3.enabled", true);
+pref("media.apple.mp4.enabled", true);
+#endif
 #endif
 #ifdef MOZ_WEBRTC
 pref("media.navigator.enabled", true);
@@ -377,6 +382,17 @@ pref("media.webrtc.debug.multi_log", false);
 pref("media.webrtc.debug.aec_log_dir", "");
 pref("media.webrtc.debug.log_file", "");
 pref("media.webrtc.debug.aec_dump_max_size", 4194304); // 4MB
+
+#ifdef XP_MACOSX
+#if MACOSX_DEPLOYMENT_TARGET != 1040 
+// !!!This setting only applies for 32-bit builds for 10.5+!!!
+// In 32-bit, capturing videos with QuickTime consumes less CPU than with QTKit
+// By default, we use QuickTime in 32-bit but you could change this behaviour.
+// You need to restart the browser after changing this setting.
+// See /media/webrtc/trunk/webrtc/modules/video_capture/mac/video_capture_mac.mm
+pref("tenfourfox.video_capture.UseQTKitIn32bitMode", false);
+#endif /* MACOSX_DEPLOYMENT_TARGET >= 10.5 */
+#endif /* XP_MACOSX */
 
 #ifdef MOZ_WIDGET_GONK
 pref("media.navigator.video.default_width", 320);
@@ -493,11 +509,29 @@ pref("media.webvtt.regions.enabled", false);
 pref("media.track.enabled", false);
 
 // Whether to enable MediaSource support.
+#if defined(XP_MACOSX) && !defined(__i386__) && !defined(__x86_64__) && !defined(VPX_X86_ASM)
+
 // MediaSource is pretty much hosed on PowerPC OS X, so ... no.
 pref("media.mediasource.enabled", false);
 pref("media.mediasource.mp4.enabled", false);
 pref("media.mediasource.webm.enabled", false);
 pref("media.mediasource.webm.audio.enabled", false);
+
+#else
+
+pref("media.mediasource.enabled", true);
+
+pref("media.mediasource.mp4.enabled", true);
+
+#if defined(XP_WIN) || defined(XP_MACOSX) || defined(MOZ_WIDGET_GONK) || defined(MOZ_WIDGET_ANDROID)
+pref("media.mediasource.webm.enabled", false);
+#else
+pref("media.mediasource.webm.enabled", true);
+#endif
+pref("media.mediasource.webm.audio.enabled", true);
+
+#endif
+
 
 // Enable new MediaFormatReader architecture for plain webm.
 pref("media.format-reader.webm", true);
@@ -691,10 +725,16 @@ pref("gfx.canvas.azure.backends", "direct2d1.1,direct2d,skia,cairo");
 pref("gfx.content.azure.backends", "direct2d1.1,direct2d,cairo");
 #else
 #ifdef XP_MACOSX
+#if MACOSX_DEPLOYMENT_TARGET == 1040 || MACOSX_DEPLOYMENT_TARGET == 1050
 // TenFourFox is CoreGraphics, all the CoreTime, CoreBeyotches.
 pref("gfx.content.azure.backends", "cg");
 pref("gfx.canvas.azure.backends", "cg");
 pref("gfx.canvas.azure.accelerated", false);
+#else
+pref("gfx.canvas.azure.backends", "skia");
+// Accelerated cg canvas where available (10.7+)
+pref("gfx.canvas.azure.accelerated", true);
+#endif
 #else
 pref("gfx.canvas.azure.backends", "cairo");
 pref("gfx.content.azure.backends", "cairo");
@@ -1122,7 +1162,12 @@ pref("javascript.options.strict.debug",     false);
 #endif
 pref("javascript.options.baselinejit",      true);
 pref("javascript.options.ion",              true);
+# Hacking VPX_X86_ASM in order to know if we are on Intel
+#if defined(__i386__) || defined(__x86_64__) || defined(VPX_X86_ASM)
+pref("javascript.options.asmjs",            true);
+#else
 pref("javascript.options.asmjs",            false);
+#endif
 pref("javascript.options.native_regexp",    true);
 pref("javascript.options.parallel_parsing", true);
 #if !defined(RELEASE_BUILD) && !defined(ANDROID) && !defined(MOZ_B2G) && !defined(XP_IOS)
@@ -1145,7 +1190,7 @@ pref("javascript.options.mem.high_water_mark", 128);
 pref("javascript.options.mem.max", -1);
 pref("javascript.options.mem.gc_per_compartment", true);
 pref("javascript.options.mem.gc_incremental", true);
-pref("javascript.options.mem.gc_incremental_slice_ms", 100); // issue 253
+pref("javascript.options.mem.gc_incremental_slice_ms", 100); // issue 253, http://tenfourfox.blogspot.com/2014/02/the-end-of-os2-beginning-of-mips-and.html
 pref("javascript.options.mem.gc_compacting", true);
 pref("javascript.options.mem.log", false);
 pref("javascript.options.mem.notify", false);

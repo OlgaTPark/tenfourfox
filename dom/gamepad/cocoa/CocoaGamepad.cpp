@@ -10,11 +10,10 @@
 #include "mozilla/dom/GamepadFunctions.h"
 #include "mozilla/ArrayUtils.h"
 #include <CoreFoundation/CoreFoundation.h>
-//#include <IOKit/hid/IOHIDBase.h>
 #include <IOKit/hid/IOHIDLib.h>
 #include <IOKit/hid/IOHIDKeys.h>
-//#include <IOKit/hid/IOHIDManager.h>
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 /* Shims for 10.4 support -- should still work building on 10.5 */
 #include "HID_Utilities.h"
 #define IOHIDDeviceRef pRecDevice
@@ -35,6 +34,7 @@
 #define IOHIDDevice_GetLocationID(x) (x->locID)
 #define IOHIDDevice_GetVersionNumber(x) (x->version)
 #define IOHIDDevice_GetSerialNumber(x) (x->serial)
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED < 1050*/
 
 #include <stdio.h>
 #include <vector>
@@ -168,7 +168,7 @@ public:
 
 void Gamepad::init(IOHIDDeviceRef device)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   clear();
   mDevice = device;
 
@@ -219,7 +219,7 @@ void Gamepad::init(IOHIDDeviceRef device)
 #endif
 }
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 class DarwinGamepadService {
  private:
   IOHIDManagerRef mManager;
@@ -522,7 +522,7 @@ void DarwinGamepadService::Shutdown()
 namespace mozilla {
 namespace dom {
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 DarwinGamepadService* gService = nullptr;
 
 void StartGamepadMonitoring()

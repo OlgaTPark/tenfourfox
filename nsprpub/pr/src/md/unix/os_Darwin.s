@@ -17,6 +17,15 @@ _TenFourFoxAtomicSet:
 
 #elif defined(__x86_64__)
 #include "os_Darwin_x86_64.s"
+
+# Copied from ./os_Darwin_x86_64.s
+	.align 4
+	.globl _TenFourFoxAtomicSet
+_TenFourFoxAtomicSet:
+    movl %esi, %eax
+    xchgl %eax, (%rdi)
+	ret
+
 #elif defined(__ppc__)
 #include "os_Darwin_ppc.s"
 

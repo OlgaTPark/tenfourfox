@@ -36,12 +36,13 @@ bool ScaledFontMac::sSymbolLookupDone = false;
 ScaledFontMac::ScaledFontMac(CGFontRef aFont, Float aSize)
   : ScaledFontBase(aSize)
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 // CTFontDrawGlyphs only exists in 10.7 and up. There is no reason for us
 // to look for it knowing it will fail.
   mFont = CGFontRetain(aFont);
   mCTFont = nullptr;
   CTFontDrawGlyphsPtr = nullptr;
-#if(0)
+#else
   if (!sSymbolLookupDone) {
     CTFontDrawGlyphsPtr =
       (CTFontDrawGlyphsFuncT*)dlsym(RTLD_DEFAULT, "CTFontDrawGlyphs");
@@ -227,7 +228,7 @@ struct writeBuf
 bool
 ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     // We'll reconstruct a TTF font from the tables we can get from the CGFont
     CFArrayRef tags = CGFontCopyTableTags(mFont);
     CFIndex count = CFArrayGetCount(tags);

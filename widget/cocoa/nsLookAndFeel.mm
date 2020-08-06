@@ -24,7 +24,14 @@ enum {
   mozNSScrollerStyleLegacy       = 0,
   mozNSScrollerStyleOverlay      = 1
 };
-typedef int32_t NSInteger; // sigh
+#ifndef NSINTEGER_DEFINED
+  #if __LP64__
+    typedef long NSInteger; // sight too...
+  #else
+    typedef int NSInteger; // sigh
+  #endif /* __LP64__ */
+  #define NSINTEGER_DEFINED 1
+#endif /* NSINTEGER_DEFINED */
 typedef NSInteger mozNSScrollerStyle;
 
 @interface NSScroller(AvailableSinceLion)
@@ -147,7 +154,7 @@ nsLookAndFeel::NativeGetColor(ColorID aID, nscolor &aColor)
       //
     case eColorID__moz_mac_buttonactivetext:
     case eColorID__moz_mac_defaultbuttontext:
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
       if (nsCocoaFeatures::OnYosemiteOrLater()) {
         aColor = NS_RGB(0xFF,0xFF,0xFF);
         return res;
@@ -350,7 +357,7 @@ nsLookAndFeel::GetIntImpl(IntID aID, int32_t &aResult)
       aResult = 4;
       return res;
     case eIntID_ScrollArrowStyle:
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if (nsCocoaFeatures::OnLionOrLater()) {
         // OS X Lion's scrollbars have no arrows
         aResult = eScrollArrow_None;
@@ -377,23 +384,25 @@ nsLookAndFeel::GetIntImpl(IntID aID, int32_t &aResult)
       aResult = eScrollThumbStyle_Proportional;
       return res;
     case eIntID_UseOverlayScrollbars:
-      aResult = 0;
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if (!mUseOverlayScrollbarsCached) {
         mUseOverlayScrollbars = SystemWantsOverlayScrollbars() ? 1 : 0;
         mUseOverlayScrollbarsCached = true;
       }
       aResult = mUseOverlayScrollbars;
+#else
+      aResult = 0;
 #endif
       return res;
     case eIntID_AllowOverlayScrollbarsOverlap:
-      aResult = 0;
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
       if (!mAllowOverlayScrollbarsOverlapCached) {
         mAllowOverlayScrollbarsOverlap = AllowOverlayScrollbarsOverlap() ? 1 : 0;
         mAllowOverlayScrollbarsOverlapCached = true;
       }
       aResult = mAllowOverlayScrollbarsOverlap;
+#else
+      aResult = 0;
 #endif
       return res;
     case eIntID_ScrollbarDisplayOnMouseMove:
@@ -482,8 +491,9 @@ nsLookAndFeel::GetIntImpl(IntID aID, int32_t &aResult)
       aResult = 0;
       return res;
     case eIntID_SwipeAnimationEnabled:
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 1060 || defined(__ppc__) || defined(__ppc64__)
       aResult = 0;
-#ifdef __LP64__
+#else // Mac OS X 10.7+ specific
       if ([NSEvent respondsToSelector:@selector(
             isSwipeTrackingFromScrollEventsEnabled)]) {
         aResult = [NSEvent isSwipeTrackingFromScrollEventsEnabled] ? 1 : 0;
@@ -533,7 +543,7 @@ nsLookAndFeel::GetFloatImpl(FloatID aID, float &aResult)
 
 bool nsLookAndFeel::UseOverlayScrollbars()
 {
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
   return GetInt(eIntID_UseOverlayScrollbars) != 0;
 #else
   return false; // Unpossible before 10.7.
@@ -542,7 +552,7 @@ bool nsLookAndFeel::UseOverlayScrollbars()
 
 bool nsLookAndFeel::SystemWantsOverlayScrollbars()
 {
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
   return ([NSScroller respondsToSelector:@selector(preferredScrollerStyle)] &&
           [NSScroller preferredScrollerStyle] == mozNSScrollerStyleOverlay);
 #else
@@ -552,7 +562,7 @@ bool nsLookAndFeel::SystemWantsOverlayScrollbars()
 
 bool nsLookAndFeel::AllowOverlayScrollbarsOverlap()
 {
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
   return (UseOverlayScrollbars() && nsCocoaFeatures::OnMountainLionOrLater());
 #else
   return false; // Unpossible before 10.7.
@@ -593,7 +603,7 @@ nsLookAndFeel::GetIntCacheImpl()
     nsXPLookAndFeel::GetIntCacheImpl();
 
 // Useless before 10.7.
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
   LookAndFeelInt useOverlayScrollbars;
   useOverlayScrollbars.id = eIntID_UseOverlayScrollbars;
   useOverlayScrollbars.value = GetInt(eIntID_UseOverlayScrollbars);
@@ -612,17 +622,17 @@ void
 nsLookAndFeel::SetIntCacheImpl(const nsTArray<LookAndFeelInt>& aLookAndFeelIntCache)
 {
 // Useless before 10.7.
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
   for (auto entry : aLookAndFeelIntCache) {
     switch(entry.id) {
       case eIntID_UseOverlayScrollbars:
         mUseOverlayScrollbars = entry.value;
         mUseOverlayScrollbarsCached = true;
-        return res;
+        break;
       case eIntID_AllowOverlayScrollbarsOverlap:
         mAllowOverlayScrollbarsOverlap = entry.value;
         mAllowOverlayScrollbarsOverlapCached = true;
-        return res;
+        break;
     }
   }
 #endif
@@ -632,7 +642,7 @@ void
 nsLookAndFeel::RefreshImpl()
 {
 // Useless before 10.7.
-#ifdef __LP64__
+#if defined(__i386__) || defined(__x86_64__)
   // We should only clear the cache if we're in the main browser process.
   // Otherwise, we should wait for the parent to inform us of new values
   // to cache via LookAndFeel::SetIntCache.

@@ -115,11 +115,14 @@ richlistitem[type="download"] button {
 }
 
 #clearListButton {
-  -moz-appearance: none;
   min-height: 18px;
   min-width: 0;
   margin: 0 6px;
   text-shadow: @loweredShadow@;
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  -moz-appearance: toolbarbutton;
+%else
+  -moz-appearance: none;
   padding: 0 2px;
   border: 1px solid @toolbarbuttonBorderColor@;
   border-radius: @toolbarbuttonCornerRadius@;
@@ -146,5 +149,6 @@ richlistitem[type="download"] button {
 #clearListButton:-moz-window-inactive {
   border-color: @toolbarbuttonInactiveBorderColor@;
   background-image: @toolbarbuttonInactiveBackgroundImage@;
+%endif
 }
 

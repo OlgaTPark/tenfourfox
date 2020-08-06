@@ -1666,10 +1666,16 @@ JSStructuredCloneReader::readV1ArrayBuffer(uint32_t arrayType, uint32_t nelems,
         return in.readArray((uint8_t*) buffer.dataPointer(), nelems);
       case Scalar::Int16:
       case Scalar::Uint16:
+#if defined(__ppc__) || defined(__ppc64__)
         return in.readArraySwapped((uint16_t*) buffer.dataPointer(), nelems);
+#else
+        return in.readArray((uint16_t*) buffer.dataPointer(), nelems);
+#endif
       case Scalar::Int32:
       case Scalar::Uint32:
+#if defined(__ppc__) || defined(__ppc64__)
         return in.readArraySwapped((uint32_t*) buffer.dataPointer(), nelems);
+#endif
       case Scalar::Float32:
         return in.readArray((uint32_t*) buffer.dataPointer(), nelems);
       case Scalar::Float64:

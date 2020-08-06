@@ -11,7 +11,11 @@
 <!-- LOCALIZATION NOTE (unsupportedPlatform.post): Mobile only. Include text here if needed for your locale. -->
 <!ENTITY unsupportedPlatform.post                            "">
 
+#ifdef MOZ_PLUGINS
+<!ENTITY missingPlugin                                       "A plugin is needed to display this content.">
+#else
 <!ENTITY missingPlugin                                       "TenFourFox does not support plugins for this content.">
+#endif
 <!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
 <!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">
 <!ENTITY clickToActivatePlugin                               "Activate plugin.">

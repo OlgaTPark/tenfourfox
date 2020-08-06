@@ -115,9 +115,11 @@ DefaultJitOptions::DefaultJitOptions()
 
     // Toggles whether sincos optimization is globally disabled.
     // See bug984018: The MacOS is the only one that has the sincos fast.
-// 10.4 and 10.5 do not implement __sincos or sincos, and we don't
-// have the ABI defined, so there is no benefit here either.
-    #if (0) // defined(XP_MACOSX)
+    // 10.4 and 10.5 do not implement __sincos or sincos, and we don't
+    // have the ABI defined, so there is no benefit here either.
+    // Also, sincos doesn't seems to exists in any version of Mac OS X but for 
+    // an unknow reason this is slightly faster on Intel (even on 10.5)!
+    #if defined(XP_MACOSX) && !defined(JS_CODEGEN_PPC_OSX)
         SET_DEFAULT(disableSincos, false);
     #else
         SET_DEFAULT(disableSincos, true);

@@ -18,7 +18,11 @@ prefwindow[type="child"] > prefpane {
 }
 
 .prefWindow-dlgbuttons {
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   margin: 0 12px 8px; /* bug 970079 */
+%else
+  margin: 0 12px 12px;
+%endif
   padding-top: 0 !important;
 }
 

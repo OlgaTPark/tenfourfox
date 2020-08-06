@@ -5,9 +5,9 @@
 
 #include <AvailabilityMacros.h>
 #include <mach-o/loader.h>
-/*
-#include <mach-o/dyld_images.h>
-*/
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1050
+  #include <mach-o/dyld_images.h>
+#endif
 #include <mach/task_info.h>
 #include <mach/task.h>
 #include <mach/mach_init.h>
@@ -100,7 +100,8 @@ void addSharedLibrary(const platform_mach_header* header, char *name, SharedLibr
 SharedLibraryInfo SharedLibraryInfo::GetInfoForSelf()
 {
   SharedLibraryInfo sharedLibraryInfo;
-#if(0)
+  // this doesn't work in 10.4
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 
   task_dyld_info_data_t task_dyld_info;
   mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
@@ -130,10 +131,7 @@ SharedLibraryInfo SharedLibraryInfo::GetInfoForSelf()
     addSharedLibrary(header, (char*)info->imageFilePath, sharedLibraryInfo);
 
   }
-  return sharedLibraryInfo;
-#else
-  // this doesn't work in 10.4
-  return sharedLibraryInfo;
 #endif
+  return sharedLibraryInfo;
 }
 

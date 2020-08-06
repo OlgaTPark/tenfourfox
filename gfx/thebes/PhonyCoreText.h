@@ -39,14 +39,23 @@ Cameron Kaiser */
 #include <CoreFoundation/CFArray.h>
 #include <CoreFoundation/CFData.h>
 #include <CoreFoundation/CFDictionary.h>
+#include <ApplicationServices/ApplicationServices.h>
 
 __CKEXTERNBEGIN
 
 /* Hidden bits and private methods in CoreGraphics that we need */
 /* Unfortunately, we still have to use ATSUI workarounds for tables bleh */
 
-/* typedef float CGFloat; */ /* uncomment if needed */
-__CKEXTERN uint32_t CGFontGetUnitsPerEm(CGFontRef font);
+#ifndef CGFLOAT_DEFINED
+  #if defined(__LP64__) && __LP64__
+    typedef double CGFloat;
+  #else	/* !defined(__LP64__) || !__LP64__ */
+    typedef float CGFloat;
+  #endif	/* !defined(__LP64__) || !__LP64__ */
+  #define CGFLOAT_DEFINED 1
+#endif	/* CGFLOAT_DEFINED */
+
+__CKEXTERN int CGFontGetUnitsPerEm(CGFontRef font);
 __CKEXTERN bool CGFontGetGlyphAdvances(CGFontRef font, const CGGlyph glyphs[], size_t count, int advances[]);
 
 /* CoreText private framework */
@@ -65,10 +74,10 @@ __CKEXTERN CTFontDescriptorRef CTFontDescriptorCreateWithAttributes(CFDictionary
 /* Fonts */
 
 typedef const struct __CTFont *CTFontRef; /* opaque */
-__CKEXTERN CTFontRef CTFontCreateWithPlatformFont(ATSFontRef atsfont, float size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
-__CKEXTERN CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgfont, float size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
+__CKEXTERN CTFontRef CTFontCreateWithPlatformFont(ATSFontRef atsfont, CGFloat size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
+__CKEXTERN CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgfont, CGFloat size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
 __CKEXTERN const CFStringRef kCTFontAttributeName;
-__CKEXTERN float CTFontGetSize(CTFontRef font);
+__CKEXTERN CGFloat CTFontGetSize(CTFontRef font);
 
 /* Lines */
 
@@ -79,7 +88,7 @@ __CKEXTERN CFArrayRef CTLineGetGlyphRuns(CTLineRef line);
 /* Runs */
 
 typedef const struct __CTRun *CTRunRef; /* opaque */
-__CKEXTERN int32_t CTRunGetGlyphCount(CTRunRef run);
+__CKEXTERN CFIndex CTRunGetGlyphCount(CTRunRef run);
 __CKEXTERN CFRange CTRunGetStringRange(CTRunRef run);
 __CKEXTERN const CGGlyph *CTRunGetGlyphsPtr(CTRunRef run);
 __CKEXTERN void CTRunGetGlyphs(CTRunRef run, CFRange range, CGGlyph glyphs[]);
@@ -90,7 +99,7 @@ __CKEXTERN const CGSize *CTRunGetAdvancesPtr(CTRunRef run);
 __CKEXTERN void CTRunGetAdvances(CTRunRef run, CFRange range, CGSize advances[]);
 __CKEXTERN const CFIndex *CTRunGetStringIndicesPtr(CTRunRef run);
 __CKEXTERN void CTRunGetStringIndices(CTRunRef run, CFRange range, CFIndex si[]);
-__CKEXTERN double CTRunGetTypographicBounds(CTRunRef run, CFRange range, float *x, float *y, float *z); /* I suspect ascent/descent/leading */
+__CKEXTERN double CTRunGetTypographicBounds(CTRunRef run, CFRange range, CGFloat *x, CGFloat *y, CGFloat *z); /* I suspect ascent/descent/leading */
 
 __CKEXTERNEND
 #endif /* __PHONYCORETEXT_H */

@@ -63,6 +63,9 @@
     function round(x) { return Math.round(x); }
     function roundf(x) { return Math.round(Math.fround(x)); }
 
+    f32[0] = 2;
+    var BIG_ENDIAN = (i32[0] == 64);  // true if we're big-endian.
+
     // Warm up
     round(2.5);
     round(3.5);
@@ -70,7 +73,7 @@
     roundf(3.5);
 
     f32[0] = 0.5;
-    i32[0] += 0x01000000; // little endian emulation +1
+    i32[0] += (BIG_ENDIAN) ? 0x01000000 : 1; // little endian emulation +1
     print('0.5+e =', f32[0]);
 
     var x = f32[0];
@@ -78,7 +81,7 @@
     assertEq(roundf(x), 1);
 
     f32[0] = 0.5;
-    i32[0] -= 0x00000101; // little endian emulation -1 with carry
+    i32[0] -= (BIG_ENDIAN) ? 0x00000101 : 1; // little endian emulation -1 with carry
     print('0.5-e =', f32[0]);
 
     var x = f32[0];
@@ -86,7 +89,7 @@
     assertEq(roundf(x), 0);
 
     f32[0] = -0.5;
-    i32[0] += 0x01000000; // little endian emulation +1
+    i32[0] += (BIG_ENDIAN) ? 0x01000000 : 1; // little endian emulation +1
     print('-0.5-e =', f32[0]);
 
     var x = f32[0];
@@ -94,7 +97,7 @@
     assertEq(roundf(x), -1);
 
     f32[0] = -0.5;
-    i32[0] -= 0x00000101; // little endian emulation -1 with carry
+    i32[0] -= (BIG_ENDIAN) ? 0x00000101 : 1; // little endian emulation -1 with carry
     print('-0.5+e =', f32[0]);
 
     var x = f32[0];

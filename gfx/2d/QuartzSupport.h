@@ -25,7 +25,7 @@ struct _CGLContextObject;
 enum AllowOfflineRendererEnum { ALLOW_OFFLINE_RENDERER, DISALLOW_OFFLINE_RENDERER };
 
 // 10.4 doesn't support CoreAnimation.
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(MOZ_PLUGINS)
 class nsCARenderer : public mozilla::RefCounted<nsCARenderer> {
 public:
   MOZ_DECLARE_REFCOUNTED_TYPENAME(nsCARenderer)

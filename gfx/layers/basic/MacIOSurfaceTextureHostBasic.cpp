@@ -1,4 +1,3 @@
-#if(0)
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,6 +6,7 @@
 #include "MacIOSurfaceTextureHostBasic.h"
 #include "mozilla/gfx/MacIOSurface.h"
 #include "MacIOSurfaceHelpers.h"
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
 
 namespace mozilla {
 namespace layers {

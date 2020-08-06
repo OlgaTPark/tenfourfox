@@ -15,20 +15,27 @@
 
 #viewGroup {
   margin: 4px 0 9px;
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   background-color: rgba(0, 0, 0, 0.55);
   padding: 1px;
   border-radius: @toolbarbuttonCornerRadius@;
   box-shadow: @loweredShadow@;
+%endif
 }
 
 #viewGroup > radio,
 #viewGroup > toolbarbutton {
   -moz-box-orient: vertical;
   -moz-box-align: center;
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   -moz-appearance: none;
+%else
+  -moz-appearance: toolbarbutton;
+%endif
   font: menu;
   text-shadow: @loweredShadow@;
   margin: 0;
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   padding: 0 4px;
   border: none;
   border-left: 1px solid rgba(0, 0, 0, 0.8);
@@ -40,12 +47,17 @@
   background: @toolbarbuttonPressedBackgroundColor@;
   text-shadow: @loweredShadow@;
   box-shadow: @toolbarbuttonPressedInnerShadow@;
+%else
+  padding: 0 1px;
+  height: 22px;
+%endif
 }
 
 #viewGroup > radio[selected=true],
 #viewGroup > toolbarbutton[checked=true] {
   color: #FFF !important;
   text-shadow: rgba(0, 0, 0, 0.4) 0 1px;
+%if MACOSX_DEPLOYMENT_TARGET == 1040
   background: #606060;
   box-shadow: inset #2A2A2A 0 3px 3.5px;
 }
@@ -95,5 +107,6 @@
 #viewGroup > toolbarbutton:-moz-locale-dir(rtl)[first-visible] {
   border-top-right-radius: 2px;
   border-bottom-right-radius: 2px;
+%endif
 }
 

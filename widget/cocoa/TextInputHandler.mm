@@ -1,4 +1,3 @@
-#if(0)
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "TextInputHandler.h"
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(__LP64__)
 
 #include "mozilla/Logging.h"
 
@@ -2288,7 +2288,9 @@ IMEInputHandler::OnCurrentTextInputSourceChange(CFNotificationCenterRef aCenter,
       MOZ_LOG(gLog, LogLevel::Info,
         ("IMEInputHandler::OnCurrentTextInputSourceChange,\n"
          "  Current Input Source is changed to:\n"
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
          "    currentInputContext=%p\n"
+#endif
          "    %s\n"
          "      type=%s %s\n"
          "      overridden keyboard layout=%s\n"
@@ -2298,7 +2300,10 @@ IMEInputHandler::OnCurrentTextInputSourceChange(CFNotificationCenterRef aCenter,
          "    current ASCII capable Input Source=%s\n"
          "    current Keyboard Layout=%s\n"
          "    current ASCII capable Keyboard Layout=%s",
-         [NSTextInputContext currentInputContext], GetCharacters(is0),
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+         [NSTextInputContext currentInputContext], 
+#endif
+         GetCharacters(is0),
          GetCharacters(type0), tis.IsASCIICapable() ? "- ASCII capable " : "",
          GetCharacters(is4), GetCharacters(is5),
          GetCharacters(lang0), GetCharacters(bundleID0),
@@ -2379,7 +2384,11 @@ IMEInputHandler::GetCurrentTSMDocumentID()
   // The result of ::TSMGetActiveDocument() isn't modified for new active text
   // input context until [NSTextInputContext currentInputContext] is called.
   // Therefore, we need to call it here.
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   [NSTextInputContext currentInputContext];
+#else
+  [NSInputManager currentInputManager]; // ???
+#endif
   return ::TSMGetActiveDocument();
 }
 
@@ -3125,7 +3134,7 @@ IMEInputHandler::GetAttributedSubstringFromRange(NSRange& aRange,
   for (auto i = fontRanges.Length(); i > 0; --i) {
     const FontRange& fontRange = fontRanges[i - 1];
     NSString* fontName = nsCocoaUtils::ToNSString(fontRange.mFontName);
-    CGFloat fontSize = fontRange.mFontSize / mWidget->BackingScaleFactor();
+    CGFloat fontSize = fontRange.mFontSize DO_IF_USE_BACKINGSCALE(/ mWidget->BackingScaleFactor());
     NSFont* font = [NSFont fontWithName:fontName size:fontSize];
     if (!font) {
       font = [NSFont systemFontOfSize:fontSize];
@@ -3317,7 +3326,7 @@ IMEInputHandler::FirstRectForCharacterRange(NSRange& aRange,
   if (!rootWindow || !rootView) {
     return rect;
   }
-  rect = nsCocoaUtils::DevPixelsToCocoaPoints(r, mWidget->BackingScaleFactor());
+  rect = nsCocoaUtils::DevPixelsToCocoaPoints(r DO_IF_USE_BACKINGSCALE(, mWidget->BackingScaleFactor()));
   rect = [rootView convertRect:rect toView:nil];
   rect.origin = [rootWindow convertBaseToScreen:rect.origin];
 
@@ -3356,9 +3365,9 @@ IMEInputHandler::CharacterIndexForPoint(NSPoint& aPoint)
   NSPoint ptInWindow = [mainWindow convertScreenToBase:aPoint];
   NSPoint ptInView = [mView convertPoint:ptInWindow fromView:nil];
   charAt.refPoint.x =
-    static_cast<int32_t>(ptInView.x) * mWidget->BackingScaleFactor();
+    static_cast<int32_t>(ptInView.x) DO_IF_USE_BACKINGSCALE(* mWidget->BackingScaleFactor());
   charAt.refPoint.y =
-    static_cast<int32_t>(ptInView.y) * mWidget->BackingScaleFactor();
+    static_cast<int32_t>(ptInView.y) DO_IF_USE_BACKINGSCALE(* mWidget->BackingScaleFactor());
   mWidget->DispatchWindowEvent(charAt);
   if (!charAt.mSucceeded ||
       charAt.mReply.mOffset == WidgetQueryContentEvent::NOT_FOUND ||

@@ -1029,7 +1029,9 @@ CodeGenerator::visitValueToString(LValueToString* lir)
                                    StoreRegisterTo(output));
 
     Label done;
+#ifdef JS_CODEGEN_PPC_OSX
     BufferOffset bo_done1, bo_done2, bo_done3, bo_done4, bo_done5, bo_done6;
+#endif
     Register tag = masm.splitTagForTest(input);
     const JSAtomState& names = GetJitContext()->runtime->names();
 
@@ -3734,10 +3736,10 @@ CodeGenerator::emitAllocateSpaceForApply(Register argcreg, Register extraStackSp
 #else
     // Some of our code blocks inline this and assume a value alignment of 1.
     MOZ_ASSERT(JitStackValueAlignment == 1);
-#endif
 
     // Skip the copy of arguments if there are none.
     masm.branchTestPtr(Assembler::Zero, argcreg, argcreg, end);
+#endif
 
     // Reserve space for copying the arguments.
     NativeObject::elementsSizeMustNotOverflow();
@@ -3757,6 +3759,12 @@ CodeGenerator::emitAllocateSpaceForApply(Register argcreg, Register extraStackSp
         masm.storeValue(MagicValue(JS_ARG_POISON), dstPtr);
         masm.bind(&noPaddingNeeded);
     }
+#endif
+
+#ifndef JS_CODEGEN_PPC_OSX
+    // Skip the copy of arguments if there are none.
+    // Note: jit is explosive if you run that earlier on Intel (no references to nitric acid…).
+    masm.branchTestPtr(Assembler::Zero, argcreg, argcreg, end);
 #endif
 }
 
@@ -4644,7 +4652,12 @@ CodeGenerator::emitAssertResultV(const ValueOperand input, const TemporaryTypeSe
 void
 CodeGenerator::emitObjectOrStringResultChecks(LInstruction* lir, MDefinition* mir)
 {
+#if JS_CODEGEN_PPC_OSX
+    /* I just understand nothing to this variant but I don't care because it's in DEBUG! */
     if (masm.oom() || lir->numDefs() == 0)
+#else
+    if (lir->numDefs() == 0)
+#endif
         return;
 
     MOZ_ASSERT(lir->numDefs() == 1);
@@ -9929,17 +9942,25 @@ CodeGenerator::visitLoadUnboxedScalar(LLoadUnboxedScalar* lir)
     Label fail;
     if (lir->index()->isConstant()) {
         Address source(elements, ToInt32(lir->index()) * width + mir->offsetAdjustment());
+#ifdef JS_CODEGEN_PPC_OSX
         if (mir->target() == MLoadUnboxedScalar::TypedArrayTarget)
             masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble, numElems);
         else
             masm.loadFromTypedArrayNative(readType, source, out, temp, &fail, canonicalizeDouble, numElems);
+#else
+        masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble, numElems);
+#endif
     } else {
         BaseIndex source(elements, ToRegister(lir->index()), ScaleFromElemWidth(width),
                          mir->offsetAdjustment());
+#ifdef JS_CODEGEN_PPC_OSX
         if (mir->target() == MLoadUnboxedScalar::TypedArrayTarget)
             masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble, numElems);
         else
             masm.loadFromTypedArrayNative(readType, source, out, temp, &fail, canonicalizeDouble, numElems);
+#else
+        masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble, numElems);
+#endif
     }
 
     if (fail.used())
@@ -10038,17 +10059,25 @@ CodeGenerator::visitStoreUnboxedScalar(LStoreUnboxedScalar* lir)
 
     if (lir->index()->isConstant()) {
         Address dest(elements, ToInt32(lir->index()) * width + mir->offsetAdjustment());
+#ifdef JS_CODEGEN_PPC_OSX
         if (mir->target() == MStoreUnboxedScalar::TypedArrayTarget)
             StoreToTypedArray(masm, writeType, value, dest, numElems);
         else
             StoreToTypedArrayNative(masm, writeType, value, dest, numElems);
+#else
+        StoreToTypedArray(masm, writeType, value, dest, numElems);
+#endif
     } else {
         BaseIndex dest(elements, ToRegister(lir->index()), ScaleFromElemWidth(width),
                        mir->offsetAdjustment());
+#ifdef JS_CODEGEN_PPC_OSX
         if (mir->target() == MStoreUnboxedScalar::TypedArrayTarget)
             StoreToTypedArray(masm, writeType, value, dest, numElems);
         else
             StoreToTypedArrayNative(masm, writeType, value, dest, numElems);
+#else
+        StoreToTypedArray(masm, writeType, value, dest, numElems);
+#endif
     }
 }
 

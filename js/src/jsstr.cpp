@@ -1216,7 +1216,10 @@ FirstCharMatcherUnrolled(const TextChar* text, uint32_t n, const PatChar pat)
 static const char*
 FirstCharMatcher8bit(const char* text, uint32_t n, const char pat)
 {
-#ifndef TENFOURFOX_VMX
+#if defined(XP_DARWIN) && defined(__SSE2__) && __SSE2__
+  #warning using SSE2 memchr
+    return reinterpret_cast<const char*>(sse_memchr(text, pat, n));
+#elif !defined(TENFOURFOX_VMX)
 #warning using non-VMX memchr
     return FirstCharMatcherUnrolled<char, char>(text, n, pat);
 #else
@@ -1314,7 +1317,7 @@ StringMatch(const TextChar* text, uint32_t textLen, const PatChar* pat, uint32_t
      * memcmp() is also pretty bad on PPC OSX, so we just use our fast memchr.
      */
     return
-#if (0) // !defined(__linux__)
+#if !defined(__linux__) && !defined(XP_DARWIN)
         (patLen > 128 && IsSame<TextChar, PatChar>::value)
             ? Matcher<MemCmp<TextChar, PatChar>, TextChar, PatChar>(text, textLen, pat, patLen)
             :

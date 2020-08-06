@@ -43,6 +43,10 @@ wizardpage {
   min-height: 22px;
   margin: 0 6px;
   text-shadow: @loweredShadow@;
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  -moz-appearance: toolbarbutton;
+  padding: 0;
+%else
   -moz-appearance: none;
   padding: 0 2px;
   border: 1px solid @toolbarbuttonBorderColor@;
@@ -70,6 +74,7 @@ wizardpage {
 .wizard-buttons button:-moz-window-inactive {
   border-color: @toolbarbuttonInactiveBorderColor@;
   background-image: @toolbarbuttonInactiveBackgroundImage@;
+%endif
 }
 
 .loadingBox {

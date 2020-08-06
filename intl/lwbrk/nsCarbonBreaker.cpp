@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#if(0)
 #include <CoreFoundation/CoreFoundation.h>
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
 #include <stdint.h>
 #include "nsDebug.h"
 #include "nscore.h"
@@ -72,7 +72,7 @@ NS_GetComplexLineBreaks(const char16_t* aText, uint32_t aLength,
                   position == 0 ? kUCTextBreakLeadingEdgeMask :
                                   (kUCTextBreakLeadingEdgeMask |
                                    kUCTextBreakIterateMask),
-                  aText,
+                  (const UniChar *)aText,
                   aLength,
                   position,
                   &offset);

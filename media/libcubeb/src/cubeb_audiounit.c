@@ -34,6 +34,7 @@
 
 #if !TARGET_OS_IPHONE && MAC_OS_X_VERSION_MIN_REQUIRED < 1060
 #define MACOSX_LESS_THAN_106 1
+#include <CoreServices/CoreServices.h>
 #endif
 
 #define CUBEB_STREAM_MAX 8

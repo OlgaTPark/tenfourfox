@@ -80,8 +80,9 @@ static nsresult toCFURLRef(nsIFile* file, CFURLRef& outURL)
 
 bool nsPluginsDir::IsPluginFile(nsIFile* file)
 {
+#ifndef MOZ_PLUGINS
   return false; // plugins dead! plugins bad!
-#if(0)
+#else
   nsCString fileName;
   file->GetNativeLeafName(fileName);
   /*

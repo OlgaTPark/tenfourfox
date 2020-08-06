@@ -76,8 +76,10 @@ static void (*CGFontGetGlyphsForUnicharsPtr) (CGFontRef, const UniChar[], const 
 static void (*CGContextSetAllowsFontSmoothingPtr) (CGContextRef, bool) = NULL;
 static bool (*CGContextGetAllowsFontSmoothingPtr) (CGContextRef) = NULL;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
 /* Not public in the least bit */
 static CGPathRef (*CGFontGetGlyphPathPtr) (CGFontRef fontRef, CGAffineTransform *textTransform, int unknown, CGGlyph glyph) = NULL;
+#endif
 
 /* CGFontGetHMetrics isn't public, but the other functions are public/present in 10.5 */
 typedef struct {
@@ -121,7 +123,9 @@ quartz_font_ensure_symbols(void)
     /* These have the same name in 10.4 and 10.5 */
     CGFontGetUnitsPerEmPtr = dlsym(RTLD_DEFAULT, "CGFontGetUnitsPerEm");
     CGFontGetGlyphAdvancesPtr = dlsym(RTLD_DEFAULT, "CGFontGetGlyphAdvances");
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
     CGFontGetGlyphPathPtr = dlsym(RTLD_DEFAULT, "CGFontGetGlyphPath");
+#endif
 
     CGFontGetHMetricsPtr = dlsym(RTLD_DEFAULT, "CGFontGetHMetrics");
     CGFontGetAscentPtr = dlsym(RTLD_DEFAULT, "CGFontGetAscent");
@@ -131,7 +135,7 @@ quartz_font_ensure_symbols(void)
     CGContextGetAllowsFontSmoothingPtr = dlsym(RTLD_DEFAULT, "CGContextGetAllowsFontSmoothing");
     CGContextSetAllowsFontSmoothingPtr = dlsym(RTLD_DEFAULT, "CGContextSetAllowsFontSmoothing");
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     CTFontCreateWithGraphicsFontPtr = dlsym(RTLD_DEFAULT, "CTFontCreateWithGraphicsFont");
 // This doesn't work right in 10.4, even though the symbol exists.
 #endif
@@ -577,7 +581,7 @@ _cairo_quartz_init_glyph_path (cairo_quartz_scaled_font_t *font,
 					-font->base.scale.yy,
 					0, 0);
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
     ctFont = CTFontCreateWithGraphicsFont (font_face->cgFont, 0.0, NULL, NULL);
     glyphPath = CTFontCreatePathForGlyph (ctFont, glyph, &textMatrix);
     CFRelease (ctFont);

@@ -168,6 +168,8 @@ static void fpehandler(int signum, siginfo_t *si, void *context)
   ucontext_t *uc = (ucontext_t *)context;
 
 #if defined(__i386__) || defined(__amd64__)
+  #if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050
+  // Copied from https://github.com/rmottola/tenfourfox/commit/442bbc38c3b4a4d82b3ae7cd44fe61011abd45bb
   fp_control *ctrl = &uc->uc_mcontext->fs.fpu_fcw;
   ctrl->invalid = ctrl->denorm = ctrl->zdiv = ctrl->ovrfl = ctrl->undfl = ctrl->precis = 1;
 
@@ -176,6 +178,17 @@ static void fpehandler(int signum, siginfo_t *si, void *context)
     status->precis = status->stkflt = status->errsumm = 0;
 
   uint32_t *mxcsr = &uc->uc_mcontext->fs.fpu_mxcsr;
+  #else
+  _STRUCT_FP_CONTROL *ctrl = &uc->uc_mcontext->__fs.__fpu_fcw;
+  ctrl->__invalid = ctrl->__denorm = ctrl->__zdiv = ctrl->__ovrfl = ctrl->__undfl = ctrl->__precis = 1;
+
+  fp_status *status = &uc->uc_mcontext->fs.fpu_fsw;
+  status->invalid = status->denorm = status->zdiv = status->ovrfl = status->undfl =
+    status->precis = status->stkflt = status->errsumm = 0;
+
+  uint32_t *mxcsr = &uc->uc_mcontext->__fs.__fpu_mxcsr;
+  #endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ */
+
   *mxcsr |= SSE_EXCEPTION_MASK; /* disable all SSE exceptions */
   *mxcsr &= ~SSE_STATUS_FLAGS; /* clear all pending SSE exceptions */
 #endif

@@ -14,7 +14,7 @@ NS_IMPL_ISUPPORTS(nsMacUtilsImpl, nsIMacUtils)
 nsresult
 nsMacUtilsImpl::GetArchString(nsAString& aArchString)
 {
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
   if (!mBinaryArchs.IsEmpty()) {
     aArchString.Assign(mBinaryArchs);
     return NS_OK;
@@ -89,6 +89,10 @@ nsMacUtilsImpl::GetArchString(nsAString& aArchString)
   }
 
   aArchString.Assign(mBinaryArchs);
+#elif defined(__i386__)
+	aArchString.Assign(NS_LITERAL_STRING("i386"));
+#elif defined(__x86_64__)
+	aArchString.Assign(NS_LITERAL_STRING("x86_64"));
 #else
   aArchString.AssignLiteral("ppc");
 #endif

@@ -297,6 +297,9 @@ popupnotificationcontent {
 .popup-internal-box > autorepeatbutton {
   height: 15px;
   position: relative;
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  list-style-image: none;
+%endif
   /* Here we're using a little magic.
    * The arrow button is supposed to overlay the scrollbox, blocking
    * everything under it from reaching the screen. However, the menu background
@@ -310,24 +313,30 @@ popupnotificationcontent {
 }
 
 .popup-internal-box > .autorepeatbutton-up {
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  padding-top: 1px; /* 4px padding-top from the .popup-internal-box. */
+%endif
   margin-bottom: -15px;
 }
 
-/*
+%if MACOSX_DEPLOYMENT_TARGET != 1040
 .popup-internal-box > .autorepeatbutton-up > .autorepeatbutton-icon {
   -moz-appearance: button-arrow-up;
 }
-*/
+%endif
 
 .popup-internal-box > .autorepeatbutton-down {
+%if MACOSX_DEPLOYMENT_TARGET != 1040
+  padding-top: 5px;
+%endif
   margin-top: -15px;
 }
 
-/*
+%if MACOSX_DEPLOYMENT_TARGET != 1040
 .popup-internal-box > .autorepeatbutton-down > .autorepeatbutton-icon {
   -moz-appearance: button-arrow-down;
 }
-*/
+%endif
 
 .popup-internal-box > autorepeatbutton[disabled="true"] {
   visibility: collapse;

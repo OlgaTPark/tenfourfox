@@ -37,9 +37,13 @@ bool OpenTypeFEAT::Parse(const uint8_t* data, size_t length) {
   }
 
   std::unordered_set<size_t> unverified;
-  //this->features.resize(this->numFeat, this);
+#ifndef GLIBCXX_HAS_EMPLACE_BACK
+  this->features.resize(this->numFeat, FeatureDefn(this));
+#endif
   for (unsigned i = 0; i < this->numFeat; ++i) {
+#ifdef GLIBCXX_HAS_EMPLACE_BACK
     this->features.emplace_back(this);
+#endif
     FeatureDefn& feature = this->features[i];
     if (!feature.ParsePart(table)) {
       return DropGraphite("Failed to read features[%u]", i);

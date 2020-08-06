@@ -178,9 +178,20 @@ static int64_t DurationToUsecs(TimeDuration aDuration) {
   return static_cast<int64_t>(aDuration.ToSeconds() * USECS_PER_S);
 }
 
+#if defined(__ppc__) || defined(__ppc64__)
+// Do "what you want" on PPC, but on Intel, video playback is smooth 
+// enough, even without hardware acceleration.  This change causes a HUGE spike
+// of RAM usage when you play high-definition videos.  Swapping can be prevented
+// by activating mach factor monitoring, but playback rate is still worsened.
 static const uint32_t MIN_VIDEO_QUEUE_SIZE = 500;
 static const uint32_t MAX_VIDEO_QUEUE_SIZE = 500;
 static const uint32_t VIDEO_QUEUE_SEND_TO_COMPOSITOR_SIZE = 45;
+#else
+static const uint32_t MIN_VIDEO_QUEUE_SIZE = 30;
+static const uint32_t MAX_VIDEO_QUEUE_SIZE = 30;
+/* To compensate the lowering of the two previous parameters */
+static const uint32_t VIDEO_QUEUE_SEND_TO_COMPOSITOR_SIZE = 99;
+#endif
 
 static uint32_t sVideoQueueDefaultSize = MAX_VIDEO_QUEUE_SIZE;
 static uint32_t sVideoQueueHWAccelSize = MIN_VIDEO_QUEUE_SIZE;
@@ -189,9 +200,15 @@ static uint32_t sVideoQueueSendToCompositorSize = VIDEO_QUEUE_SEND_TO_COMPOSITOR
 // TenFourFox issue 434
 // Seconds to stall the video decoder on initial startup to allow sufficient
 // buildup in memory and other items onscreen to render.
+#if !defined(XP_MACOSX) || __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
+  // We assume that hardware acceleration on 10.6+ makes things faster 
+  // and we disable this trick on non-Mac OS X operating systems.
+static const uint32_t DEFAULT_VIDEO_DECODE_STARTUP_DELAY = 0;
+#else
 // Currently disabled by default since it has odd behaviour with short
 // videos and ads.
 static const uint32_t DEFAULT_VIDEO_DECODE_STARTUP_DELAY = 0;
+#endif
 static uint32_t sVideoDecodeStartupDelay = DEFAULT_VIDEO_DECODE_STARTUP_DELAY;
 // Settings for Mach factor cap controller.
 // Originally this was load-average based, hence the variable names.
@@ -1237,7 +1254,7 @@ MediaDecoderStateMachine::MaybeStartBuffering()
         mSystemLoadRetries &&
         IsPlaying()) {     
       if (sMachLoadInfo.mach_factor < sLoadAverageMax) {
-fprintf(stderr, "TenFourFox: Video throttled due to low Mach factor: %d (cap: %d / retries: %d)\n", sMachLoadInfo.mach_factor, sLoadAverageMax, mSystemLoadRetries);
+fprintf(stderr, "TenFourFox: Video throttled due to low Mach factor: %d (cap: %d / retries: %u)\n", sMachLoadInfo.mach_factor, sLoadAverageMax, mSystemLoadRetries);
                 
         // Halt playback; too much is going on to play video well. 
         mDelayedScheduler.Reset(); // Must happen on state machine task queue.
@@ -2395,7 +2412,7 @@ nsresult MediaDecoderStateMachine::RunStateMachine()
   
   // TenFourFox issue 434
   if (mSystemLoadRetries) {
-    size_t count = PROCESSOR_SET_LOAD_INFO_COUNT;
+    mach_msg_type_number_t count = PROCESSOR_SET_LOAD_INFO_COUNT;
     sMachLastKernelReturn = processor_set_statistics(sMachDefaultPset,
             PROCESSOR_SET_LOAD_INFO,
             (processor_set_info_t)&sMachLoadInfo, &count);
@@ -2630,7 +2647,7 @@ MediaDecoderStateMachine::CheckFrameValidity(VideoData* aData)
     // hardware acceleration. We use 10 as the corrupt value because RollingMean<>
     // only supports integer types.
     mCorruptFrames.insert(10);
-#if(0)
+#if !defined(XP_MACOSX) || __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
     if (mReader->VideoIsHardwareAccelerated() &&
         frameStats.GetPresentedFrames() > 60 &&
         mCorruptFrames.mean() >= 2 /* 20% */) {

@@ -13,6 +13,19 @@
  *
  */
 
+#ifndef __LP64__ /* …because QuickTime is 32-bit only */
+// Because Apple™ removed© in headers of 10.7's SDK symbols who still exists:
+#include <ApplicationServices/ApplicationServices.h>
+extern "C" void BackColor(long);
+extern "C" void DisposeGWorld(GWorldPtr);
+extern "C" void EraseRect(const Rect *);
+extern "C" void ForeColor(long);
+extern "C" void GetGWorld(CGrafPtr *, GDHandle *);
+extern "C" PixMapHandle GetGWorldPixMap(GWorldPtr);
+extern "C" Ptr GetPixBaseAddr(PixMapHandle);
+extern "C" Boolean LockPixels(PixMapHandle);
+extern "C" void SetGWorld(CGrafPtr, GDHandle);
+extern "C" void UnlockPixels(PixMapHandle);
 
 #define _LISTITEM_SRC
 #include "webrtc/modules/video_capture/mac/quicktime/video_capture_quick_time.h"
@@ -383,8 +396,8 @@ int VideoCaptureMacQuickTime::CreateLocalGWorld(int width, int height)
     GDHandle theOldDevice;
     GetGWorld(&theOldPort, &theOldDevice); // Gets the result from QTGetNewGWorld
     SetGWorld(_gWorld, NULL); // Sets the new GWorld
-    BackColor( blackColor); // Changes the color on the graphic port
-    ForeColor( whiteColor);
+    BackColor( 33 /*blackColor*/); // Changes the color on the graphic port
+    ForeColor( 30 /*whiteColor*/);
     EraseRect(&captureRect);
     SetGWorld(theOldPort, theOldDevice);
 
@@ -1386,3 +1399,4 @@ CFIndex VideoCaptureMacQuickTime::PascalStringToCString(
 }
 }  // namespace videocapturemodule
 }  // namespace webrtc
+#endif /* __LP64__ */

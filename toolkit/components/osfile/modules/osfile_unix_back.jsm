@@ -311,7 +311,7 @@
                            /*uid*/    Type.uid_t,
                            /*gid*/    Type.gid_t);
 
-if(0) {
+#if MACOSX_DEPLOYMENT_TARGET != 1040
        libc.declareLazyFFI(SysFile,  "copyfile",
                            "copyfile", ctypes.default_abi,
                            /*return*/ Type.negativeone_or_nothing,
@@ -319,10 +319,11 @@ if(0) {
                            /*dest*/   Type.path,
                            /*state*/  Type.void_t.in_ptr, // Ignored atm
                            /*flags*/  Type.uint32_t);
-}
+#else
 	   /* Unfortunately, this will succeed, but copyfile(3) in 10.4 is bogus and
 	      doesn't actually work. So ... */
 	   SysFile.copyfile = null;
+#endif
 
        libc.declareLazyFFI(SysFile,  "dup",
                            "dup", ctypes.default_abi,

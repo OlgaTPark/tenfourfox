@@ -11,6 +11,25 @@
 #include "ots.h"
 #include "graphite.h"
 
+// The two following workarounds are also replicated in name.h:
+#if defined(GNU_LIBSTDCXX_TR1_UNORDERED_SET_) || defined(_TR1_UNORDERED_SET)
+namespace std {
+  using namespace ::std::tr1;
+}
+#endif
+
+// This macro helps to know if std::vector::emplace_back is defined in the 
+// current C++ STL.  If you're using gcc's libstdc++, a version-check is made 
+// for this library. For other C++ libraries, it assume that emplace_back is 
+// available if __cplusplus >= 201100.
+// Matching between __GLIBCXX__ and GCC versions can be found there: 
+// https://stackoverflow.com/questions/37118114/
+#if defined(__GLIBCXX__) && __GLIBCXX__ < 20110725
+#  undef GLIBCXX_HAS_EMPLACE_BACK
+#elif (__cplusplus >= 201100)
+#  define GLIBCXX_HAS_EMPLACE_BACK	1
+#endif
+
 namespace ots {
 
 class OpenTypeFEAT : public Table {

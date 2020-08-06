@@ -1727,7 +1727,7 @@ gfxFontFamily::ReadFaceNames(gfxPlatformFontList *aPlatformFontList,
     }
 #endif
 
-#ifdef __LP64__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 // For TenSixFox+
 // Can't run on 10.4-10.6.
     if (!mOtherFamilyNamesInitialized &&
         aFontInfoData &&

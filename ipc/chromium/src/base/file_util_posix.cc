@@ -73,7 +73,7 @@ bool PathExists(const FilePath& path) {
 bool PathIsWritable(const FilePath& path) {
 // Mozilla doesn't appear to use this and it is similarly a bit more
 // involved to rewrite.
-#if(0)
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
   FilePath test_path(path);
   struct stat file_info;
   if (stat(test_path.value().c_str(), &file_info) != 0) {

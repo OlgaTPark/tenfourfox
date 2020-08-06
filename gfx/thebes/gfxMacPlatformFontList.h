@@ -33,15 +33,23 @@ public:
                    bool aIsStandardFace = false);
 
     // for use with data fonts
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 /* 1050 */
+    // It's possible to use the CGFontRef implementation on 10.5.  
     MacOSFontEntry(const nsAString& aPostscriptName, CGFontRef aFontRef,
 #else
     MacOSFontEntry(const nsAString& aPostscriptName, ATSFontRef aFontRef,
 #endif
                    uint16_t aWeight, uint16_t aStretch, uint8_t aStyle,
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060 /* 1050 */
                    ATSFontContainerRef aContainerRef, // 10.4Fx
+#endif
                    bool aIsDataUserFont, bool aIsLocal);
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 /* 1050 */
+    virtual ~MacOSFontEntry() {
+        ::CGFontRelease(mFontRef);
+    }
+#else
     virtual ~MacOSFontEntry() {
         if (mFontRefInitialized)
         ::CGFontRelease(mFontRef);
@@ -54,6 +62,7 @@ public:
 
     // 10.4Fx
     ATSFontRef GetATSFontRef();
+#endif
 
     virtual CGFontRef GetFontRef();
 
@@ -79,6 +88,7 @@ protected:
 
     CGFontRef mFontRef; // owning reference to the CGFont, released on destruction
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060 /* 1050 */
     // 10.4Fx class variables
     ATSFontRef mATSFontRef; // 10.4Fx (owning reference to our ATSFont)
     ATSFontContainerRef mContainerRef; // 10.4Fx (for MakePlatformFont)
@@ -86,6 +96,7 @@ protected:
     AutoFallibleTArray<uint8_t,1024> mFontTableDir; // 10.4Fx
     ByteCount mFontTableDirSize; // 10.4Fx
     void TryGlobalFontTableCache();
+#endif
 
     bool mFontRefInitialized;
     bool mRequiresAAT;
@@ -129,7 +140,9 @@ public:
                           gfxFontStyle &aFontStyle,
                           float aDevPixPerCSSPixel);
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
     void SetFixedPitch(const nsAString& aFamilyName); // 10.4Fx
+#endif
 
 private:
     friend class gfxPlatformMac;
@@ -149,21 +162,23 @@ private:
     // helper function to lookup in both hidden system fonts and normal fonts
     gfxFontFamily* FindSystemFontFamily(const nsAString& aFamily);
 
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     static void RegisteredFontsChangedNotificationCallback(CFNotificationCenterRef center,
                                                            void *observer,
                                                            CFStringRef name,
                                                            const void *object,
                                                            CFDictionaryRef userInfo);
 #else
+  #if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
     // eliminate faces which have the same ATS font reference
     // backout bug 663688
     void EliminateDuplicateFaces(const nsAString& aFamilyName);
+  #endif
 
 	// backout bug 869762
 	static void ATSNotification(ATSFontNotificationInfoRef aInfo, void* aUserArg);
 	uint32_t mATSGeneration;
-#endif
+#endif /* MAC_OS_X_VERSION_MIN_REQUIRED */
 
     // search fonts system-wide for a given character, null otherwise
     gfxFontEntry* GlobalFontFallback(const uint32_t aCh,
@@ -192,7 +207,7 @@ private:
     };
 
     // default font for use with system-wide font fallback
-#if(0)
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 /* 1050 */
     CTFontRef mDefaultFont;
 #else
     ATSFontRef mDefaultFont;

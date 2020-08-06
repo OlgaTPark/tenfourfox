@@ -1,5 +1,3 @@
-// 10.4 doesn't support any of this.
-#if(0)
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:set ts=2 sts=2 sw=2 et cin:
 /* This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,6 +5,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "QuartzSupport.h"
+// 10.4 doesn't support any of this.
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 || defined(MOZ_PLUGINS)
 #include "nsDebug.h"
 #include "MacIOSurface.h"
 

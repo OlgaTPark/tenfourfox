@@ -697,9 +697,10 @@ GetAddrInfoOperator::GetAddrInfoOperator(nsIDNSServiceInfo* aServiceInfo,
 nsresult
 GetAddrInfoOperator::Start()
 {
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050
 NS_WARNING("MDNSResponderOperator not supported on 10.4");
 return NS_ERROR_FAILURE; // narf
-#if(0)
+#else
   nsresult rv;
   if (NS_WARN_IF(NS_FAILED(rv = MDNSResponderOperator::Start()))) {
     return rv;
