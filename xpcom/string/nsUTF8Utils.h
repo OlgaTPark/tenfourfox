@@ -12,7 +12,8 @@
 
 #include "nscore.h"
 #include "mozilla/Assertions.h"
-#ifdef __SSE__
+
+#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
 #include "mozilla/SSE.h"
 #endif
 

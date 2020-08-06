@@ -219,6 +219,12 @@ struct writeBuf
     int offset;
 };
 
+#ifdef __ppc__
+#define TAG_CFF 0x43464620
+#else
+#define TAG_CFF 0x20464643
+#endif
+
 bool
 ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
 {
@@ -234,7 +240,7 @@ ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
     bool CFF = false;
     for (CFIndex i = 0; i<count; i++) {
         uint32_t tag = (uint32_t)(uintptr_t)CFArrayGetValueAtIndex(tags, i);
-        if (tag == 0x43464620) // 'CFF '
+        if (tag == TAG_CFF) // 'CFF '
             CFF = true;
         CFDataRef data = CGFontCopyTableForTag(mFont, tag);
         records[i].tag = tag;
@@ -284,11 +290,8 @@ ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
     uint32_t *wtable = (reinterpret_cast<uint32_t *>(table.Elements()));
     TableRecord *records = new TableRecord[count];
     for (uint32_t i=3; i<(sizer/4); i+=4) { // Skip header
-#ifndef __ppc__
-#warning need little-endian version
-#endif
         uint32_t tag = wtable[i];
-        if (tag == 0x43464620) // 'CFF '
+        if (tag == TAG_CFF)
             CFF = true;
         // We know the length from the directory, so we can simply import
         // the data. We assume the table exists, and OMG if it doesn't.
