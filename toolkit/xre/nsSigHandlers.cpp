@@ -182,9 +182,9 @@ static void fpehandler(int signum, siginfo_t *si, void *context)
   _STRUCT_FP_CONTROL *ctrl = &uc->uc_mcontext->__fs.__fpu_fcw;
   ctrl->__invalid = ctrl->__denorm = ctrl->__zdiv = ctrl->__ovrfl = ctrl->__undfl = ctrl->__precis = 1;
 
-  fp_status *status = &uc->uc_mcontext->fs.fpu_fsw;
-  status->invalid = status->denorm = status->zdiv = status->ovrfl = status->undfl =
-    status->precis = status->stkflt = status->errsumm = 0;
+  _STRUCT_FP_STATUS *status = &uc->uc_mcontext->__fs.__fpu_fsw;
+  status->__invalid = status->__denorm = status->__zdiv = status->__ovrfl = status->__undfl =
+    status->__precis = status->__stkflt = status->__errsumm = 0;
 
   uint32_t *mxcsr = &uc->uc_mcontext->__fs.__fpu_mxcsr;
   #endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ */

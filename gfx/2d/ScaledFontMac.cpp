@@ -219,7 +219,7 @@ struct writeBuf
     int offset;
 };
 
-#ifdef __ppc__
+#if MOZ_BIG_ENDIAN
 #define TAG_CFF 0x43464620
 #else
 #define TAG_CFF 0x20464643
