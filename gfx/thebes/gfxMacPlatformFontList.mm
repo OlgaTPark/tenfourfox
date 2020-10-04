@@ -559,15 +559,8 @@ MacOSFontEntry::GetFontTable(uint32_t aTag)
 #endif /* MAC_OS_X_VERSION_MIN_REQUIRED */
 }
 
-#if MOZ_BIG_ENDIAN
 static bool FindTagInTableDir(FallibleTArray<uint8_t>& table, 
                 uint32_t aTableTag, ByteCount sizer) {
-#else /* This fixup seems to work on Intel */
-static bool FindTagInTableDir(FallibleTArray<uint8_t>& table, 
-                uint32_t le_aTableTag, ByteCount sizer) {
-    // If we don't do that on Intel, all characters are replaced by a rectangle
-	uint32_t aTableTag = mozilla::NativeEndian::swapToBigEndian(le_aTableTag);
-#endif /* MOZ_BIG_ENDIAN */
   // Parse it. In big endian format, each entry is 4 32-bit words
   // corresponding to the tag, checksum, offset and length, with a
   // 96 bit header (three 32-bit words). One day we could even write

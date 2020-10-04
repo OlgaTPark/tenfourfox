@@ -1254,7 +1254,7 @@ MediaDecoderStateMachine::MaybeStartBuffering()
         mSystemLoadRetries &&
         IsPlaying()) {     
       if (sMachLoadInfo.mach_factor < sLoadAverageMax) {
-fprintf(stderr, "TenFourFox: Video throttled due to low Mach factor: %d (cap: %d / retries: %u)\n", sMachLoadInfo.mach_factor, sLoadAverageMax, mSystemLoadRetries);
+fprintf(stderr, "TenFourFox: Video throttled due to low Mach factor: %d (cap: %d / retries: %zu)\n", sMachLoadInfo.mach_factor, sLoadAverageMax, mSystemLoadRetries);
                 
         // Halt playback; too much is going on to play video well. 
         mDelayedScheduler.Reset(); // Must happen on state machine task queue.
