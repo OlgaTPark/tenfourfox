@@ -274,9 +274,7 @@ gfxPlatformMac::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags)
 	spec.Equals("http://fonts.gstatic.com/ea/notosansjapanese/v6/NotoSansJP-Regular.otf") ||
 	spec.Equals("http://fonts.gstatic.com/ea/notosansjapanese/v6/NotoSansJP-Bold.otf") ||
 	spec.Equals("https://www.icloud.com/fonts/SFNSText-Light.woff") ||
-    spec.Equals("https://icloud.cdn-apple.com/fonts/SFNSText-Light.woff") || /* UPDATE: CDN */
 	spec.Equals("https://www.icloud.com/fonts/SFNSText-Medium.woff") ||
-    spec.Equals("https://icloud.cdn-apple.com/fonts/SFNSText-Medium.woff") || /* UPDATE: CDN */
     0) {
 	if (MOZ_LIKELY(NS_SUCCEEDED(rv))) // Don't print if we couldn't get the URL.
 	    fprintf(stderr, "Warning: TenFourFox blocking ATSUI-incompatible webfont %s.\n", spec.get());

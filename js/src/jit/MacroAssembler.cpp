@@ -310,36 +310,39 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegi
         load8ZeroExtend(src, dest.gpr());
         break;
       case Scalar::Int16:
-#ifndef JS_CODEGEN_PPC_OSX
-        load16SignExtend(src, dest.gpr());
-        break;
-      case Scalar::Uint16:
-        load16ZeroExtend(src, dest.gpr());
-        break;
-      case Scalar::Int32:
-        load32(src, dest.gpr());
-        break;
-      case Scalar::Uint32:
-        if (dest.isFloat()) {
-            load32(src, temp);
-            convertUInt32ToDouble(temp, dest.fpu());
-        } else {
-            load32(src, dest.gpr());
-#else
+#if defined(JS_CODEGEN_PPC_OSX)
         load16SignExtendSwapped(src, dest.gpr());
+#else
+        load16SignExtend(src, dest.gpr());
+#endif
         break;
       case Scalar::Uint16:
+#if defined(JS_CODEGEN_PPC_OSX)
         load16ZeroExtendSwapped(src, dest.gpr());
+#else
+        load16ZeroExtend(src, dest.gpr());
+#endif
         break;
       case Scalar::Int32:
+#if defined(JS_CODEGEN_PPC_OSX)
         load32ByteSwapped(src, dest.gpr());
+#else
+        load32Byte(src, dest.gpr());
+#endif
         break;
       case Scalar::Uint32:
         if (dest.isFloat()) {
+#if defined(JS_CODEGEN_PPC_OSX)
             load32ByteSwapped(src, temp);
+#else
+            load32Byte(src, temp);
+#endif
             convertUInt32ToDouble(temp, dest.fpu());
         } else {
+#if defined(JS_CODEGEN_PPC_OSX)
             load32ByteSwapped(src, dest.gpr());
+#else
+            load32Byte(src, temp);
 #endif
 
             // Bail out if the value doesn't fit into a signed int32 value. This
@@ -508,7 +511,7 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, const V
         break;
       case Scalar::Uint32:
         // Don't clobber dest when we could fail, instead use temp.
-#ifdef JS_CODEGEN_PPC_OSX
+#if defined(JS_CODEGEN_PPC_OSX)
         load32ByteSwapped(src, temp);
 #else
         load32(src, temp);

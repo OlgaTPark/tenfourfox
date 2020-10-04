@@ -494,13 +494,7 @@ MacOSFontEntry::GetFontTable(uint32_t aTag)
     // expensive call to ATSGetFontTable() to simply get the length.
     // Essentially a hardcoded form of FindTagInTableDir; see below.
     if (MOZ_LIKELY(mFontTableDirSize > 0)) {
-        // XXX: This assumes big endian (warning Intel)
-#ifndef MOZ_BIG_ENDIAN
-        aTag = mozilla::NativeEndian::swapToBigEndian(aTag);
-#endif /* MOZ_BIG_ENDIAN */
-#ifndef __ppc__
-  #warning needs GetFontTable fast path needs little endian version
-#endif
+        uint32_t aTagBE = NativeEndian::swapToBigEndian(aTag);
 
 #ifdef DEBUG_X
         uint32_t j = 12;
@@ -518,15 +512,11 @@ MacOSFontEntry::GetFontTable(uint32_t aTag)
                 fprintf(stderr, "%s ", tag); // remember: big endian
                 j += 16;
 #endif
-                // ASSUME THAT aTag is already big endian
-                if(wtable[i] == aTag) {
+                // ASSUME THAT aTag is in host endianness
+                if(wtable[i] == aTagBE) {
+                        dataLength = NativeEndian::swapToBigEndian((ByteCount)wtable[i+3]);
 #ifdef DEBUG_X
                         fprintf(stderr, "MATCH: length %i\n", wtable[i+3]);
-#endif
-#ifdef MOZ_BIG_ENDIAN
-                        dataLength = (ByteCount)wtable[i+3];
-#else
-                        dataLength = mozilla::NativeEndian::swapToBigEndian((ByteCount)wtable[i+3]);
 #endif
                         break;
                 }

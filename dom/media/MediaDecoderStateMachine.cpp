@@ -183,8 +183,8 @@ static int64_t DurationToUsecs(TimeDuration aDuration) {
 // enough, even without hardware acceleration.  This change causes a HUGE spike
 // of RAM usage when you play high-definition videos.  Swapping can be prevented
 // by activating mach factor monitoring, but playback rate is still worsened.
-static const uint32_t MIN_VIDEO_QUEUE_SIZE = 500;
-static const uint32_t MAX_VIDEO_QUEUE_SIZE = 500;
+static const uint32_t MIN_VIDEO_QUEUE_SIZE = 600;
+static const uint32_t MAX_VIDEO_QUEUE_SIZE = 600;
 static const uint32_t VIDEO_QUEUE_SEND_TO_COMPOSITOR_SIZE = 45;
 #else
 static const uint32_t MIN_VIDEO_QUEUE_SIZE = 30;

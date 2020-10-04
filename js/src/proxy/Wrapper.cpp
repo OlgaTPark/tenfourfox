@@ -149,8 +149,10 @@ bool Wrapper::finalizeInBackground(Value priv) const
      */
     if (IsInsideNursery(&priv.toObject()))
         return true;
+    /* This should be consistent with js/src/jsobj.cpp#JSObject::swap */
 #if defined(__ppc__) || defined(__ppc64__)
-return false; // See TenFourFox issue 479.
-#endif
+    return false; // See TenFourFox issue 479.
+#else
     return IsBackgroundFinalized(priv.toObject().asTenured().getAllocKind());
+#endif
 }
