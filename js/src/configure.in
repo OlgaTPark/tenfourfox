@@ -3161,6 +3161,12 @@ elif test "$CPU_ARCH" = "mips32"; then
 elif test "$CPU_ARCH" = "mips64"; then
     AC_DEFINE(JS_CODEGEN_MIPS64)
     JS_CODEGEN_MIPS64=1
+elif test "$CPU_ARCH" = "ppc"; then
+    AC_DEFINE(JS_CODEGEN_PPC_OSX)
+    JS_CODEGEN_PPC_OSX=1
+elif test "$CPU_ARCH" = "ppc64"; then
+    AC_DEFINE(JS_CODEGEN_PPC_OSX)
+    JS_CODEGEN_PPC_OSX=1
 fi
 
 dnl Hey, Mozilla, bite me.

@@ -118,6 +118,7 @@ class RequestOrUSVString;
 class Selection;
 class SpeechSynthesis;
 class WakeLock;
+class IdleRequestCallback;
 #if defined(MOZ_WIDGET_ANDROID) || defined(MOZ_WIDGET_GONK)
 class WindowOrientationObserver;
 #endif
@@ -210,7 +211,10 @@ public:
   PopupControlState mPopupState;
 
   // The language-specific information about the callback.
+  // If there is an nsIScriptTimeoutHandler, this is a regular setTimeout.
+  // If there is an IdleRequestCallback, this is requestIdleCallback (issue 463).
   nsCOMPtr<nsIScriptTimeoutHandler> mScriptHandler;
+  RefPtr<mozilla::dom::IdleRequestCallback> mCallback;
 };
 
 struct IdleObserverHolder
@@ -1042,6 +1046,13 @@ public:
   int32_t RequestAnimationFrame(mozilla::dom::FrameRequestCallback& aCallback,
                                 mozilla::ErrorResult& aError);
   void CancelAnimationFrame(int32_t aHandle, mozilla::ErrorResult& aError);
+
+  uint32_t RequestIdleCallback(JSContext* aCx,
+                               mozilla::dom::IdleRequestCallback& aCallback,
+                               const mozilla::dom::IdleRequestOptions& aOptions,
+                               mozilla::ErrorResult& aError);
+  void CancelIdleCallback(uint32_t aHandle);
+
 #ifdef MOZ_WEBSPEECH
   mozilla::dom::SpeechSynthesis*
     GetSpeechSynthesis(mozilla::ErrorResult& aError);
@@ -1403,6 +1414,12 @@ public:
   nsresult SetTimeoutOrInterval(nsIScriptTimeoutHandler *aHandler,
                                 int32_t interval,
                                 bool aIsInterval, int32_t* aReturn) override;
+  // TenFourFox issue 463
+  nsresult SetTimeoutOrIntervalOrIdleCallback(nsIScriptTimeoutHandler *aHandler,
+                                              int32_t interval,
+                                              bool aIsInterval, int32_t *aReturn,
+                                              mozilla::dom::IdleRequestCallback *aCallback);
+
   int32_t SetTimeoutOrInterval(JSContext* aCx,
                                mozilla::dom::Function& aFunction,
                                int32_t aTimeout,
@@ -1790,6 +1807,9 @@ protected:
   uint32_t mFocusMethod;
 
   uint32_t mSerial;
+
+  // requestIdleCallback() support
+  uint32_t mIdleRequestCallbackCounter;
 
 #ifdef DEBUG
   bool mSetOpenerWindowCalled;

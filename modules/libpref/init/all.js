@@ -1082,6 +1082,9 @@ pref("dom.disable_window_open_feature.status",      true);
 
 pref("dom.allow_scripts_to_close_windows",          false);
 
+// TenFourFox issue 463
+pref("dom.requestIdleCallback.enabled",             false);
+
 pref("dom.require_user_interaction_for_beforeunload", true);
 
 pref("dom.disable_open_during_load",                false);
@@ -5177,3 +5180,6 @@ pref("dom.mozKillSwitch.enabled", false);
 pref("toolkit.pageThumbs.screenSizeDivisor", 7);
 pref("toolkit.pageThumbs.minWidth", 0);
 pref("toolkit.pageThumbs.minHeight", 0);
+
+pref("tenfourfox.adblock.enabled", false);
+pref("tenfourfox.adblock.logging.enabled", true);
