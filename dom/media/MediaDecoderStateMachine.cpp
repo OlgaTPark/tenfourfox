@@ -178,9 +178,20 @@ static int64_t DurationToUsecs(TimeDuration aDuration) {
   return static_cast<int64_t>(aDuration.ToSeconds() * USECS_PER_S);
 }
 
+#if defined(__ppc__) || defined(__ppc64__)
+// Do "what you want" on PPC, but on Intel, video playback is smooth 
+// enough, even without hardware acceleration.  This change causes a HUGE spike
+// of RAM usage when you play high-definition videos.  Swapping can be prevented
+// by activating mach factor monitoring, but playback rate is still worsened.
 static const uint32_t MIN_VIDEO_QUEUE_SIZE = 600;
 static const uint32_t MAX_VIDEO_QUEUE_SIZE = 600;
 static const uint32_t VIDEO_QUEUE_SEND_TO_COMPOSITOR_SIZE = 45;
+#else
+static const uint32_t MIN_VIDEO_QUEUE_SIZE = 30;
+static const uint32_t MAX_VIDEO_QUEUE_SIZE = 30;
+/* To compensate the lowering of the two previous parameters */
+static const uint32_t VIDEO_QUEUE_SEND_TO_COMPOSITOR_SIZE = 99;
+#endif
 
 static uint32_t sVideoQueueDefaultSize = MAX_VIDEO_QUEUE_SIZE;
 static uint32_t sVideoQueueHWAccelSize = MIN_VIDEO_QUEUE_SIZE;

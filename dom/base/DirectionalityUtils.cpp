@@ -1057,8 +1057,8 @@ SetDirOnBind(mozilla::dom::Element* aElement, nsIContent* aParent)
 void ResetDir(mozilla::dom::Element* aElement)
 {
   if (aElement->HasDirAutoSet()) {
-    nsINode* setByNode =
-      static_cast<nsINode*>(aElement->GetProperty(nsGkAtoms::dirAutoSetBy));
+    nsTextNode* setByNode =
+      static_cast<nsTextNode*>(aElement->GetProperty(nsGkAtoms::dirAutoSetBy));
     nsTextNodeDirectionalityMap::RemoveElementFromMap(setByNode, aElement);
   }
 

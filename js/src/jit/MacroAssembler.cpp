@@ -312,21 +312,21 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegi
       case Scalar::Int16:
 #if defined(JS_CODEGEN_PPC_OSX)
         load16SignExtendSwapped(src, dest.gpr());
-#elif defined(JS_CODEGEN_X86)
+#else
         load16SignExtend(src, dest.gpr());
 #endif
         break;
       case Scalar::Uint16:
 #if defined(JS_CODEGEN_PPC_OSX)
         load16ZeroExtendSwapped(src, dest.gpr());
-#elif defined(JS_CODEGEN_X86)
+#else
         load16ZeroExtend(src, dest.gpr());
 #endif
         break;
       case Scalar::Int32:
 #if defined(JS_CODEGEN_PPC_OSX)
         load32ByteSwapped(src, dest.gpr());
-#elif defined(JS_CODEGEN_X86)
+#else
         load32Byte(src, dest.gpr());
 #endif
         break;
@@ -334,14 +334,14 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegi
         if (dest.isFloat()) {
 #if defined(JS_CODEGEN_PPC_OSX)
             load32ByteSwapped(src, temp);
-#elif defined(JS_CODEGEN_X86)
+#else
             load32Byte(src, temp);
 #endif
             convertUInt32ToDouble(temp, dest.fpu());
         } else {
 #if defined(JS_CODEGEN_PPC_OSX)
             load32ByteSwapped(src, dest.gpr());
-#elif defined(JS_CODEGEN_X86)
+#else
             load32Byte(src, temp);
 #endif
 
@@ -513,7 +513,7 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, const V
         // Don't clobber dest when we could fail, instead use temp.
 #if defined(JS_CODEGEN_PPC_OSX)
         load32ByteSwapped(src, temp);
-#elif defined(JS_CODEGEN_X86)
+#else
         load32(src, temp);
 #endif
         if (allowDouble) {
@@ -603,11 +603,11 @@ MacroAssembler::loadUnboxedProperty(T address, JSValueType type, TypedOrValueReg
 
       case JSVAL_TYPE_OBJECT:
         if (output.hasValue()) {
-#ifdef JS_CODEGEN_PPC_OSX
-            // Faster shortbranching version.
-
             Register scratch = output.valueReg().scratchReg();
             loadPtr(address, scratch);
+
+#ifdef JS_CODEGEN_PPC_OSX
+            // Faster shortbranching version.
 
             BufferOffset notNull, done;
             notNull = _bc(0,
@@ -620,9 +620,6 @@ MacroAssembler::loadUnboxedProperty(T address, JSValueType type, TypedOrValueReg
             tagValue(JSVAL_TYPE_OBJECT, scratch, output.valueReg());
             bindSS(done);
 #else
-            Register scratch = output.valueReg().scratchReg();
-            loadPtr(address, scratch);
-
             Label notNull, done;
             branchPtr(Assembler::NotEqual, scratch, ImmWord(0), &notNull);
 

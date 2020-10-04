@@ -486,10 +486,7 @@ MacOSFontEntry::GetFontTable(uint32_t aTag)
     // expensive call to ATSGetFontTable() to simply get the length.
     // Essentially a hardcoded form of FindTagInTableDir; see below.
     if (MOZ_LIKELY(mFontTableDirSize > 0)) {
-        uint32_t aTagHE = aTag;
-#ifndef __ppc__
-        aTagHE = __builtin_bswap32(aTag);
-#endif
+        uint32_t aTagBE = NativeEndian::swapToBigEndian(aTag);
 
 #ifdef DEBUG_X
         uint32_t j = 12;
@@ -509,11 +506,8 @@ MacOSFontEntry::GetFontTable(uint32_t aTag)
                 j += 16;
 #endif
                 // ASSUME THAT aTag is in host endianness
-                if(wtable[i] == aTagHE) {
-                        dataLength = (ByteCount)wtable[i+3];
-#ifndef __ppc__
-                        dataLength = __builtin_bswap32(dataLength);
-#endif
+                if(wtable[i] == aTagBE) {
+                        dataLength = NativeEndian::swapToBigEndian((ByteCount)wtable[i+3]);
 #ifdef DEBUG_X
                         fprintf(stderr, "FF MATCH: length %u\n", dataLength);
 #endif
@@ -564,9 +558,8 @@ static bool FindTagInTableDir(FallibleTArray<uint8_t>& table,
   // 96 bit header (three 32-bit words). One day we could even write
   // an AltiVec version ...
   // aTableTag is expected to be Big Endian order
-#ifndef __ppc__
-  aTableTag = __builtin_bswap32(aTableTag);
-#endif
+  // If we don't do that on Intel, all characters are replaced by a rectangle
+  aTableTag = NativeEndian::swapToBigEndian(aTableTag);
 
 #ifdef DEBUG_X
   fprintf(stderr, "Tables: ");

@@ -1551,7 +1551,8 @@ JSObject::fixDictionaryShapeAfterSwap()
 bool
 JSObject::swap(JSContext* cx, HandleObject a, HandleObject b)
 {
-#if(0) // See TenFourFox issue 479 for why we can get away with this.
+    /* This should be consistent with js/src/proxy/Wrapper.cpp#Wrapper::finalizeInBackground */
+#if !defined(__ppc__) && !defined(__ppc64__) // See TenFourFox issue 479 for why we can get away with this.
     // Ensure swap doesn't cause a finalizer to not be run.
     MOZ_ASSERT(IsBackgroundFinalized(a->asTenured().getAllocKind()) ==
                IsBackgroundFinalized(b->asTenured().getAllocKind()));

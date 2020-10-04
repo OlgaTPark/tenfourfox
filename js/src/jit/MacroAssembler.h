@@ -1111,7 +1111,7 @@ private:
           case Scalar::Uint16:
 #if defined(JS_CODEGEN_PPC_OSX)
             store16Swapped(value, dest);
-#elif defined(JS_CODEGEN_X86)
+#else
             store16(value, dest);
 #endif
             break;
@@ -1119,7 +1119,7 @@ private:
           case Scalar::Uint32:
 #if defined(JS_CODEGEN_PPC_OSX)
             store32ByteSwapped(value, dest);
-#elif defined(JS_CODEGEN_X86)
+#else
             store32(value, dest);
 #endif
             break;
