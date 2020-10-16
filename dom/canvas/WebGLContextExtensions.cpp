@@ -87,6 +87,8 @@ bool WebGLContext::IsExtensionSupported(JSContext* cx,
 
     if (allowPrivilegedExts) {
         switch (ext) {
+        case WebGLExtensionID::EXT_disjoint_timer_query:
+            return WebGLExtensionDisjointTimerQuery::IsSupported(this);
         case WebGLExtensionID::WEBGL_debug_renderer_info:
             return true;
         case WebGLExtensionID::WEBGL_debug_shaders:
@@ -197,9 +199,6 @@ WebGLContext::IsExtensionSupported(WebGLExtensionID ext) const
 
         if (gfxPrefs::WebGLDraftExtensionsEnabled()) {
             switch (ext) {
-            case WebGLExtensionID::EXT_disjoint_timer_query:
-                return WebGLExtensionDisjointTimerQuery::IsSupported(this);
-
             default:
                 // For warnings-as-errors.
                 break;
