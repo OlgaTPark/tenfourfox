@@ -38,6 +38,7 @@ class GLContext;
   * or aOverwrite is true.
   *
   * \param aData Image data to upload.
+  * \param aDataSize The image data's size.
   * \param aDstRegion Region of texture to upload to.
   * \param aTexture Texture to use, or 0 to have one created for you.
   * \param aOverwrite Over an existing texture with a new one.
@@ -55,6 +56,7 @@ class GLContext;
 gfx::SurfaceFormat
 UploadImageDataToTexture(GLContext* gl,
                          unsigned char* aData,
+                         const gfx::IntSize& aDataSize,
                          int32_t aStride,
                          gfx::SurfaceFormat aFormat,
                          const nsIntRegion& aDstRegion,

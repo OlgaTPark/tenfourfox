@@ -57,6 +57,23 @@ DataOffset(const IntPoint &aPoint, int32_t aStride, SurfaceFormat aFormat)
   return data;
 }
 
+static bool
+CheckUploadBounds(const IntSize& aDst, const IntSize& aSrc, const IntPoint& aOffset)
+{
+  if (aOffset.x < 0 || aOffset.y < 0 ||
+      aOffset.x >= aSrc.width ||
+      aOffset.y >= aSrc.height) {
+    MOZ_ASSERT_UNREACHABLE("Offset outside source bounds");
+    return false;
+  }
+  if (aDst.width > (aSrc.width - aOffset.x) ||
+      aDst.height > (aSrc.height - aOffset.y)) {
+    MOZ_ASSERT_UNREACHABLE("Source has insufficient data");
+    return false;
+  }
+  return true;
+}
+
 static GLint GetAddressAlignment(ptrdiff_t aAddress)
 {
     if (!(aAddress & 0x7)) {
@@ -382,6 +399,7 @@ TexImage2DHelper(GLContext *gl,
 SurfaceFormat
 UploadImageDataToTexture(GLContext* gl,
                          unsigned char* aData,
+                         const gfx::IntSize& aDataSize,
                          int32_t aStride,
                          SurfaceFormat aFormat,
                          const nsIntRegion& aDstRegion,
@@ -518,6 +536,12 @@ UploadImageDataToTexture(GLContext* gl,
                      "Must be uploading to the origin when we don't have an existing texture");
 
         if (textureInited && CanUploadSubTextures(gl)) {
+            // NOTE: This M1388020 check is disabled because it triggers too 
+            // often in TenFourFox, making rendering incomplete.  This is "maybe"
+            // solved by M1311642 (see comments of commit 4a4b3074ade6).
+            /*if (!CheckUploadBounds(iterRect->Size(), aDataSize, iterRect->TopLeft())) {
+              return SurfaceFormat::UNKNOWN;
+            }*/
             TexSubImage2DHelper(gl,
                                 aTextureTarget,
                                 0,
@@ -561,11 +585,18 @@ UploadSurfaceToTexture(GLContext* gl,
                        GLenum aTextureUnit,
                        GLenum aTextureTarget)
 {
+    gfx::IntSize size = aSurface->GetSize();
+    if (!CheckUploadBounds(aDstRegion.GetBounds().Size(), size, aSrcPoint)) {
+        return SurfaceFormat::UNKNOWN;
+    }
+
     unsigned char* data = aPixelBuffer ? nullptr : aSurface->GetData();
     int32_t stride = aSurface->Stride();
     SurfaceFormat format = aSurface->GetFormat();
     data += DataOffset(aSrcPoint, stride, format);
-    return UploadImageDataToTexture(gl, data, stride, format,
+    size.width -= aSrcPoint.x;
+    size.height -= aSrcPoint.y;
+    return UploadImageDataToTexture(gl, data, size, stride, format,
                                     aDstRegion, aTexture, aOverwrite,
                                     aPixelBuffer, aTextureUnit,
                                     aTextureTarget);

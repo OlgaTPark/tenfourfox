@@ -33,10 +33,6 @@
 #include "mozilla/layers/MacIOSurfaceTextureHostOGL.h"
 #endif
 
-#ifdef GL_PROVIDER_GLX
-#include "mozilla/layers/X11TextureHost.h"
-#endif
-
 using namespace mozilla::gl;
 using namespace mozilla::gfx;
 
@@ -97,14 +93,6 @@ CreateTextureHostOGL(const SurfaceDescriptor& aDesc,
     }
 #endif
 
-#ifdef GL_PROVIDER_GLX
-    case SurfaceDescriptor::TSurfaceDescriptorX11: {
-      const auto& desc = aDesc.get_SurfaceDescriptorX11();
-      result = new X11TextureHost(aFlags, desc);
-      break;
-    }
-#endif
-
     case SurfaceDescriptor::TSurfaceDescriptorSharedGLTexture: {
       const auto& desc = aDesc.get_SurfaceDescriptorSharedGLTexture();
       result = new GLTextureHost(aFlags, desc.texture(),
@@ -114,7 +102,10 @@ CreateTextureHostOGL(const SurfaceDescriptor& aDesc,
                                  desc.hasAlpha());
       break;
     }
-    default: return nullptr;
+    default: {
+      MOZ_ASSERT_UNREACHABLE("Unsupported SurfaceDescriptor type");
+      break;
+    }
   }
   return result.forget();
 }
@@ -195,12 +186,12 @@ TextureImageTextureSourceOGL::Update(gfx::DataSourceSurface* aSurface,
     }
   }
 
-  mTexImage->UpdateFromDataSource(aSurface, aDestRegion, aSrcOffset);
+  bool res = mTexImage->UpdateFromDataSource(aSurface, aDestRegion, aSrcOffset);
 
   if (mTexImage->InUpdate()) {
     mTexImage->EndUpdate();
   }
-  return true;
+  return res;
 }
 
 void

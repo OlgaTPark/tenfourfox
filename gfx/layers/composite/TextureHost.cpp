@@ -95,14 +95,9 @@ TextureHost::CreateIPDLActor(CompositableParentManager* aManager,
                              LayersBackend aLayersBackend,
                              TextureFlags aFlags)
 {
-  if (aSharedData.type() == SurfaceDescriptor::TSurfaceDescriptorMemory &&
-      !aManager->IsSameProcess())
-  {
-    NS_ERROR("A client process is trying to peek at our address space using a MemoryTexture!");
-    return nullptr;
-  }
   TextureParent* actor = new TextureParent(aManager);
   if (!actor->Init(aSharedData, aLayersBackend, aFlags)) {
+	  actor->ActorDestroy(ipc::IProtocolManager<ipc::IProtocol>::ActorDestroyReason::FailedConstructor);
     delete actor;
     return nullptr;
   }
@@ -225,6 +220,11 @@ TextureHost::Create(const SurfaceDescriptor& aDesc,
 
 #ifdef MOZ_X11
     case SurfaceDescriptor::TSurfaceDescriptorX11: {
+      if (!aDeallocator->IsSameProcess()) {
+        NS_ERROR("A client process is trying to peek at our address space using a X11Texture!");
+        return nullptr;
+      }
+
       const SurfaceDescriptorX11& desc = aDesc.get_SurfaceDescriptorX11();
       return MakeAndAddRef<X11TextureHost>(aFlags, desc);
     }
@@ -256,6 +256,9 @@ CreateBackendIndependentTextureHost(const SurfaceDescriptor& aDesc,
   switch (aDesc.type()) {
     case SurfaceDescriptor::TSurfaceDescriptorShmem: {
       const SurfaceDescriptorShmem& descriptor = aDesc.get_SurfaceDescriptorShmem();
+      // We can't verify shmem's size (because M1388020 uses things 
+      // that are probably not-in-code). This should not be a fatal 
+      // error, so just create the texture with nothing backing it.
       result = new ShmemTextureHost(descriptor.data(),
                                     descriptor.format(),
                                     aDeallocator,
@@ -263,6 +266,11 @@ CreateBackendIndependentTextureHost(const SurfaceDescriptor& aDesc,
       break;
     }
     case SurfaceDescriptor::TSurfaceDescriptorMemory: {
+      if (!aDeallocator->IsSameProcess()) {
+        NS_ERROR("A client process is trying to peek at our address space using a MemoryTexture!");
+        return nullptr;
+      }
+
       const SurfaceDescriptorMemory& descriptor = aDesc.get_SurfaceDescriptorMemory();
       result = new MemoryTextureHost(reinterpret_cast<uint8_t*>(descriptor.data()),
                                      descriptor.format(),
@@ -271,6 +279,11 @@ CreateBackendIndependentTextureHost(const SurfaceDescriptor& aDesc,
     }
 #ifdef XP_WIN
     case SurfaceDescriptor::TSurfaceDescriptorDIB: {
+      if (!aDeallocator->IsSameProcess()) {
+        NS_ERROR("A client process is trying to peek at our address space using a DIBTexture!");
+        return nullptr;
+      }
+
       result = new DIBTextureHost(aFlags, aDesc);
       break;
     }
@@ -283,6 +296,15 @@ CreateBackendIndependentTextureHost(const SurfaceDescriptor& aDesc,
       NS_WARNING("No backend independent TextureHost for this descriptor type");
     }
   }
+  
+  // This tries to mitigate M1388020.  Most of the needed checks are made in the
+  // constructor of the `result` object.  Testing if the result's size is empty 
+  // "should" be enough.
+  if (result->GetSize().IsEmpty()) {
+    NS_ERROR("A client process gave a shmem too small to fit for its descriptor!");
+    return nullptr;
+  }
+  
   return result.forget();
 }
 
@@ -542,8 +564,7 @@ BufferTextureHost::Upload(nsIntRegion *aRegion)
       if (!mFirstSource) {
         mFirstSource = mCompositor->CreateDataTextureSource(mFlags);
       }
-      mFirstSource->Update(surf, aRegion);
-      return true;
+      return mFirstSource->Update(surf, aRegion);
     }
 
     RefPtr<DataTextureSource> srcY;

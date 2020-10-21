@@ -216,6 +216,10 @@ TextureImageEGL::DirectUpdate(gfx::DataSourceSurface* aSurf, const nsIntRegion& 
                              bounds.TopLeft() + gfx::IntPoint(aFrom.x, aFrom.y),
                              false);
 
+    if (mTextureFormat == SurfaceFormat::UNKNOWN) {
+        return false;
+    }
+
     mTextureState = Valid;
     return true;
 }

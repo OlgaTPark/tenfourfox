@@ -681,7 +681,7 @@ CreateTextureHostD3D11(const SurfaceDescriptor& aDesc,
       break;
     }
     default: {
-      NS_WARNING("Unsupported SurfaceDescriptor type");
+      MOZ_ASSERT_UNREACHABLE("Unsupported SurfaceDescriptor type");
     }
   }
   return result.forget();

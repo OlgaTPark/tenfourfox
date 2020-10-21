@@ -222,6 +222,10 @@ BasicTextureImage::DirectUpdate(gfx::DataSourceSurface* aSurf, const nsIntRegion
                                mTextureState == Created,
                                bounds.TopLeft() + IntPoint(aFrom.x, aFrom.y),
                                false);
+    if (mTextureFormat == SurfaceFormat::UNKNOWN) {
+        return false;
+    }
+
     mTextureState = Valid;
     return true;
 }
