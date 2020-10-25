@@ -275,7 +275,7 @@ Request::Constructor(const GlobalObject& aGlobal,
 
     request->SetURL(NS_ConvertUTF16toUTF8(requestURL));
     fallbackMode = RequestMode::Cors;
-    fallbackCredentials = RequestCredentials::Omit;
+    fallbackCredentials = RequestCredentials::Same_origin;
     fallbackCache = RequestCache::Default;
   }
 
