@@ -707,6 +707,17 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 // https://github.com/AdguardTeam/AdguardFilters/issues/1278
                 // this may also be true for adziff.com
 
+                // don't block kxcdn
+                // https://github.com/EFForg/privacybadger/issues/1381
+
+                // miners
+                BLOK("coinhive.com") ||
+                BLOK("www.freecontent.stream") ||
+                BLOK("www.freecontent.stream.") ||
+                BLOK("allfontshere.press") || // caused crashes on VCF
+                BLOK("www.allfontshere.press") ||
+
+                // other obnoxious things
                 BLOK("c.amazon-adsystem.com") ||
 
                 BLOK("google-analytics.com") ||
@@ -746,6 +757,7 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("ad.doubleclick.net") ||
                 BLOK("static.doubleclick.net") ||
                 BLOK("stats.g.doubleclick.net") ||
+                BLOK("pubads.g.doubleclick.net") ||
                 BLOK("googleads.g.doubleclick.net") ||
                 BLOK("securepubads.g.doubleclick.net") ||
                 
@@ -802,6 +814,7 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("cdn.revcontent.com") ||
                 
                 BLOK("cas.criteo.com") ||
+                BLOK("rtax.criteo.com") ||
                 BLOK("static.criteo.net") ||
                 
                 BLOK("jsc.idealmedia.com") ||
@@ -826,6 +839,7 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("static.yieldmo.com") ||
                 
                 BLOK("ads.rubiconproject.com") ||
+                BLOK("fastlane.rubiconproject.com") ||
                 
                 BLOK("cdn.engine.4dsply.com") ||
                 
@@ -833,6 +847,7 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("as-sec.casalemedia.com") ||
                 
                 BLOK("loadm.exelator.com") ||
+                BLOK("loadus.exelator.com") ||
                 
                 BLOK("sdk.streamrail.com") ||
                 
@@ -850,6 +865,7 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 
                 BLOK("www.npttech.com") ||
                 
+                BLOK("fw.adsafeprotected.com") ||
                 BLOK("cdn.adsafeprotected.com") ||
                 BLOK("pixel.adsafeprotected.com") ||
                 BLOK("static.adsafeprotected.com") ||
@@ -884,6 +900,7 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("cdn.mediavoice.com") ||
                 BLOK("plugin.mediavoice.com") ||
                 
+                BLOK("api-us-east.zqtk.net") ||
                 BLOK("segment-data.zqtk.net") ||
                 
                 BLOK("d.turn.com") ||
@@ -904,10 +921,12 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("se.monetate.net") ||
                 
                 BLOK("ad.crwdcntrl.net") ||
+                BLOK("bcp.crwdcntrl.net") ||
                 BLOK("tags.crwdcntrl.net") ||
                 
                 BLOK("cdn.nsstatic.net") ||
                 
+                BLOK("www.bkrtx.com") ||
                 BLOK("tags.bkrtx.com") ||
                 
                 BLOK("yads.c.yimg.jp") ||
@@ -919,6 +938,7 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("stats.cloudwp.io") ||
 
                 BLOK("ap.lijit.com") ||
+                BLOK("ce.lijit.com") ||
 
                 BLOK("tlx.3lift.com") ||
 
@@ -984,13 +1004,11 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("cdata.carambo.la") ||
                 BLOK("route.carambo.la") ||
 
+                BLOK("us-u.openx.net") ||
+                BLOK("uk-ads.openx.net") ||
                 BLOK("us-ads.openx.net") ||
 
                 BLOK("s-static.innovid.com") ||
-
-                // This is controversial, but I'm pretty sure we
-                // don't want this.
-                BLOK("coinhive.com") ||
 
                 BLOK("ustatik.com") ||
                 BLOK("cdn.ustatik.com") ||
@@ -1007,6 +1025,87 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
                 BLOK("t.neodatagroup.com") ||
 
                 BLOK("ads.servebom.com") ||
+
+                BLOK("a.mailmunch.co") ||
+
+                BLOK("ads.adthrive.com") ||
+
+                BLOK("js.agkn.com") ||
+
+                BLOK("htl.bid") ||
+
+                BLOK("rtb.districtm.io") ||
+                BLOK("prebid.districtm.ca") ||
+
+                BLOK("speednetwork14.adk2.co") ||
+                BLOK("speednetwork14.adk2x.com") ||
+
+                BLOK("deloton.com") ||
+
+                BLOK("clickiocdn.com") ||
+                BLOK("clickioadve.com") ||
+
+                BLOK("cti.w55c.net") ||
+                BLOK("cdn.w55c.net") ||
+
+                BLOK("mobpushup.com") ||
+
+                BLOK("sc.iasds01.com") ||
+
+                BLOK("cdn.optimizely.com") ||
+                BLOK("cdn3.optimizely.com") ||
+
+                BLOK("p.d.emn0.com") ||
+                BLOK("p.w.emn0.com") ||
+
+                BLOK("api.b2c.com") ||
+
+                BLOK("bounceexchange.com") ||
+
+                BLOK("bullseye.backbeatmedia.com") ||
+                BLOK("adserver1.backbeatmedia.com") ||
+
+                BLOK("live.sekindo.com") ||
+
+                BLOK("cdn.spotxcdn.com") ||
+
+                BLOK("api.addmee.net") ||
+
+                BLOK("a.intentmedia.net") ||
+                BLOK("a.cdn.intentmedia.net") ||
+
+                BLOK("ads.pictela.net") ||
+                BLOK("secure-ads.pictela.net") ||
+
+                BLOK("bid.contextweb.com") ||
+                BLOK("tag.contextweb.com") ||
+
+                BLOK("p.cpx.to") ||
+                BLOK("s.cpx.to") ||
+
+                BLOK("ardrone.swoop.com") ||
+                BLOK("www.swpsvc.com") ||
+                BLOK("client-deploy.swpcld.com") ||
+
+                BLOK("id.rlcdn.com") ||
+
+                BLOK("tags.bluekai.com") ||
+                BLOK("stags.bluekai.com") ||
+
+                BLOK("js.gumgum.com") ||
+
+                BLOK("cdn.digitru.st") ||
+
+                BLOK("collector.cint.com") ||
+
+                BLOK("dpm.demdex.net") ||
+
+                BLOK("www.uciservice.com") ||
+
+                BLOK("f.cdn-net.com") ||
+                BLOK("uk.cdn-net.com") ||
+                BLOK("six.cdn-net.com") ||
+                BLOK("www.cdn-net.com") ||
                     0) {
 #undef BLOK
                 // Yup.

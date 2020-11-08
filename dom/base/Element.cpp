@@ -44,7 +44,6 @@
 #include "nsNameSpaceManager.h"
 #include "nsContentList.h"
 #include "nsVariant.h"
-#include "nsDOMSettableTokenList.h"
 #include "nsDOMTokenList.h"
 #include "nsXBLPrototypeBinding.h"
 #include "nsError.h"
@@ -179,6 +178,12 @@ nsIContent::DoGetClasses() const
 NS_IMETHODIMP
 Element::QueryInterface(REFNSIID aIID, void** aInstancePtr)
 {
+  if (aIID.Equals(NS_GET_IID(Element))) {
+    NS_ADDREF_THIS();
+    *aInstancePtr = this;
+    return NS_OK;
+  }
+
   NS_ASSERTION(aInstancePtr,
                "QueryInterface requires a non-NULL destination!");
   nsresult rv = FragmentOrElement::QueryInterface(aIID, aInstancePtr);
@@ -3086,11 +3091,11 @@ Element::GetLinkTarget(nsAString& aTarget)
 }
 
 static void
-nsDOMSettableTokenListPropertyDestructor(void *aObject, nsIAtom *aProperty,
-                                         void *aPropertyValue, void *aData)
+nsDOMTokenListPropertyDestructor(void *aObject, nsIAtom *aProperty,
+                                 void *aPropertyValue, void *aData)
 {
-  nsDOMSettableTokenList* list =
-    static_cast<nsDOMSettableTokenList*>(aPropertyValue);
+  nsDOMTokenList* list =
+    static_cast<nsDOMTokenList*>(aPropertyValue);
   NS_RELEASE(list);
 }
 
@@ -3113,8 +3118,9 @@ Element::HTMLSVGPropertiesToTraverseAndUnlink()
   return sPropertiesToTraverseAndUnlink;
 }
 
-nsDOMSettableTokenList*
-Element::GetTokenList(nsIAtom* aAtom)
+nsDOMTokenList*
+Element::GetTokenList(nsIAtom* aAtom,
+                      const DOMTokenListSupportedTokenArray aSupportedTokens)
 {
 #ifdef DEBUG
   nsIAtom*** props =
@@ -3129,14 +3135,14 @@ Element::GetTokenList(nsIAtom* aAtom)
   MOZ_ASSERT(found, "Trying to use an unknown tokenlist!");
 #endif
 
-  nsDOMSettableTokenList* list = nullptr;
+  nsDOMTokenList* list = nullptr;
   if (HasProperties()) {
-    list = static_cast<nsDOMSettableTokenList*>(GetProperty(aAtom));
+    list = static_cast<nsDOMTokenList*>(GetProperty(aAtom));
   }
   if (!list) {
-    list = new nsDOMSettableTokenList(this, aAtom);
+    list = new nsDOMTokenList(this, aAtom, aSupportedTokens);
     NS_ADDREF(list);
-    SetProperty(aAtom, list, nsDOMSettableTokenListPropertyDestructor);
+    SetProperty(aAtom, list, nsDOMTokenListPropertyDestructor);
   }
   return list;
 }
@@ -3153,7 +3159,7 @@ Element::GetTokenList(nsIAtom* aAtom, nsIVariant** aResult)
 nsresult
 Element::SetTokenList(nsIAtom* aAtom, nsIVariant* aValue)
 {
-  nsDOMSettableTokenList* itemType = GetTokenList(aAtom);
+  nsDOMTokenList* itemType = GetTokenList(aAtom);
   nsAutoString string;
   aValue->GetAsAString(string);
   ErrorResult rv;
