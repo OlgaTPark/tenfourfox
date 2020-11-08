@@ -5184,7 +5184,9 @@ nsLayoutUtils::ComputeSizeWithIntrinsicDimensions(WritingMode aWM,
     // as its size in the container's main axis.
     FrameProperties props = aFrame->Properties();
     bool didImposeMainSize;
-    nscoord imposedMainSize =
+    // XXX: This bad cast is here because we don't have NS_DECLARE_FRAME_PROPERTY_SMALL_VALUE
+    // See comment about `FlexItemMainSizeOverride` in /layout/generic/nsIFrame.h for more information.
+    nscoord imposedMainSize = (ptrdiff_t)
       props.Get(nsIFrame::FlexItemMainSizeOverride(), &didImposeMainSize);
     if (didImposeMainSize) {
       imposedMainSizeStyleCoord.emplace(imposedMainSize,

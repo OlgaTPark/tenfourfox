@@ -356,8 +356,8 @@ enum
   kVK_JIS_KeypadComma = 0x5F,
   kVK_JIS_Eisu        = 0x66,
   kVK_JIS_Kana        = 0x68,
-  kVK_PC_ContextMenu  = 0x6E,
 #endif
+  kVK_PC_ContextMenu  = 0x6E,
 
   kKeypadMultiplyKeyCode  = 0x43,
   kKeypadAddKeyCode       = 0x45,
