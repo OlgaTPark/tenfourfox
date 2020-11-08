@@ -56,7 +56,9 @@ public:
   CamerasSingleton()
     : mCamerasMutex("CamerasSingleton::mCamerasMutex"),
       mCameras(nullptr),
-      mCamerasChildThread(nullptr) {
+      mCamerasChildThread(nullptr),
+      mInShutdown(false)
+  {
     LOG(("CamerasSingleton: %p", this));
   }
 
@@ -78,6 +80,14 @@ public:
     return gTheInstance.get()->mCamerasChildThread;
   }
 
+  static bool InShutdown() {
+    return gTheInstance.get()->mInShutdown;
+  }
+
+  static void StartShutdown() {
+    gTheInstance.get()->mInShutdown = true;
+  }
+
 private:
   static Singleton<CamerasSingleton> gTheInstance;
 
@@ -94,6 +104,7 @@ private:
   // will be before actual destruction.
   CamerasChild* mCameras;
   nsCOMPtr<nsIThread> mCamerasChildThread;
+  Atomic<bool> mInShutdown;
 };
 
 class InitializeIPCThread : public nsRunnable
@@ -242,6 +253,7 @@ CamerasChild::NumberOfCapabilities(CaptureEngine aCapEngine,
   LOG((__PRETTY_FUNCTION__));
   LOG(("NumberOfCapabilities for %s", deviceUniqueIdUTF8));
   nsCString unique_id(deviceUniqueIdUTF8);
+  RefPtr<CamerasChild> deathGrip = this;
   nsCOMPtr<nsIRunnable> runnable =
     NS_NewNonOwningRunnableMethodWithArgs<CaptureEngine, nsCString>
     (this, &CamerasChild::SendNumberOfCapabilities, aCapEngine, unique_id);
@@ -321,6 +333,7 @@ CamerasChild::GetCaptureCapability(CaptureEngine aCapEngine,
 {
   MutexAutoLock requestLock(mRequestMutex);
   LOG(("GetCaptureCapability: %s %d", unique_idUTF8, capability_number));
+  RefPtr<CamerasChild> deathGrip = this;
   nsCString unique_id(unique_idUTF8);
   nsCOMPtr<nsIRunnable> runnable =
     NS_NewNonOwningRunnableMethodWithArgs<CaptureEngine, nsCString, unsigned int>
@@ -381,6 +394,7 @@ CamerasChild::GetCaptureDevice(CaptureEngine aCapEngine,
 {
   MutexAutoLock requestLock(mRequestMutex);
   LOG((__PRETTY_FUNCTION__));
+  RefPtr<CamerasChild> deathGrip = this;
   nsCOMPtr<nsIRunnable> runnable =
     NS_NewNonOwningRunnableMethodWithArgs<CaptureEngine, unsigned int>
     (this, &CamerasChild::SendGetCaptureDevice, aCapEngine, list_number);
@@ -434,6 +448,7 @@ CamerasChild::AllocateCaptureDevice(CaptureEngine aCapEngine,
 {
   MutexAutoLock requestLock(mRequestMutex);
   LOG((__PRETTY_FUNCTION__));
+  RefPtr<CamerasChild> deathGrip = this;
   nsCString unique_id(unique_idUTF8);
   nsCOMPtr<nsIRunnable> runnable =
     NS_NewNonOwningRunnableMethodWithArgs<CaptureEngine, nsCString>
@@ -478,6 +493,7 @@ CamerasChild::ReleaseCaptureDevice(CaptureEngine aCapEngine,
 {
   MutexAutoLock requestLock(mRequestMutex);
   LOG((__PRETTY_FUNCTION__));
+  RefPtr<CamerasChild> deathGrip = this;
   nsCOMPtr<nsIRunnable> runnable =
     NS_NewNonOwningRunnableMethodWithArgs<CaptureEngine, const int>
     (this, &CamerasChild::SendReleaseCaptureDevice, aCapEngine, capture_id);
@@ -546,6 +562,7 @@ CamerasChild::StartCapture(CaptureEngine aCapEngine,
                            webrtcCaps.rawType,
                            webrtcCaps.codecType,
                            webrtcCaps.interlaced);
+  RefPtr<CamerasChild> deathGrip = this;
   nsCOMPtr<nsIRunnable> runnable =
     NS_NewNonOwningRunnableMethodWithArgs<CaptureEngine, const int, CaptureCapability>
     (this, &CamerasChild::SendStartCapture, aCapEngine, capture_id, capCap);
@@ -572,6 +589,7 @@ CamerasChild::StopCapture(CaptureEngine aCapEngine, const int capture_id)
 {
   MutexAutoLock requestLock(mRequestMutex);
   LOG((__PRETTY_FUNCTION__));
+  RefPtr<CamerasChild> deathGrip = this;
   nsCOMPtr<nsIRunnable> runnable =
     NS_NewNonOwningRunnableMethodWithArgs<CaptureEngine, const int>
     (this, &CamerasChild::SendStopCapture, aCapEngine, capture_id);
@@ -638,6 +656,7 @@ CamerasChild::ShutdownParent()
   if (CamerasSingleton::Thread()) {
     LOG(("Dispatching actor deletion"));
     // Delete the parent actor.
+    RefPtr<CamerasChild> deathGrip = this;
     RefPtr<nsRunnable> deleteRunnable =
       // CamerasChild (this) will remain alive and is only deleted by the
       // IPC layer when SendAllDone returns.
@@ -734,7 +753,7 @@ CamerasChild::~CamerasChild()
 {
   LOG(("~CamerasChild: %p", this));
 
-  {
+  if (!CamerasSingleton::InShutdown()) {
     OffTheBooksMutexAutoLock lock(CamerasSingleton::Mutex());
     // In normal circumstances we've already shut down and the
     // following does nothing. But on fatal IPC errors we will
