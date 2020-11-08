@@ -914,6 +914,13 @@ bool GrAAHairLinePathRenderer::onDrawPath(const SkPath& path,
                                        &lines, &quads, &conics, &qSubdivs, &cWeights);
     lineCnt = lines.count() / 2;
     conicCnt = conics.count() / 3;
+    const int quadAndConicCount = conicCnt + quadCnt;
+
+    static constexpr int kMaxLines = SK_MaxS32 / kVertsPerLineSeg;
+    static constexpr int kMaxQuadsAndConics = SK_MaxS32 / kVertsPerQuad;
+    if (lineCnt > kMaxLines || quadAndConicCount > kMaxQuadsAndConics) {
+       return false;
+    }
 
     // do lines first
     if (lineCnt) {
@@ -994,7 +1001,7 @@ bool GrAAHairLinePathRenderer::onDrawPath(const SkPath& path,
 
         // Check devBounds
         SkASSERT(check_bounds<BezierVertex>(drawState, devBounds, arg.vertices(),
-                                            kVertsPerQuad * quadCnt + kVertsPerQuad * conicCnt));
+                                            kVertsPerQuad * quadAndConicCount));
 
         if (quadCnt > 0) {
             GrEffect* hairQuadEffect = GrQuadEffect::Create(kHairlineAA_GrEffectEdgeType,
@@ -1026,7 +1033,7 @@ bool GrAAHairLinePathRenderer::onDrawPath(const SkPath& path,
             while (conics < conicCnt) {
                 int n = SkTMin(conicCnt - conics, kNumQuadsInIdxBuffer);
                 target->drawIndexed(kTriangles_GrPrimitiveType,
-                                    kVertsPerQuad*(quadCnt + conics),  // startV
+                                    kVertsPerQuad* quadAndConicCount,  // startV
                                     0,                                 // startI
                                     kVertsPerQuad*n,                   // vCount
                                     kIdxsPerQuad*n,                    // iCount

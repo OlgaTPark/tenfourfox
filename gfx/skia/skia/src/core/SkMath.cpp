@@ -9,6 +9,7 @@
 #include "SkFloatBits.h"
 #include "SkFloatingPoint.h"
 #include "SkScalar.h"
+#include "SkSafeMath.h"
 
 const uint32_t gIEEENotANumber = 0x7FFFFFFF;
 const uint32_t gIEEEInfinity = 0x7F800000;
@@ -174,6 +175,21 @@ float SkScalarSinCos(float radians, float* cosValue) {
     }
     return sinValue;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+size_t SkSafeMath::Add(size_t x, size_t y) {
+    SkSafeMath tmp;
+    size_t sum = tmp.add(x, y);
+    return tmp.ok() ? sum : SK_MaxSizeT;
+}
+
+size_t SkSafeMath::Mul(size_t x, size_t y) {
+    SkSafeMath tmp;
+    size_t prod = tmp.mul(x, y);
+    return tmp.ok() ? prod : SK_MaxSizeT;
+}
+
 
 #define INTERP_SINTABLE
 #define BUILD_TABLE_AT_RUNTIMEx

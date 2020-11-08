@@ -34,7 +34,12 @@ size_t SkMask::computeTotalImageSize() const {
     freely assign memory allocated by one class to the other.
 */
 uint8_t* SkMask::AllocImage(size_t size) {
-    return (uint8_t*)sk_malloc_throw(SkAlign4(size));
+    size_t aligned_size = std::numeric_limits<size_t>::max();
+    size_t adjustment = 3;
+    if (size + adjustment > size) {
+        aligned_size = (size + adjustment) & ~adjustment;
+    }
+    return static_cast<uint8_t*>(sk_malloc_throw(aligned_size));
 }
 
 /** We explicitly use this allocator for SkBimap pixels, so that we can
