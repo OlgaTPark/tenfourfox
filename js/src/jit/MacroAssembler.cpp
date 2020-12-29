@@ -326,7 +326,7 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegi
       case Scalar::Int32:
 #if defined(JS_CODEGEN_PPC_OSX)
         load32ByteSwapped(src, dest.gpr());
-#elif defined(JS_CODEGEN_X86)
+#else
         load32(src, dest.gpr());
 #endif
         break;
@@ -334,15 +334,15 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegi
         if (dest.isFloat()) {
 #if defined(JS_CODEGEN_PPC_OSX)
             load32ByteSwapped(src, temp);
-#elif defined(JS_CODEGEN_X86)
+#else
             load32(src, temp);
 #endif
             convertUInt32ToDouble(temp, dest.fpu());
         } else {
 #if defined(JS_CODEGEN_PPC_OSX)
             load32ByteSwapped(src, dest.gpr());
-#elif defined(JS_CODEGEN_X86)
-            load32(src, temp);
+#else
+            load32(src, dest.gpr());
 #endif
 
             // Bail out if the value doesn't fit into a signed int32 value. This
