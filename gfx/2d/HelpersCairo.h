@@ -152,18 +152,8 @@ GfxFormatToCairoFormat(SurfaceFormat format)
   switch (format)
   {
     case SurfaceFormat::A8R8G8B8_UINT32:
-    // The following is here in order to avoid some error messages due to 
-    // "Unknown image format" (happening on Intel with `format = 0`).
-    // The conditional avoids a nasty compiler error due to duplicate case 
-    // values (the constants are defined in gfx/2d/Types.h)
-#if MOZ_LITTLE_ENDIAN
-    case SurfaceFormat::B8G8R8A8: // XXX?
-#endif
       return CAIRO_FORMAT_ARGB32;
     case SurfaceFormat::X8R8G8B8_UINT32:
-#if MOZ_LITTLE_ENDIAN
-    case SurfaceFormat::B8G8R8X8: // XXX?
-#endif
       return CAIRO_FORMAT_RGB24;
     case SurfaceFormat::A8:
       return CAIRO_FORMAT_A8;

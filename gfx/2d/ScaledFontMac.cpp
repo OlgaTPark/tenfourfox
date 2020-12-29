@@ -220,7 +220,8 @@ struct writeBuf
 };
 
 #if MOZ_BIG_ENDIAN
-#define TAG_CFF 0x43464620
+#define TAG_CFF  0x43464620
+#define TAG_HEAD 0x68656164
 #else
 #define TAG_CFF 0x20464643
 #endif

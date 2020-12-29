@@ -911,6 +911,13 @@ GfxInfoBase::GetFeatureStatusImpl(int32_t aFeature,
     return NS_OK;
   }
 
+  if (mShutdownOccurred) {
+    // This is futile; we've already commenced shutdown and our blocklists have
+    // been deleted. We may want to look into resurrecting the blocklist instead
+    // but for now, just don't even go there.
+    return NS_OK;
+  }
+
 #if defined(XP_MACOSX) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1050
   // Shortcut this logic for TenFourFox: we don't support *anything*
   // right now.

@@ -77,7 +77,7 @@ class AutoSetHandlingSignal
     }
 };
 
-#ifndef JS_CODEGEN_PPC_OSX // bug 881882
+#if !defined(JS_CODEGEN_PPC_OSX) // bug 881882
 
 #if defined(XP_WIN)
 # define XMM_sig(p,i) ((p)->Xmm##i)
@@ -1234,7 +1234,7 @@ JitInterruptHandler(int signum, siginfo_t* info, void* context)
 bool
 js::EnsureSignalHandlersInstalled(JSRuntime* rt)
 {
-#ifndef JS_CODEGEN_PPC_OSX
+#if !defined(JS_CODEGEN_PPC_OSX)
 #if defined(XP_DARWIN) && defined(ASMJS_MAY_USE_SIGNAL_HANDLERS_FOR_OOB)
     // On OSX, each JSRuntime gets its own handler thread.
     if (!rt->asmJSMachExceptionHandler.installed() && !rt->asmJSMachExceptionHandler.install(rt))
@@ -1332,7 +1332,7 @@ js::EnsureSignalHandlersInstalled(JSRuntime* rt)
 void
 js::InterruptRunningJitCode(JSRuntime* rt)
 {
-#ifndef JS_CODEGEN_PPC_OSX
+#if !defined(JS_CODEGEN_PPC_OSX)
     // If signal handlers weren't installed, then Ion and asm.js emit normal
     // interrupt checks and don't need asynchronous interruption.
     if (!rt->canUseSignalHandlers())
