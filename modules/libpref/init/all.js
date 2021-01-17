@@ -1886,6 +1886,7 @@ pref("network.cookie.cookieBehavior",       0); // 0-Accept, 1-dontAcceptForeign
 pref("network.cookie.cookieBehavior",       0); // Keep the old default of accepting all cookies
 #endif
 pref("network.cookie.thirdparty.sessionOnly", false);
+pref("network.cookie.same-site.enabled",    true); // Honor the SameSite cookie attribute
 pref("network.cookie.lifetimePolicy",       0); // 0-accept, 1-dontUse 2-acceptForSession, 3-acceptForNDays
 pref("network.cookie.alwaysAcceptSessionCookies", false);
 pref("network.cookie.prefsMigrated",        false);
@@ -5183,3 +5184,5 @@ pref("toolkit.pageThumbs.minHeight", 0);
 
 pref("tenfourfox.adblock.enabled", false);
 pref("tenfourfox.adblock.logging.enabled", false);
+pref("tenfourfox.dom.forms.date", false);
+pref("tenfourfox.dom.forms.time", false);
